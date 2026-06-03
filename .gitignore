@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment
+.env
+.env.bak
+.env.local
+!.env.example
+
+# Testing
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Budget persistence
+argus_budgets.db
+argus.db
+argus.db-shm
+argus.db-wal
+
+# AI tooling (local config, not project code)
+.claude/
+.janitor/
+.mcp.json
+.opencode/
+CLAUDE.local.md
+
+# Local operator/session artifacts
+1shot/
+docs/sessions/
+docs/LLM-OVERVIEW.md
+docs/042826_plan.md
+.mcpregistry_*
+.sweep-notes.md
+.cheezmil_quick_git/**
+!.cheezmil_quick_git/
+!.cheezmil_quick_git/config/
+!.cheezmil_quick_git/config/**
+aek

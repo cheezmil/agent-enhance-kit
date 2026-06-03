@@ -1,0 +1,57 @@
+platforms:
+  github:
+    enabled: 0
+    remote: github
+    excludeFile: '.cheezmil_quick_git/config/exclude-github'
+    pushRefspec: 'main_github:main'
+    owner: cheezmil
+    tokenFilePath: 'D:\MyNotes\pw\github\pw-pat-classic-cheezimil.txt'
+    remoteUrl: 'https://github.com/{owner}/{current_working_directory_name}'
+  gitea:
+    enabled: 1
+    remote: gitea
+    excludeFile: '.cheezmil_quick_git/config/exclude-gitea'
+    pushRefspec: 'main:main'
+    owner: AlexanderDash
+    tokenFilePath: 'D:\MyNotes\pw\gitea\pw_gitea.txt'
+    remoteUrl: ''
+  gitee:
+    enabled: 0
+    remote: gitee
+    excludeFile: '.cheezmil_quick_git/config/exclude-gitee'
+    pushRefspec: ''
+    owner: ''
+    tokenFilePath: ''
+    remoteUrl: ''
+  gitcode:
+    enabled: 0
+    remote: gitcode
+    excludeFile: '.cheezmil_quick_git/config/exclude-gitcode'
+    pushRefspec: ''
+    owner: AlexanderDash
+    tokenFilePath: 'D:\MyNotes\pw\gitcode\pw-t-AlexanderDash.txt'
+    remoteUrl: ''
+  atomgit:
+    enabled: 0
+    remote: atomgit
+    excludeFile: '.cheezmil_quick_git/config/exclude-atomgit'
+    pushRefspec: ''
+    owner: ''
+    tokenFilePath: ''
+    remoteUrl: ''
+settings:
+  pushSequentially: 1
+  continueOnError: 0
+  showSummary: 1
+  defaultExcludeFile: '.cheezmil_quick_git/config/exclude-gitea'
+  gitea_remote_protocol: http
+  gitea_host: 127.0.0.1
+  gitea_http_port: 3000
+  gitea_ssh_port: 3001
+  gitea_ssh_user: git
+  custom_other_version_path: ''
+  myOwnNames:
+    - AlexanderDash
+    - cheezmil
+  forceResetFiles:
+    - '.cheezmil_quick_git/config/exclude-gitea'
