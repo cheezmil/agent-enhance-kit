@@ -68,13 +68,13 @@ curl http://localhost:8000/api/health
 
 ### 管理接口
 
-需要 `ARGUS_ADMIN_API_KEY`：
+需要 `AEK_ADMIN_API_KEY`：
 
 ```bash
-curl -H "Authorization: Bearer $ARGUS_ADMIN_API_KEY" \
+curl -H "Authorization: Bearer $AEK_ADMIN_API_KEY" \
   http://localhost:8000/api/admin/health/detail
 
-curl -H "Authorization: Bearer $ARGUS_ADMIN_API_KEY" \
+curl -H "Authorization: Bearer $AEK_ADMIN_API_KEY" \
   http://localhost:8000/api/admin/budgets
 ```
 
@@ -82,11 +82,11 @@ curl -H "Authorization: Bearer $ARGUS_ADMIN_API_KEY" \
 
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
-| `ARGUS_PORT` | `8000` | 监听端口 |
-| `ARGUS_BIND_HOST` | `127.0.0.1` | 监听地址 |
-| `ARGUS_ENV` | `development` | 运行环境 |
-| `ARGUS_API_KEY` | — | 普通接口鉴权 key |
-| `ARGUS_ADMIN_API_KEY` | — | 管理接口鉴权 key |
+| `AEK_PORT` | `8000` | 监听端口 |
+| `AEK_BIND_HOST` | `127.0.0.1` | 监听地址 |
+| `AEK_ENV` | `development` | 运行环境 |
+| `AEK_API_KEY` | — | 普通接口鉴权 key |
+| `AEK_ADMIN_API_KEY` | — | 管理接口鉴权 key |
 
 ## CLI
 
