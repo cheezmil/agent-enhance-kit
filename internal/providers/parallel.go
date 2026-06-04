@@ -7,38 +7,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// ParallelProvider implements Parallel AI search API.
 type ParallelProvider struct {
 	client *http.Client
 }
 
 func NewParallelProvider() *ParallelProvider {
-	return &ParallelProvider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &ParallelProvider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *ParallelProvider) Name() models.ProviderName { return "parallel" }
-
-func (p *ParallelProvider) IsAvailable() bool {
-	return os.Getenv("AEK_PARALLEL_ENABLED") == "true" && os.Getenv("AEK_PARALLEL_API_KEY") != ""
-}
-
-func (p *ParallelProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_PARALLEL_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if os.Getenv("AEK_PARALLEL_API_KEY") == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *ParallelProvider) IsAvailable() bool          { return checkAvailable("parallel") }
+func (p *ParallelProvider) Status() models.ProviderStatus { return checkStatus("parallel") }
 
 func (p *ParallelProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
@@ -58,7 +43,7 @@ func (p *ParallelProvider) Search(query models.SearchQuery) ([]models.SearchResu
 		trace.Error = &errMsg
 		return nil, trace, err
 	}
-	req.Header.Set("x-api-key", os.Getenv("AEK_PARALLEL_API_KEY"))
+	req.Header.Set("x-api-key", config.ReadKey("parallel"))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("parallel-beta", "search-extract-2025-10-10")
 
@@ -109,12 +94,8 @@ func (p *ParallelProvider) Search(query models.SearchQuery) ([]models.SearchResu
 			snippet = item.Snippet
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.URL,
-			Title:    item.Title,
-			Snippet:  snippet,
-			Domain:   domain,
-			Provider: ptrProviderName("parallel"),
-			RawRank:  i,
+			URL: item.URL, Title: item.Title, Snippet: snippet,
+			Domain: domain, Provider: ptrProviderName("parallel"), RawRank: i,
 		})
 	}
 

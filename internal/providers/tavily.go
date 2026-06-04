@@ -7,47 +7,30 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// TavilyProvider implements Tavily search API.
 type TavilyProvider struct {
 	client *http.Client
-	apiKey string
 }
 
 func NewTavilyProvider() *TavilyProvider {
-	return &TavilyProvider{
-		client: &http.Client{Timeout: 20 * time.Second},
-		apiKey: os.Getenv("AEK_TAVILY_API_KEY"),
-	}
+	return &TavilyProvider{client: &http.Client{Timeout: 20 * time.Second}}
 }
 
 func (p *TavilyProvider) Name() models.ProviderName { return "tavily" }
-
-func (p *TavilyProvider) IsAvailable() bool {
-	return os.Getenv("AEK_TAVILY_ENABLED") == "true" && p.apiKey != ""
-}
-
-func (p *TavilyProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_TAVILY_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if p.apiKey == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *TavilyProvider) IsAvailable() bool          { return checkAvailable("tavily") }
+func (p *TavilyProvider) Status() models.ProviderStatus { return checkStatus("tavily") }
 
 func (p *TavilyProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "tavily", Egress: "remote"}
 
 	payload := map[string]interface{}{
-		"api_key":     p.apiKey,
+		"api_key":     config.ReadKey("tavily"),
 		"query":       query.Query,
 		"max_results": query.MaxResults,
 	}
@@ -105,13 +88,8 @@ func (p *TavilyProvider) Search(query models.SearchQuery) ([]models.SearchResult
 			domain = u.Hostname()
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.URL,
-			Title:    item.Title,
-			Snippet:  item.Content,
-			Domain:   domain,
-			Provider: ptrProviderName("tavily"),
-			Score:    item.Score,
-			RawRank:  i,
+			URL: item.URL, Title: item.Title, Snippet: item.Content,
+			Domain: domain, Provider: ptrProviderName("tavily"), Score: item.Score, RawRank: i,
 		})
 	}
 

@@ -60,3 +60,4 @@ docs/042826_plan.md
 !.cheezmil_quick_git/config/
 !.cheezmil_quick_git/config/**
 aek
+bin/

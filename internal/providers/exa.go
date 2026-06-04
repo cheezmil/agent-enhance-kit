@@ -7,49 +7,32 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// ExaProvider implements Exa search API.
 type ExaProvider struct {
 	client *http.Client
-	apiKey string
 }
 
 func NewExaProvider() *ExaProvider {
-	return &ExaProvider{
-		client: &http.Client{Timeout: 20 * time.Second},
-		apiKey: os.Getenv("AEK_EXA_API_KEY"),
-	}
+	return &ExaProvider{client: &http.Client{Timeout: 20 * time.Second}}
 }
 
 func (p *ExaProvider) Name() models.ProviderName { return "exa" }
-
-func (p *ExaProvider) IsAvailable() bool {
-	return os.Getenv("AEK_EXA_ENABLED") == "true" && p.apiKey != ""
-}
-
-func (p *ExaProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_EXA_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if p.apiKey == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *ExaProvider) IsAvailable() bool          { return checkAvailable("exa") }
+func (p *ExaProvider) Status() models.ProviderStatus { return checkStatus("exa") }
 
 func (p *ExaProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "exa", Egress: "remote"}
 
 	payload := map[string]interface{}{
-		"query":       query.Query,
-		"numResults":  query.MaxResults,
-		"type":        "auto",
+		"query":      query.Query,
+		"numResults": query.MaxResults,
+		"type":       "auto",
 	}
 	body, _ := json.Marshal(payload)
 
@@ -60,7 +43,7 @@ func (p *ExaProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 		trace.Error = &errMsg
 		return nil, trace, err
 	}
-	req.Header.Set("x-api-key", p.apiKey)
+	req.Header.Set("x-api-key", config.ReadKey("exa"))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := p.client.Do(req)
@@ -82,9 +65,9 @@ func (p *ExaProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 
 	var data struct {
 		Results []struct {
-			URL    string `json:"url"`
-			Title  string `json:"title"`
-			Text   string `json:"text"`
+			URL   string `json:"url"`
+			Title string `json:"title"`
+			Text  string `json:"text"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(respBody, &data); err != nil {
@@ -109,12 +92,8 @@ func (p *ExaProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 			snippet = snippet[:300]
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.URL,
-			Title:    item.Title,
-			Snippet:  snippet,
-			Domain:   domain,
-			Provider: ptrProviderName("exa"),
-			RawRank:  i,
+			URL: item.URL, Title: item.Title, Snippet: snippet,
+			Domain: domain, Provider: ptrProviderName("exa"), RawRank: i,
 		})
 	}
 

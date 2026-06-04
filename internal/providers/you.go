@@ -6,38 +6,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// YouProvider implements You.com search API.
 type YouProvider struct {
 	client *http.Client
 }
 
 func NewYouProvider() *YouProvider {
-	return &YouProvider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &YouProvider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *YouProvider) Name() models.ProviderName { return "you" }
-
-func (p *YouProvider) IsAvailable() bool {
-	return os.Getenv("AEK_YOU_ENABLED") == "true" && os.Getenv("AEK_YOU_API_KEY") != ""
-}
-
-func (p *YouProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_YOU_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if os.Getenv("AEK_YOU_API_KEY") == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *YouProvider) IsAvailable() bool          { return checkAvailable("you") }
+func (p *YouProvider) Status() models.ProviderStatus { return checkStatus("you") }
 
 func (p *YouProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
@@ -53,7 +38,7 @@ func (p *YouProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 		trace.Error = &errMsg
 		return nil, trace, err
 	}
-	req.Header.Set("X-API-Key", os.Getenv("AEK_YOU_API_KEY"))
+	req.Header.Set("X-API-Key", config.ReadKey("you"))
 
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -103,12 +88,8 @@ func (p *YouProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 			snippet = item.Snippets[0]
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.URL,
-			Title:    item.Title,
-			Snippet:  snippet,
-			Domain:   domain,
-			Provider: ptrProviderName("you"),
-			RawRank:  i,
+			URL: item.URL, Title: item.Title, Snippet: snippet,
+			Domain: domain, Provider: ptrProviderName("you"), RawRank: i,
 		})
 	}
 

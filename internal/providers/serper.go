@@ -7,47 +7,29 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// SerperProvider implements Google Search via Serper API.
 type SerperProvider struct {
 	client *http.Client
 }
 
 func NewSerperProvider() *SerperProvider {
-	return &SerperProvider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &SerperProvider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *SerperProvider) Name() models.ProviderName { return "serper" }
-
-func (p *SerperProvider) IsAvailable() bool {
-	return os.Getenv("AEK_SERPER_ENABLED") == "true" && os.Getenv("AEK_SERPER_API_KEY") != ""
-}
-
-func (p *SerperProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_SERPER_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if os.Getenv("AEK_SERPER_API_KEY") == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *SerperProvider) IsAvailable() bool          { return checkAvailable("serper") }
+func (p *SerperProvider) Status() models.ProviderStatus { return checkStatus("serper") }
 
 func (p *SerperProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "serper", Egress: "remote"}
 
-	payload := map[string]interface{}{
-		"q":   query.Query,
-		"num": query.MaxResults,
-	}
+	payload := map[string]interface{}{"q": query.Query, "num": query.MaxResults}
 	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequest("POST", "https://google.serper.dev/search", bytes.NewReader(body))
@@ -57,7 +39,7 @@ func (p *SerperProvider) Search(query models.SearchQuery) ([]models.SearchResult
 		trace.Error = &errMsg
 		return nil, trace, err
 	}
-	req.Header.Set("X-API-KEY", os.Getenv("AEK_SERPER_API_KEY"))
+	req.Header.Set("X-API-KEY", config.ReadKey("serper"))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := p.client.Do(req)
@@ -102,13 +84,8 @@ func (p *SerperProvider) Search(query models.SearchQuery) ([]models.SearchResult
 			domain = u.Hostname()
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.Link,
-			Title:    item.Title,
-			Snippet:  item.Snippet,
-			Domain:   domain,
-			Provider: ptrProviderName("serper"),
-			Score:    0,
-			RawRank:  i,
+			URL: item.Link, Title: item.Title, Snippet: item.Snippet,
+			Domain: domain, Provider: ptrProviderName("serper"), RawRank: i,
 		})
 	}
 
@@ -117,5 +94,3 @@ func (p *SerperProvider) Search(query models.SearchQuery) ([]models.SearchResult
 	trace.LatencyMs = int(time.Since(start).Milliseconds())
 	return results, trace, nil
 }
-
-func ptrProviderName(n models.ProviderName) *models.ProviderName { return &n }

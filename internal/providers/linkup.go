@@ -7,38 +7,23 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// LinkupProvider implements Linkup search API.
 type LinkupProvider struct {
 	client *http.Client
 }
 
 func NewLinkupProvider() *LinkupProvider {
-	return &LinkupProvider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &LinkupProvider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *LinkupProvider) Name() models.ProviderName { return "linkup" }
-
-func (p *LinkupProvider) IsAvailable() bool {
-	return os.Getenv("AEK_LINKUP_ENABLED") == "true" && os.Getenv("AEK_LINKUP_API_KEY") != ""
-}
-
-func (p *LinkupProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_LINKUP_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if os.Getenv("AEK_LINKUP_API_KEY") == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *LinkupProvider) IsAvailable() bool          { return checkAvailable("linkup") }
+func (p *LinkupProvider) Status() models.ProviderStatus { return checkStatus("linkup") }
 
 func (p *LinkupProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
@@ -58,7 +43,7 @@ func (p *LinkupProvider) Search(query models.SearchQuery) ([]models.SearchResult
 		trace.Error = &errMsg
 		return nil, trace, err
 	}
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("AEK_LINKUP_API_KEY"))
+	req.Header.Set("Authorization", "Bearer "+config.ReadKey("linkup"))
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := p.client.Do(req)
@@ -103,12 +88,8 @@ func (p *LinkupProvider) Search(query models.SearchQuery) ([]models.SearchResult
 			domain = u.Hostname()
 		}
 		results = append(results, models.SearchResult{
-			URL:      item.URL,
-			Title:    item.Title,
-			Snippet:  item.Snippet,
-			Domain:   domain,
-			Provider: ptrProviderName("linkup"),
-			RawRank:  i,
+			URL: item.URL, Title: item.Title, Snippet: item.Snippet,
+			Domain: domain, Provider: ptrProviderName("linkup"), RawRank: i,
 		})
 	}
 

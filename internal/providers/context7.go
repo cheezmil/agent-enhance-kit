@@ -6,35 +6,22 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"agent-enhance-kit/internal/models"
 )
 
-// Context7Provider implements Context7 documentation search API.
 type Context7Provider struct {
 	client *http.Client
 }
 
 func NewContext7Provider() *Context7Provider {
-	return &Context7Provider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &Context7Provider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *Context7Provider) Name() models.ProviderName { return "context7" }
-
-func (p *Context7Provider) IsAvailable() bool {
-	return os.Getenv("AEK_CONTEXT7_ENABLED") == "true"
-}
-
-func (p *Context7Provider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_CONTEXT7_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *Context7Provider) IsAvailable() bool          { return checkAvailableNoKey("context7") }
+func (p *Context7Provider) Status() models.ProviderStatus { return checkStatusNoKey("context7") }
 
 func (p *Context7Provider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
@@ -87,14 +74,9 @@ func (p *Context7Provider) Search(query models.SearchQuery) ([]models.SearchResu
 		if item.ID == "" {
 			continue
 		}
-		url := "https://context7.com" + item.ID
 		results = append(results, models.SearchResult{
-			URL:      url,
-			Title:    item.Title,
-			Snippet:  item.Description,
-			Domain:   "context7.com",
-			Provider: ptrProviderName("context7"),
-			RawRank:  i,
+			URL: "https://context7.com" + item.ID, Title: item.Title, Snippet: item.Description,
+			Domain: "context7.com", Provider: ptrProviderName("context7"), RawRank: i,
 		})
 	}
 

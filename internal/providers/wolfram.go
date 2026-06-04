@@ -6,45 +6,30 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
-// WolframProvider implements WolframAlpha Short Answers API.
 type WolframProvider struct {
 	client *http.Client
 }
 
 func NewWolframProvider() *WolframProvider {
-	return &WolframProvider{
-		client: &http.Client{Timeout: 15 * time.Second},
-	}
+	return &WolframProvider{client: &http.Client{Timeout: 15 * time.Second}}
 }
 
 func (p *WolframProvider) Name() models.ProviderName { return "wolfram" }
-
-func (p *WolframProvider) IsAvailable() bool {
-	return os.Getenv("AEK_WOLFRAM_ENABLED") == "true" && os.Getenv("AEK_WOLFRAM_API_KEY") != ""
-}
-
-func (p *WolframProvider) Status() models.ProviderStatus {
-	if os.Getenv("AEK_WOLFRAM_ENABLED") != "true" {
-		return models.ProviderStatusDisabledByConfig
-	}
-	if os.Getenv("AEK_WOLFRAM_API_KEY") == "" {
-		return models.ProviderStatusUnavailableMissingKey
-	}
-	return models.ProviderStatusEnabled
-}
+func (p *WolframProvider) IsAvailable() bool          { return checkAvailable("wolfram") }
+func (p *WolframProvider) Status() models.ProviderStatus { return checkStatus("wolfram") }
 
 func (p *WolframProvider) Search(query models.SearchQuery) ([]models.SearchResult, models.ProviderTrace, error) {
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "wolfram", Egress: "remote"}
 
 	apiURL := fmt.Sprintf("https://api.wolframalpha.com/v2/query?input=%s&appid=%s&output=json",
-		url.QueryEscape(query.Query), url.QueryEscape(os.Getenv("AEK_WOLFRAM_API_KEY")))
+		url.QueryEscape(query.Query), url.QueryEscape(config.ReadKey("wolfram")))
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -107,7 +92,6 @@ func (p *WolframProvider) Search(query models.SearchQuery) ([]models.SearchResul
 			}
 		}
 	}
-
 	if results == nil {
 		results = []models.SearchResult{}
 	}
