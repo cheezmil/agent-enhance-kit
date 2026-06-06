@@ -15,6 +15,7 @@ type ProviderConfig struct {
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 	MaxResults     int    `json:"max_results,omitempty"`
 	SearchType     string `json:"search_type,omitempty"`
+	RoundRobin     bool   `json:"round_robin,omitempty"`
 }
 
 // Config holds application configuration.
@@ -193,6 +194,15 @@ func ProviderMaxResults(name string) int {
 		return p.MaxResults
 	}
 	return 0
+}
+
+// IsRoundRobin checks if round_robin is enabled for a provider.
+func IsRoundRobin(name string) bool {
+	cfg := Load()
+	if p, ok := cfg.Providers[name]; ok {
+		return p.RoundRobin
+	}
+	return false
 }
 
 func init() {

@@ -78,9 +78,15 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 		respBody, _ := io.ReadAll(resp.Body)
 
 		// Handle rate limits and errors
-		if resp.StatusCode == 429 || resp.StatusCode == 402 {
+		if resp.StatusCode == 429 {
 			p.keyPool.ReportFailure(apiKey, false)
 			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			continue
+		}
+		if resp.StatusCode == 402 {
+			// Quota exhausted - permanent disable
+			p.keyPool.ReportFailure(apiKey, true)
+			lastErr = fmt.Errorf("HTTP %d: %s (key disabled: quota exhausted)", resp.StatusCode, string(respBody))
 			continue
 		}
 
@@ -195,9 +201,14 @@ func ExaContents(urls []string) (string, error) {
 		defer resp.Body.Close()
 
 		respBody, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == 429 || resp.StatusCode == 402 {
+		if resp.StatusCode == 429 {
 			pool.ReportFailure(apiKey, false)
 			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			continue
+		}
+		if resp.StatusCode == 402 {
+			pool.ReportFailure(apiKey, true)
+			lastErr = fmt.Errorf("HTTP %d: %s (key disabled: quota exhausted)", resp.StatusCode, string(respBody))
 			continue
 		}
 		if resp.StatusCode != 200 {
@@ -284,9 +295,14 @@ func ExaCodeContext(query string, tokens int) (string, int, float64, error) {
 		defer resp.Body.Close()
 
 		respBody, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == 429 || resp.StatusCode == 402 {
+		if resp.StatusCode == 429 {
 			pool.ReportFailure(apiKey, false)
 			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			continue
+		}
+		if resp.StatusCode == 402 {
+			pool.ReportFailure(apiKey, true)
+			lastErr = fmt.Errorf("HTTP %d: %s (key disabled: quota exhausted)", resp.StatusCode, string(respBody))
 			continue
 		}
 		if resp.StatusCode != 200 {
