@@ -76,7 +76,7 @@ func Run() error {
 			return
 		}
 		if req.MaxResults <= 0 {
-			req.MaxResults = cfg.DefaultMaxResults
+			req.MaxResults = 10
 		}
 		providersList := make([]models.ProviderName, 0, len(req.Providers))
 		for _, p := range req.Providers {

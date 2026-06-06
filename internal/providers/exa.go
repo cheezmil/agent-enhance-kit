@@ -18,7 +18,7 @@ type ExaProvider struct {
 }
 
 func NewExaProvider() *ExaProvider {
-	return &ExaProvider{client: &http.Client{Timeout: 20 * time.Second}}
+	return &ExaProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("exa", 60)) * time.Second}}
 }
 
 func (p *ExaProvider) Name() models.ProviderName { return "exa" }
@@ -30,9 +30,11 @@ func (p *ExaProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 	trace := models.ProviderTrace{Provider: "exa", Egress: "remote"}
 
 	payload := map[string]interface{}{
-		"query":      query.Query,
-		"numResults": query.MaxResults,
-		"type":       "auto",
+		"query": query.Query,
+		"type":  "auto",
+	}
+	if n := config.ProviderMaxResults("exa"); n > 0 {
+		payload["numResults"] = n
 	}
 	body, _ := json.Marshal(payload)
 

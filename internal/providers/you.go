@@ -17,7 +17,7 @@ type YouProvider struct {
 }
 
 func NewYouProvider() *YouProvider {
-	return &YouProvider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &YouProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("you", 60)) * time.Second}}
 }
 
 func (p *YouProvider) Name() models.ProviderName { return "you" }
@@ -28,8 +28,12 @@ func (p *YouProvider) Search(query models.SearchQuery) ([]models.SearchResult, m
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "you", Egress: "remote"}
 
-	apiURL := fmt.Sprintf("https://api.you.com/v1/search?query=%s&count=%d&safesearch=off",
-		url.QueryEscape(query.Query), query.MaxResults)
+	countParam := ""
+	if n := config.ProviderMaxResults("you"); n > 0 {
+		countParam = fmt.Sprintf("&count=%d", n)
+	}
+	apiURL := fmt.Sprintf("https://api.you.com/v1/search?query=%s%s&safesearch=off",
+		url.QueryEscape(query.Query), countParam)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {

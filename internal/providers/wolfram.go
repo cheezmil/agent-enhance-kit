@@ -17,7 +17,7 @@ type WolframProvider struct {
 }
 
 func NewWolframProvider() *WolframProvider {
-	return &WolframProvider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &WolframProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("wolfram", 60)) * time.Second}}
 }
 
 func (p *WolframProvider) Name() models.ProviderName { return "wolfram" }

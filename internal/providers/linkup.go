@@ -18,7 +18,7 @@ type LinkupProvider struct {
 }
 
 func NewLinkupProvider() *LinkupProvider {
-	return &LinkupProvider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &LinkupProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("linkup", 60)) * time.Second}}
 }
 
 func (p *LinkupProvider) Name() models.ProviderName { return "linkup" }
@@ -33,6 +33,9 @@ func (p *LinkupProvider) Search(query models.SearchQuery) ([]models.SearchResult
 		"q":          query.Query,
 		"depth":      "standard",
 		"outputType": "searchResults",
+	}
+	if n := config.ProviderMaxResults("linkup"); n > 0 {
+		payload["maxResults"] = n
 	}
 	body, _ := json.Marshal(payload)
 

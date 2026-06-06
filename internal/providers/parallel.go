@@ -18,7 +18,7 @@ type ParallelProvider struct {
 }
 
 func NewParallelProvider() *ParallelProvider {
-	return &ParallelProvider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &ParallelProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("parallel", 60)) * time.Second}}
 }
 
 func (p *ParallelProvider) Name() models.ProviderName { return "parallel" }
@@ -32,7 +32,9 @@ func (p *ParallelProvider) Search(query models.SearchQuery) ([]models.SearchResu
 	payload := map[string]interface{}{
 		"objective":      query.Query,
 		"search_queries": []string{query.Query},
-		"max_results":    query.MaxResults,
+	}
+	if n := config.ProviderMaxResults("parallel"); n > 0 {
+		payload["max_results"] = n
 	}
 	body, _ := json.Marshal(payload)
 

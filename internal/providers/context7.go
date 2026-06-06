@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
@@ -16,7 +17,7 @@ type Context7Provider struct {
 }
 
 func NewContext7Provider() *Context7Provider {
-	return &Context7Provider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &Context7Provider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("context7", 60)) * time.Second}}
 }
 
 func (p *Context7Provider) Name() models.ProviderName { return "context7" }
@@ -27,8 +28,12 @@ func (p *Context7Provider) Search(query models.SearchQuery) ([]models.SearchResu
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "context7", Egress: "remote"}
 
-	apiURL := fmt.Sprintf("https://context7.com/api/v1/search?query=%s&limit=%d",
-		url.QueryEscape(query.Query), query.MaxResults)
+	limitParam := ""
+	if n := config.ProviderMaxResults("context7"); n > 0 {
+		limitParam = fmt.Sprintf("&limit=%d", n)
+	}
+	apiURL := fmt.Sprintf("https://context7.com/api/v1/search?query=%s%s",
+		url.QueryEscape(query.Query), limitParam)
 
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {

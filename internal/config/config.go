@@ -11,20 +11,17 @@ import (
 
 // ProviderConfig holds per-provider settings.
 type ProviderConfig struct {
-	Enabled         bool `json:"enabled"`
-	TimeoutSeconds  int  `json:"timeout_seconds,omitempty"`
-	MonthlyBudget   int  `json:"monthly_budget,omitempty"`
+	Enabled        bool `json:"enabled"`
+	TimeoutSeconds int  `json:"timeout_seconds,omitempty"`
+	MaxResults     int  `json:"max_results,omitempty"`
 }
 
 // Config holds application configuration.
 type Config struct {
-	Port              int                    `json:"port"`
-	BindHost          string                 `json:"bind_host"`
-	Env               string                 `json:"env"`
-	DefaultMaxResults int                    `json:"default_max_results"`
-	CacheTTLHours     int                    `json:"cache_ttl_hours"`
-	ExtractionTimeout int                    `json:"extraction_timeout_seconds"`
-	Providers         map[string]ProviderConfig `json:"providers"`
+	Port      int                         `json:"port"`
+	BindHost  string                      `json:"bind_host"`
+	RRF       bool                        `json:"rrf_enabled"`
+	Providers map[string]ProviderConfig   `json:"providers"`
 }
 
 // aekDir returns ~/.aek/ (cross-platform).
@@ -103,23 +100,20 @@ func ReadKey(name string) string {
 // defaultConfig returns a sensible default config.
 func defaultConfig() Config {
 	return Config{
-		Port:              1350,
-		BindHost:          "127.0.0.1",
-		Env:               "development",
-		DefaultMaxResults: 10,
-		CacheTTLHours:     168,
-		ExtractionTimeout: 10,
+		Port:     1350,
+		BindHost: "127.0.0.1",
+		RRF:      false,
 		Providers: map[string]ProviderConfig{
-			"serper":    {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 2500},
-			"tavily":    {Enabled: false, TimeoutSeconds: 20, MonthlyBudget: 1000},
-			"exa":       {Enabled: false, TimeoutSeconds: 20, MonthlyBudget: 1000},
-			"you":       {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 20000},
-			"parallel":  {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 16000},
-			"linkup":    {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 1000},
-			"wolfram":   {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 2000},
-			"context7":  {Enabled: false, TimeoutSeconds: 15, MonthlyBudget: 1000},
-			"duckduckgo": {Enabled: true},
-			"yahoo":     {Enabled: false, TimeoutSeconds: 15},
+			"serper":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
+			"tavily":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
+			"exa":        {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
+			"you":        {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
+			"parallel":   {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
+			"linkup":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
+			"wolfram":    {Enabled: false, TimeoutSeconds: 60},
+			"context7":   {Enabled: false, TimeoutSeconds: 60},
+			"duckduckgo": {Enabled: false, TimeoutSeconds: 60},
+			"yahoo":      {Enabled: false, TimeoutSeconds: 60},
 		},
 	}
 }
@@ -147,9 +141,6 @@ func Load() Config {
 	}
 	if raw := os.Getenv("AEK_BIND_HOST"); raw != "" {
 		cfg.BindHost = raw
-	}
-	if raw := os.Getenv("AEK_ENV"); raw != "" {
-		cfg.Env = raw
 	}
 
 	globalConfig = &cfg
@@ -185,6 +176,15 @@ func ProviderTimeout(name string, fallback int) int {
 		return p.TimeoutSeconds
 	}
 	return fallback
+}
+
+// ProviderMaxResults returns the max_results for a provider, 0 means "use API default".
+func ProviderMaxResults(name string) int {
+	cfg := Load()
+	if p, ok := cfg.Providers[name]; ok && p.MaxResults > 0 {
+		return p.MaxResults
+	}
+	return 0
 }
 
 func init() {

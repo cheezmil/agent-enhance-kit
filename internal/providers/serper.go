@@ -18,7 +18,7 @@ type SerperProvider struct {
 }
 
 func NewSerperProvider() *SerperProvider {
-	return &SerperProvider{client: &http.Client{Timeout: 15 * time.Second}}
+	return &SerperProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("serper", 60)) * time.Second}}
 }
 
 func (p *SerperProvider) Name() models.ProviderName { return "serper" }
@@ -29,7 +29,10 @@ func (p *SerperProvider) Search(query models.SearchQuery) ([]models.SearchResult
 	start := time.Now()
 	trace := models.ProviderTrace{Provider: "serper", Egress: "remote"}
 
-	payload := map[string]interface{}{"q": query.Query, "num": query.MaxResults}
+	payload := map[string]interface{}{"q": query.Query}
+	if n := config.ProviderMaxResults("serper"); n > 0 {
+		payload["num"] = n
+	}
 	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequest("POST", "https://google.serper.dev/search", bytes.NewReader(body))

@@ -18,7 +18,7 @@ type TavilyProvider struct {
 }
 
 func NewTavilyProvider() *TavilyProvider {
-	return &TavilyProvider{client: &http.Client{Timeout: 20 * time.Second}}
+	return &TavilyProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("tavily", 60)) * time.Second}}
 }
 
 func (p *TavilyProvider) Name() models.ProviderName { return "tavily" }
@@ -30,9 +30,11 @@ func (p *TavilyProvider) Search(query models.SearchQuery) ([]models.SearchResult
 	trace := models.ProviderTrace{Provider: "tavily", Egress: "remote"}
 
 	payload := map[string]interface{}{
-		"api_key":     config.ReadKey("tavily"),
-		"query":       query.Query,
-		"max_results": query.MaxResults,
+		"api_key": config.ReadKey("tavily"),
+		"query":   query.Query,
+	}
+	if n := config.ProviderMaxResults("tavily"); n > 0 {
+		payload["max_results"] = n
 	}
 	body, _ := json.Marshal(payload)
 

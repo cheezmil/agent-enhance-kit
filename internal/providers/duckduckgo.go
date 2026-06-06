@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 )
 
@@ -15,7 +16,7 @@ type DuckDuckGoProvider struct {
 }
 
 func NewDuckDuckGoProvider() *DuckDuckGoProvider {
-	return &DuckDuckGoProvider{client: &http.Client{Timeout: 10 * time.Second}}
+	return &DuckDuckGoProvider{client: &http.Client{Timeout: time.Duration(config.ProviderTimeout("duckduckgo", 60)) * time.Second}}
 }
 
 func (p *DuckDuckGoProvider) Name() models.ProviderName { return models.ProviderDuckDuckGo }

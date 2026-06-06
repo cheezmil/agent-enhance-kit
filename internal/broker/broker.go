@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/models"
 	"agent-enhance-kit/internal/persistence"
 	"agent-enhance-kit/internal/providers"
@@ -109,14 +110,19 @@ func (b *SearchBroker) Search(ctx context.Context, query models.SearchQuery) (*m
 		results = append(results, outcome.results...)
 	}
 	
-	// Apply RRF ranking.
-	rankedResults := b.applyRRF(results, providerOrder)
-	
+	// Apply RRF ranking (configurable).
+	var rankedResults []models.SearchResult
+	if config.Load().RRF {
+		rankedResults = b.applyRRF(results, providerOrder)
+	} else {
+		rankedResults = results
+	}
+
 	// Deduplicate.
 	dedupedResults := b.deduplicate(rankedResults)
 	
-	// Truncate to max results.
-	if len(dedupedResults) > query.MaxResults {
+	// Truncate to max results (0 = no limit).
+	if query.MaxResults > 0 && len(dedupedResults) > query.MaxResults {
 		dedupedResults = dedupedResults[:query.MaxResults]
 	}
 	
