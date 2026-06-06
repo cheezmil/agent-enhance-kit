@@ -163,67 +163,27 @@ func (b *SearchBroker) Sessions() *sessions.Store { return b.sessions }
 
 // resolveRouting determines the order of providers to try.
 func (b *SearchBroker) resolveRouting(query models.SearchQuery) []models.ProviderName {
-	// If providers are specified, use them.
+	// If providers are explicitly specified via -p, use them.
 	if len(query.Providers) > 0 {
 		return query.Providers
 	}
-	
-	// Default routing based on mode.
-	switch query.Mode {
-	case models.SearchModeDiscovery:
-		return []models.ProviderName{
-			models.ProviderDuckDuckGo,
-			models.ProviderYahoo,
-			models.ProviderGitHub,
-			models.ProviderBrave,
-			models.ProviderTavily,
-			models.ProviderExa,
-			models.ProviderSerper,
-			models.ProviderYou,
-			models.ProviderParallel,
-			models.ProviderContext7,
-			models.ProviderLinkup,
-			models.ProviderWolfram,
-		}
-	case models.SearchModeResearch:
-		return []models.ProviderName{
-			models.ProviderDuckDuckGo,
-			models.ProviderBrave,
-			models.ProviderTavily,
-			models.ProviderExa,
-			models.ProviderSerper,
-			models.ProviderYou,
-			models.ProviderParallel,
-			models.ProviderContext7,
-			models.ProviderLinkup,
-			models.ProviderWolfram,
-		}
-	case models.SearchModeRecovery:
-		return []models.ProviderName{
-			models.ProviderDuckDuckGo,
-			models.ProviderYahoo,
-			models.ProviderBrave,
-			models.ProviderSerper,
-			models.ProviderYou,
-			models.ProviderParallel,
-		}
-	case models.SearchModeGrounding:
-		return []models.ProviderName{
-			models.ProviderWolfram,
-			models.ProviderDuckDuckGo,
-			models.ProviderBrave,
-			models.ProviderContext7,
-			models.ProviderSerper,
-		}
-	default:
-		return []models.ProviderName{
-			models.ProviderDuckDuckGo,
-			models.ProviderYahoo,
-			models.ProviderSerper,
-			models.ProviderTavily,
-			models.ProviderExa,
+
+	// Use all registered providers that have default=true in settings.jsonc.
+	var order []models.ProviderName
+	for name := range b.providers {
+		if config.IsProviderDefault(string(name)) {
+			order = append(order, name)
 		}
 	}
+	if len(order) > 0 {
+		return order
+	}
+
+	// Fallback: all registered providers.
+	for name := range b.providers {
+		order = append(order, name)
+	}
+	return order
 }
 
 // applyRRF applies Reciprocal Rank Fusion to merge results.

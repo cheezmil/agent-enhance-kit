@@ -11,9 +11,10 @@ import (
 
 // ProviderConfig holds per-provider settings.
 type ProviderConfig struct {
-	Enabled        bool `json:"enabled"`
-	TimeoutSeconds int  `json:"timeout_seconds,omitempty"`
-	MaxResults     int  `json:"max_results,omitempty"`
+	Default        bool   `json:"default"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+	MaxResults     int    `json:"max_results,omitempty"`
+	SearchType     string `json:"search_type,omitempty"`
 }
 
 // Config holds application configuration.
@@ -104,16 +105,16 @@ func defaultConfig() Config {
 		BindHost: "127.0.0.1",
 		RRF:      false,
 		Providers: map[string]ProviderConfig{
-			"serper":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
-			"tavily":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
-			"exa":        {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
-			"you":        {Enabled: false, TimeoutSeconds: 60, MaxResults: 100},
-			"parallel":   {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
-			"linkup":     {Enabled: false, TimeoutSeconds: 60, MaxResults: 20},
-			"wolfram":    {Enabled: false, TimeoutSeconds: 60},
-			"context7":   {Enabled: false, TimeoutSeconds: 60},
-			"duckduckgo": {Enabled: false, TimeoutSeconds: 60},
-			"yahoo":      {Enabled: false, TimeoutSeconds: 60},
+			"serper":     {Default: true, TimeoutSeconds: 60, MaxResults: 100},
+			"tavily":     {Default: true, TimeoutSeconds: 60, MaxResults: 20},
+			"exa":        {Default: true, TimeoutSeconds: 60, MaxResults: 100},
+			"you":        {Default: false, TimeoutSeconds: 60, MaxResults: 100},
+			"parallel":   {Default: false, TimeoutSeconds: 60, MaxResults: 20},
+			"linkup":     {Default: false, TimeoutSeconds: 60, MaxResults: 20},
+			"wolfram":    {Default: false, TimeoutSeconds: 60},
+			"context7":   {Default: false, TimeoutSeconds: 60},
+			"duckduckgo": {Default: false, TimeoutSeconds: 60},
+			"yahoo":      {Default: false, TimeoutSeconds: 60},
 		},
 	}
 }
@@ -147,7 +148,7 @@ func Load() Config {
 	return cfg
 }
 
-// IsProviderEnabled checks if a provider is enabled in settings.jsonc.
+// IsProviderEnabled checks if a provider is usable (has key if needed).
 func IsProviderEnabled(name string) bool {
 	// Env override for backward compatibility.
 	envKey := fmt.Sprintf("AEK_%s_ENABLED", strings.ToUpper(name))
@@ -156,8 +157,15 @@ func IsProviderEnabled(name string) bool {
 	}
 
 	cfg := Load()
+	_, exists := cfg.Providers[name]
+	return exists
+}
+
+// IsProviderDefault checks if a provider is included in default (no -p flag) search.
+func IsProviderDefault(name string) bool {
+	cfg := Load()
 	if p, ok := cfg.Providers[name]; ok {
-		return p.Enabled
+		return p.Default
 	}
 	return false
 }
