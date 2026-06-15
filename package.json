@@ -1,0 +1,23 @@
+{
+  "name": "agent-enhance-kit",
+  "version": "0.6.0",
+  "description": "AI Agent infrastructure - multi-provider search, MCP management, and more",
+  "private": true,
+  "scripts": {
+    "build": "cd packages/aek && go build -o bin/aek ./cmd/aek/",
+    "build:all": "npm run build",
+    "dev": "cd packages/aek && go run ./cmd/aek/ serve",
+    "test": "cd packages/aek && go test ./...",
+    "install:global": "cd packages/aek && npm install -g ."
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "search",
+    "mcp"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.17.0"
+  }
+}
