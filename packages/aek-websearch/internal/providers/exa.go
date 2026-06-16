@@ -41,6 +41,9 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 			"text": map[string]interface{}{
 				"maxCharacters": 300,
 			},
+			"highlights": map[string]interface{}{
+				"maxCharacters": 200,
+			},
 		},
 	}
 	if n := config.ProviderMaxResults("exa"); n > 0 {
@@ -107,9 +110,10 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 
 		var data struct {
 			Results []struct {
-				URL    string `json:"url"`
-				Title  string `json:"title"`
-				Text   string `json:"text"`
+				URL        string   `json:"url"`
+				Title      string   `json:"title"`
+				Text       string   `json:"text"`
+				Highlights []string `json:"highlights"`
 			} `json:"results"`
 		}
 		if err := json.Unmarshal(respBody, &data); err != nil {
@@ -129,7 +133,13 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 			if u != nil {
 				domain = u.Hostname()
 			}
-			snippet := item.Text
+			snippet := ""
+			if len(item.Highlights) > 0 {
+				snippet = item.Highlights[0]
+			}
+			if snippet == "" {
+				snippet = item.Text
+			}
 			if len(snippet) > 300 {
 				snippet = snippet[:300]
 			}

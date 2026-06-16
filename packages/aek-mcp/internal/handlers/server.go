@@ -897,7 +897,9 @@ func GetPublicConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"skipAuth": config.AppConfig.SkipAuth,
+			"skipAuth":    config.AppConfig.SkipAuth,
+			"permissions": []string{},
+			"betterAuth":  nil,
 		},
 	})
 }

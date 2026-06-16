@@ -1,25 +1,39 @@
 #!/usr/bin/env python3
-# Shared logic for AEK build scripts / AEK 构建脚本的共享逻辑
+# Shared logic for AEK start scripts / AEK 启动脚本的共享逻辑
 
 import os
 import sys
 import subprocess
 import shutil
+import time
+import socket
+import urllib.request
 from pathlib import Path
 from typing import List, Optional
 
-# Project root directory / 项目根目录
+# ===== Config / 配置 =====
+
+# Project root / 项目根目录
 SCRIPTS_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPTS_DIR.parent
 
+# aek-mcp package dir / aek-mcp 包目录
+AEK_MCP_DIR = PROJECT_ROOT / "packages" / "aek-mcp"
+
+# aek-mcp backend port / aek-mcp 后端端口（从settings.jsonc读取，fallback 1351）
+AEK_MCP_PORT = 1351
+
+# Required Go version / 需要的 Go 版本
+REQUIRED_GO_VERSION = ""
+
 
 def is_win() -> bool:
-    """Check if running on Windows / 检测是否在 Windows 上运行"""
+    """Check if running on Windows"""
     return sys.platform == "win32"
 
 
 def get_win_shell() -> str:
-    """Get available Windows shell (pwsh > powershell) / 获取可用的 Windows shell"""
+    """Get available Windows shell (pwsh > powershell)"""
     for shell in ["pwsh", "powershell"]:
         if shutil.which(shell):
             return shell
@@ -28,7 +42,7 @@ def get_win_shell() -> str:
 
 def run(cmd: List[str], cwd: Optional[Path] = None, env: Optional[dict] = None,
         capture: bool = False, shell: Optional[bool] = None) -> subprocess.CompletedProcess:
-    """Run command synchronously / 同步执行命令"""
+    """Run command synchronously"""
     if shell is None:
         shell = is_win()
     merged_env = os.environ.copy()
@@ -40,7 +54,7 @@ def run(cmd: List[str], cwd: Optional[Path] = None, env: Optional[dict] = None,
 
 def run_safe(cmd: List[str], cwd: Optional[Path] = None, env: Optional[dict] = None,
              shell: Optional[bool] = None) -> subprocess.CompletedProcess:
-    """Run command synchronously without raising on non-zero exit / 同步执行命令，非零退出码不抛异常"""
+    """Run command synchronously, non-zero exit does not raise"""
     if shell is None:
         shell = is_win()
     merged_env = os.environ.copy()
@@ -50,28 +64,64 @@ def run_safe(cmd: List[str], cwd: Optional[Path] = None, env: Optional[dict] = N
                          text=True, shell=shell, check=False)
 
 
-def get_platform_key() -> str:
-    """Get platform key like linux-x64, darwin-arm64, win32-x64 / 获取平台标识"""
-    os_map = {"win32": "win32", "darwin": "darwin", "linux": "linux"}
-    arch_map = {"arm64": "arm64"}
-    os_name = os_map.get(sys.platform, "linux")
-    cpu = arch_map.get(__import__("platform").machine(), "x64")
-    return f"{os_name}-{cpu}"
+def find_pids_by_port(port: int) -> set:
+    """Find PIDs listening on a port"""
+    import psutil
+    pids = set()
+    try:
+        for conn in psutil.net_connections(kind="inet"):
+            if conn.laddr.port == port and conn.status == "LISTEN":
+                pids.add(conn.pid)
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
+        pass
+    return pids
 
 
-def get_ext() -> str:
-    """Get executable extension / 获取可执行文件扩展名"""
-    return ".exe" if is_win() else ""
+def kill_port(port: int) -> bool:
+    """Kill all processes occupying a port"""
+    import psutil
+    pids = find_pids_by_port(port)
+    if not pids:
+        print(f"  Port {port} is free")
+        return True
+    print(f"  Found {len(pids)} process(es) on port {port}, killing...")
+    for pid in pids:
+        try:
+            p = psutil.Process(pid)
+            print(f"  Killing PID {pid} ({p.name()})")
+            p.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    time.sleep(1.5)
+    remaining = find_pids_by_port(port)
+    if remaining:
+        print(f"  Warning: {len(remaining)} process(es) still alive on port {port}")
+        return False
+    print(f"  Port {port} is now free")
+    return True
 
 
-def ensure_dir(path: Path) -> Path:
-    """Ensure directory exists / 确保目录存在"""
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+def can_bind(port: int) -> bool:
+    """Check if a port is available"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", port))
+            return True
+    except OSError:
+        return False
 
 
-def copy_file(src: Path, dst: Path) -> None:
-    """Copy file and set permissions / 复制文件并设置权限"""
-    shutil.copy2(src, dst)
-    if not is_win():
-        dst.chmod(0o755)
+def wait_health(port: int, timeout_s: float = 15.0) -> bool:
+    """Wait for server health check to pass"""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        for host in ["127.0.0.1", "[::1]"]:
+            try:
+                req = urllib.request.Request(f"http://{host}:{port}/health")
+                with urllib.request.urlopen(req, timeout=1.5) as resp:
+                    if resp.status == 200:
+                        return True
+            except Exception:
+                pass
+        time.sleep(0.3)
+    return False
