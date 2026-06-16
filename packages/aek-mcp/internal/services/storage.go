@@ -42,7 +42,7 @@ func getDataDir() string {
 }
 
 func getDataFilePath() string {
-	return filepath.Join(getDataDir(), "data.json")
+	return filepath.Join(getDataDir(), "db", "data.json")
 }
 
 func InitStore() {

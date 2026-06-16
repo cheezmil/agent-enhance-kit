@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -12,6 +13,10 @@ import (
 func main() {
 	config.Load()
 	services.InitStore()
+	services.LoadMcpSettings()
+
+	// Connect to all enabled MCP servers
+	services.ConnectAllEnabledServers(context.Background())
 
 	r := handlers.SetupRouter()
 

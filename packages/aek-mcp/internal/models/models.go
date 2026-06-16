@@ -33,17 +33,18 @@ type AuthResponse struct {
 }
 
 type ServerConfig struct {
-	Name        string                 `json:"name"`
-	Type        string                 `json:"type"`
-	Command     string                 `json:"command,omitempty"`
-	URL         string                 `json:"url,omitempty"`
-	Args        []string               `json:"args,omitempty"`
-	Env         map[string]string      `json:"env,omitempty"`
-	Enabled     bool                   `json:"enabled"`
-	Tools       []ToolConfig           `json:"tools,omitempty"`
-	Prompts     []PromptConfig         `json:"prompts,omitempty"`
-	Resources   []ResourceConfig       `json:"resources,omitempty"`
-	Config      map[string]interface{} `json:"config,omitempty"`
+	Name               string                 `json:"name"`
+	Type               string                 `json:"type"`
+	Command            string                 `json:"command,omitempty"`
+	URL                string                 `json:"url,omitempty"`
+	Args               []string               `json:"args,omitempty"`
+	Env                map[string]string      `json:"env,omitempty"`
+	Enabled            bool                   `json:"enabled"`
+	AuthorizationToken string                 `json:"authorizationToken,omitempty"`
+	Tools              []ToolConfig           `json:"tools,omitempty"`
+	Prompts            []PromptConfig         `json:"prompts,omitempty"`
+	Resources          []ResourceConfig       `json:"resources,omitempty"`
+	Config             map[string]interface{} `json:"config,omitempty"`
 }
 
 type ToolConfig struct {

@@ -107,6 +107,7 @@ func SetupRouter() *gin.Engine {
 
 		// MCP tools and prompts
 		api.POST("/tools/call/:server", CallTool)
+		api.GET("/tools/list/:serverName", ListServerTools)
 		api.POST("/mcp/:serverName/prompts/:promptName", GetPrompt)
 
 		// Built-in prompts

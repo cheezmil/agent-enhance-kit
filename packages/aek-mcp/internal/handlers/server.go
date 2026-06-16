@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/cheezmil/aek-mcp/internal/config"
 	"github.com/cheezmil/aek-mcp/internal/models"
 	"github.com/cheezmil/aek-mcp/internal/services"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func normalizeServerConfig(server *models.ServerConfig) {
@@ -253,6 +255,21 @@ func ToggleServer(c *gin.Context) {
 	server.Enabled = req.Enabled
 	services.Store.UpdateServer(name, server)
 
+	// Connect or disconnect MCP client
+	if req.Enabled {
+		go func() {
+			if err := services.ConnectServerByName(c.Request.Context(), name); err != nil {
+				services.Store.AddLogEntry(&models.LogEntry{
+					Type:    "error",
+					Source:  "server",
+					Message: "Failed to connect " + name + ": " + err.Error(),
+				})
+			}
+		}()
+	} else {
+		services.GlobalMCPClients.Disconnect(name)
+	}
+
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data:    server,
@@ -280,6 +297,70 @@ func ReloadServer(c *gin.Context) {
 		Success: true,
 		Message: "Server reloaded",
 		Data:    server,
+	})
+}
+
+func ListServerTools(c *gin.Context) {
+	serverName := c.Param("serverName")
+	server := services.Store.GetServer(serverName)
+	if server == nil {
+		c.JSON(http.StatusNotFound, models.ApiResponse{
+			Success: false,
+			Message: "Server not found",
+		})
+		return
+	}
+
+	// Ensure connected
+	_, connected := services.GlobalMCPClients.Get(serverName)
+	if !connected && server.URL != "" {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+		defer cancel()
+		if err := services.ConnectServerByName(ctx, serverName); err != nil {
+			c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+				Success: false,
+				Message: "Failed to connect: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	tools, err := services.GlobalMCPClients.ListTools(c.Request.Context(), serverName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Convert and update server's tool config
+	toolConfigs := make([]models.ToolConfig, 0, len(tools))
+	toolMap := make(map[string]bool)
+	for _, t := range tools {
+		toolConfigs = append(toolConfigs, models.ToolConfig{
+			Name:        t.Name,
+			Description: t.Description,
+			Enabled:     true,
+		})
+		toolMap[t.Name] = true
+	}
+
+	// Keep enabled/disabled state from existing config
+	for i := range toolConfigs {
+		for _, existing := range server.Tools {
+			if existing.Name == toolConfigs[i].Name {
+				toolConfigs[i].Enabled = existing.Enabled
+				break
+			}
+		}
+	}
+	server.Tools = toolConfigs
+	services.Store.UpdateServer(serverName, server)
+
+	c.JSON(http.StatusOK, models.ApiResponse{
+		Success: true,
+		Data:    tools,
 	})
 }
 
@@ -678,18 +759,106 @@ func CallTool(c *gin.Context) {
 		return
 	}
 
+	start := time.Now()
+
+	// Check if MCP client is connected
+	_, connected := services.GlobalMCPClients.Get(serverName)
+	if !connected {
+		// Try to connect on-the-fly
+		if server.URL != "" {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+			defer cancel()
+			if err := services.ConnectServerByName(ctx, serverName); err != nil {
+	services.Store.AddLogEntry(&models.LogEntry{
+		Type:    "error",
+		Source:  "tool",
+		Message: "Failed to connect to " + serverName + ": " + err.Error(),
+	})
+				c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+					Success: false,
+					Message: "MCP server not connected: " + err.Error(),
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+				Success: false,
+				Message: "MCP server not connected and no URL configured",
+			})
+			return
+		}
+	}
+
+	result, err := services.GlobalMCPClients.CallTool(c.Request.Context(), serverName, req.ToolName, req.Arguments)
+	duration := time.Since(start).Milliseconds()
+
+	if err != nil {
+	services.Store.AddLogEntry(&models.LogEntry{
+		Type:    "error",
+		Source:  "tool",
+		Message: "Tool call failed: " + serverName + "/" + req.ToolName + ": " + err.Error(),
+	})
+		services.Store.AddActivity(&models.Activity{
+			ID:       uuid.New().String(),
+			Server:   serverName,
+			Tool:     req.ToolName,
+			Status:   "error",
+			Error:    err.Error(),
+			Duration: duration,
+		})
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	// Convert mcp.Content to JSON-friendly format
+	contentArr := make([]map[string]interface{}, 0, len(result.Content))
+	for _, item := range result.Content {
+		switch v := item.(type) {
+		case mcp.TextContent:
+			contentArr = append(contentArr, map[string]interface{}{
+				"type": "text",
+				"text": v.Text,
+			})
+		case mcp.ImageContent:
+			contentArr = append(contentArr, map[string]interface{}{
+				"type":     "image",
+				"data":     v.Data,
+				"mimeType": v.MIMEType,
+			})
+		case mcp.AudioContent:
+			contentArr = append(contentArr, map[string]interface{}{
+				"type":     "audio",
+				"data":     v.Data,
+				"mimeType": v.MIMEType,
+			})
+		default:
+			contentArr = append(contentArr, map[string]interface{}{
+				"type": "text",
+				"text": fmt.Sprintf("%v", item),
+			})
+		}
+	}
+
 	services.Store.AddLogEntry(&models.LogEntry{
 		Type:    "info",
 		Source:  "tool",
 		Message: "Tool call: " + serverName + "/" + req.ToolName,
 	})
+	services.Store.AddActivity(&models.Activity{
+		ID:       uuid.New().String(),
+		Server:   serverName,
+		Tool:     req.ToolName,
+		Status:   "success",
+		Duration: duration,
+	})
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"content": []map[string]string{
-				{"type": "text", "text": "Tool call placeholder - MCP server not connected"},
-			},
+			"content": contentArr,
 		},
 	})
 }
