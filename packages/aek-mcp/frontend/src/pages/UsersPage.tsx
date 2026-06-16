@@ -1,429 +1,238 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Edit, Trash2, UserCheck } from 'lucide-react';
-import api, { APIResponse } from '@/utils/api';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { UserDialog } from '@/components/users/UserDialog';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { User } from '@/types';
+import { useUserData } from '@/hooks/useUserData';
+import { useAuth } from '@/contexts/AuthContext';
+import AddUserForm from '@/components/AddUserForm';
+import EditUserForm from '@/components/EditUserForm';
+import { Edit3, Trash2, User as UserIcon, Plus, AlertCircle, X, RefreshCw } from 'lucide-react';
+import DeleteDialog from '@/components/ui/DeleteDialog';
+import { StatusDot } from '@/components/ui/StatusDot';
 
-interface User {
-    id: number;
-    username: string;
-    display_name: string;
-    email: string;
-    role: number;
-    status: number;
-    github_id?: string;
-    google_id?: string;
-    wechat_id?: string;
-    created_at: string;
-    updated_at: string;
-}
+const UsersPage: React.FC = () => {
+  const { t } = useTranslation();
+  const { auth } = useAuth();
+  const currentUser = auth.user;
+  const {
+    users,
+    loading: usersLoading,
+    error: userError,
+    setError: setUserError,
+    deleteUser,
+    triggerRefresh,
+  } = useUserData();
 
-export function UsersPage() {
-    const { t } = useTranslation();
-    const { toast } = useToast();
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(0);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-    const [userDialogOpen, setUserDialogOpen] = useState(false);
-    const [currentUserForEdit, setCurrentUserForEdit] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
-    // 获取用户列表
-    const fetchUsers = useCallback(async (page = 0, search = '') => {
-        setLoading(true);
-        try {
-            let url = `/user/?p=${page}`;
-            if (search.trim()) {
-                url = `/user/search?keyword=${encodeURIComponent(search.trim())}`;
-            }
-
-            const response = await api.get(url) as APIResponse<User[]>;
-            if (response.success) {
-                setUsers(response.data || []);
-            } else {
-                toast({
-                    title: '获取用户列表失败',
-                    description: response.message || '未知错误',
-                    variant: 'destructive'
-                });
-            }
-        } catch (error: any) {
-            toast({
-                title: '获取用户列表失败',
-                description: error.message || '网络错误',
-                variant: 'destructive'
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, [toast]);
-
-    useEffect(() => {
-        fetchUsers(currentPage, searchTerm);
-    }, [currentPage, fetchUsers, searchTerm]);
-
-    // 搜索处理
-    const handleSearch = () => {
-        setCurrentPage(0);
-        fetchUsers(0, searchTerm);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
-
-    // 删除用户
-    const handleDeleteClick = (userId: number) => {
-        setPendingDeleteId(userId);
-        setDeleteDialogOpen(true);
-    };
-
-    const handleDeleteConfirm = async () => {
-        if (!pendingDeleteId) return;
-
-        try {
-            const response = await api.delete(`/user/${pendingDeleteId}`) as APIResponse<any>;
-            if (response.success) {
-                toast({
-                    title: t('usersPage.messages.deleteSuccess'),
-                    description: t('usersPage.messages.userDeleted')
-                });
-                fetchUsers(currentPage, searchTerm);
-            } else {
-                toast({
-                    title: t('usersPage.messages.deleteFailed'),
-                    description: response.message || t('usersPage.messages.unknownError'),
-                    variant: 'destructive'
-                });
-            }
-        } catch (error: any) {
-            toast({
-                title: t('usersPage.messages.deleteFailed'),
-                description: error.message || t('usersPage.messages.networkError'),
-                variant: 'destructive'
-            });
-        } finally {
-            setDeleteDialogOpen(false);
-            setPendingDeleteId(null);
-        }
-    };
-
-    // 设为管理员
-    const handlePromoteToAdmin = async (username: string) => {
-        try {
-            const response = await api.post('/user/manage', {
-                username,
-                action: 'promote'
-            }) as APIResponse<any>;
-
-            if (response.success) {
-                toast({
-                    title: t('usersPage.messages.operationSuccess'),
-                    description: t('usersPage.messages.userPromoted')
-                });
-                fetchUsers(currentPage, searchTerm);
-            } else {
-                toast({
-                    title: t('usersPage.messages.operationFailed'),
-                    description: response.message || t('usersPage.messages.unknownError'),
-                    variant: 'destructive'
-                });
-            }
-        } catch (error: any) {
-            toast({
-                title: t('usersPage.messages.operationFailed'),
-                description: error.message || t('usersPage.messages.networkError'),
-                variant: 'destructive'
-            });
-        }
-    };
-
-    // 设为普通用户
-    const handleDemoteToUser = async (username: string) => {
-        try {
-            const response = await api.post('/user/manage', {
-                username,
-                action: 'demote'
-            }) as APIResponse<any>;
-
-            if (response.success) {
-                toast({
-                    title: t('usersPage.messages.operationSuccess'),
-                    description: t('usersPage.messages.userDemoted')
-                });
-                fetchUsers(currentPage, searchTerm);
-            } else {
-                toast({
-                    title: t('usersPage.messages.operationFailed'),
-                    description: response.message || t('usersPage.messages.unknownError'),
-                    variant: 'destructive'
-                });
-            }
-        } catch (error: any) {
-            toast({
-                title: t('usersPage.messages.operationFailed'),
-                description: error.message || t('usersPage.messages.networkError'),
-                variant: 'destructive'
-            });
-        }
-    };
-
-    // 切换用户状态
-    const handleToggleStatus = async (username: string, currentStatus: number) => {
-        const action = currentStatus === 1 ? 'disable' : 'enable';
-        try {
-            const response = await api.post('/user/manage', {
-                username,
-                action
-            }) as APIResponse<any>;
-
-            if (response.success) {
-                toast({
-                    title: t('usersPage.messages.operationSuccess'),
-                    description: action === 'enable' ? t('usersPage.messages.userEnabled') : t('usersPage.messages.userDisabled')
-                });
-                fetchUsers(currentPage, searchTerm);
-            } else {
-                toast({
-                    title: t('usersPage.messages.operationFailed'),
-                    description: response.message || t('usersPage.messages.unknownError'),
-                    variant: 'destructive'
-                });
-            }
-        } catch (error: any) {
-            toast({
-                title: t('usersPage.messages.operationFailed'),
-                description: error.message || t('usersPage.messages.networkError'),
-                variant: 'destructive'
-            });
-        }
-    };
-
-    // 获取角色显示文本
-    const getRoleText = (role: number) => {
-        switch (role) {
-            case 100: return t('usersPage.roles.superAdmin');
-            case 10: return t('usersPage.roles.admin');
-            case 1: return t('usersPage.roles.user');
-            default: return t('usersPage.roles.unknown');
-        }
-    };
-
-    // 获取绑定状态
-    const getBindingStatus = (user: User) => {
-        const bindings = [];
-        if (user.github_id) bindings.push('GitHub');
-        if (user.google_id) bindings.push('Google');
-        if (user.wechat_id) bindings.push('WeChat');
-        return bindings.length > 0 ? bindings.join(', ') : t('usersPage.bindings.none');
-    };
-
-    const handleOpenNewUserDialog = () => {
-        setCurrentUserForEdit(null);
-        setUserDialogOpen(true);
-    };
-
-    const handleOpenEditUserDialog = (user: User) => {
-        setCurrentUserForEdit(user);
-        setUserDialogOpen(true);
-    };
-
-    const handleUserDialogClose = () => {
-        setUserDialogOpen(false);
-        setCurrentUserForEdit(null);
-    };
-
-    const handleUserSaved = () => {
-        fetchUsers(currentPage, searchTerm);
-    };
-
+  if (!currentUser?.isAdmin) {
     return (
-        <div className="w-full space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">{t('usersPage.title')}</h2>
-                    <p className="text-muted-foreground mt-1">{t('usersPage.description')}</p>
-                </div>
-                <Button className="bg-[#7c3aed] hover:bg-[#7c3aed]/90" onClick={handleOpenNewUserDialog}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('usersPage.addUser')}
-                </Button>
-            </div>
-
-            {/* 搜索框 */}
-            <div className="flex gap-4 mb-6">
-                <div className="relative flex-grow">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        className="pl-10 bg-muted/40"
-                        placeholder={t('usersPage.searchPlaceholder')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                    />
-                </div>
-                <Button onClick={handleSearch} disabled={loading}>
-                    {loading ? t('usersPage.searching') : t('usersPage.search')}
-                </Button>
-            </div>
-
-            {/* 用户列表表格 */}
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>{t('usersPage.id')}</TableHead>
-                            <TableHead>{t('usersPage.username')}</TableHead>
-                            <TableHead>{t('usersPage.displayName')}</TableHead>
-                            <TableHead>{t('usersPage.email')}</TableHead>
-                            <TableHead>{t('usersPage.userRole')}</TableHead>
-                            <TableHead>{t('usersPage.binding')}</TableHead>
-                            <TableHead>{t('usersPage.status')}</TableHead>
-                            <TableHead>{t('usersPage.actions')}</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8">
-                                    {t('usersPage.loading')}
-                                </TableCell>
-                            </TableRow>
-                        ) : users.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                    {t('usersPage.noUsersFound')}
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            users.map((user) => (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-medium">{user.id}</TableCell>
-                                    <TableCell>{user.username}</TableCell>
-                                    <TableCell>{user.display_name}</TableCell>
-                                    <TableCell>{user.email || '-'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={user.role >= 10 ? 'default' : 'secondary'}>
-                                            {getRoleText(user.role)}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-sm text-muted-foreground">
-                                            {getBindingStatus(user)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Switch
-                                            checked={user.status === 1}
-                                            onCheckedChange={() => handleToggleStatus(user.username, user.status)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center space-x-2">
-                                            {/* 角色切换按钮 - 根据当前角色显示不同操作 */}
-                                            {user.role < 10 ? (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handlePromoteToAdmin(user.username)}
-                                                    title={t('usersPage.promoteToAdmin')}
-                                                >
-                                                    <UserCheck className="w-4 h-4" />
-                                                </Button>
-                                            ) : user.role === 10 ? (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleDemoteToUser(user.username)}
-                                                    title={t('usersPage.demoteToUser')}
-                                                    className="text-orange-500 hover:text-orange-700"
-                                                >
-                                                    <UserCheck className="w-4 h-4" />
-                                                </Button>
-                                            ) : null}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleOpenEditUserDialog(user)}
-                                                title={t('usersPage.edit')}
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </Button>
-                                            {user.role !== 100 && (
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteClick(user.id)}
-                                                    title={t('usersPage.delete')}
-                                                    className="text-red-500 hover:text-red-700"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            {/* 分页控件 */}
-            <div className="flex justify-between items-center">
-                <div className="text-sm text-muted-foreground">
-                    {t('usersPage.showing')} {users.length} {t('usersPage.users')}
-                </div>
-                <div className="flex space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                        disabled={currentPage === 0 || loading}
-                    >
-                        {t('usersPage.previousPage')}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={users.length < 10 || loading}
-                    >
-                        {t('usersPage.nextPage')}
-                    </Button>
-                </div>
-            </div>
-
-            {/* 删除确认对话框 */}
-            <ConfirmDialog
-                isOpen={deleteDialogOpen}
-                onOpenChange={setDeleteDialogOpen}
-                title={t('usersPage.confirmDeleteTitle')}
-                description={t('usersPage.confirmDeleteDescription')}
-                confirmText={t('usersPage.delete')}
-                cancelText={t('usersPage.cancel')}
-                onConfirm={handleDeleteConfirm}
-                confirmButtonVariant="destructive"
-            />
-
-            {/* 用户新增/编辑对话框 */}
-            <UserDialog
-                isOpen={userDialogOpen}
-                onClose={handleUserDialogClose}
-                onSave={handleUserSaved}
-                currentUser={currentUserForEdit}
-            />
-        </div>
+      <div className="hub-card p-6 text-center" style={{ color: 'var(--hub-err)' }}>
+        {t('users.adminRequired')}
+      </div>
     );
-} 
+  }
+
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-4 mb-6">
+        <div>
+          <h1 className="hub-h1">{t('pages.users.title')}</h1>
+          <p className="hub-sub">
+            <span className="hub-num">{users.length}</span> {t('nav.users').toLowerCase()}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="hub-btn"
+            onClick={() => triggerRefresh()}
+            aria-label={t('common.refresh')}
+          >
+            <RefreshCw size={13} /> {t('common.refresh')}
+          </button>
+          <button className="hub-btn primary" onClick={() => setShowAddForm(true)}>
+            <Plus size={13} /> {t('users.add')}
+          </button>
+        </div>
+      </div>
+
+      {userError && (
+        <div
+          className="hub-card flex items-center justify-between gap-3 mb-4"
+          style={{
+            padding: '10px 14px',
+            borderColor: 'oklch(0.85 0.1 25)',
+            background: 'oklch(0.97 0.03 25)',
+            color: 'oklch(0.4 0.18 25)',
+          }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle size={14} className="flex-shrink-0" />
+            <span className="truncate text-[13px]">{userError}</span>
+          </div>
+          <button className="hub-icon-btn sm" onClick={() => setUserError(null)}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
+      {usersLoading ? (
+        <div className="hub-card p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
+          {t('app.loading')}
+        </div>
+      ) : users.length === 0 ? (
+        <div className="hub-card p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="grid place-items-center"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                border: '1px solid var(--hub-line)',
+                background: 'var(--hub-bg-2)',
+              }}
+            >
+              <UserIcon size={18} />
+            </div>
+            <div className="font-medium" style={{ color: 'var(--hub-ink-2)', fontSize: 13 }}>
+              {t('users.noUsers')}
+            </div>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="hub-btn ghost sm"
+              style={{ color: 'var(--hub-accent)' }}
+            >
+              {t('users.addFirst')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="hub-card overflow-hidden">
+          <div
+            className="hub-row head hub-mono"
+            style={{ gridTemplateColumns: '1.6fr 1.2fr 100px 100px' }}
+          >
+            <div>{t('users.username')}</div>
+            <div>{t('users.email')}</div>
+            <div>{t('users.role')}</div>
+            <div className="text-right">{t('users.actions')}</div>
+          </div>
+          {users.map((user) => {
+            const isCurrentUser = currentUser?.username === user.username;
+            return (
+              <div
+                key={user.username}
+                className="hub-row hover"
+                style={{ gridTemplateColumns: '1.6fr 1.2fr 100px 100px' }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="grid place-items-center flex-shrink-0 hub-mono"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 7,
+                      background: 'var(--hub-bg-2)',
+                      border: '1px solid var(--hub-line)',
+                      color: 'var(--hub-ink-2)',
+                      fontWeight: 600,
+                      fontSize: 12,
+                    }}
+                  >
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span
+                    className="hub-mono truncate"
+                    style={{ fontSize: 13, color: 'var(--hub-ink)' }}
+                  >
+                    {user.username}
+                  </span>
+                  {isCurrentUser && (
+                    <span className="hub-tag accent" style={{ fontSize: 10 }}>
+                      {t('users.currentUser')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center min-w-0">
+                  <span
+                    className="truncate"
+                    style={{ fontSize: 13, color: user.email ? 'var(--hub-ink)' : 'var(--hub-ink-3)' }}
+                  >
+                    {user.email || '—'}
+                  </span>
+                </div>
+                <div>
+                  <StatusDot
+                    kind={user.isAdmin ? 'ok' : 'muted'}
+                    label={user.isAdmin ? t('users.admin') : t('users.user')}
+                  />
+                </div>
+                <div className="flex justify-end gap-1">
+                  <button
+                    onClick={() => setEditingUser(user)}
+                    className="hub-icon-btn sm"
+                    title={t('users.edit')}
+                  >
+                    <Edit3 size={13} />
+                  </button>
+                  {!isCurrentUser && (
+                    <button
+                      onClick={() => setUserToDelete(user.username)}
+                      className="hub-icon-btn sm"
+                      title={t('users.delete')}
+                      style={{ color: 'var(--hub-err)' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showAddForm && (
+        <AddUserForm
+          onAdd={() => {
+            setShowAddForm(false);
+            triggerRefresh();
+          }}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
+
+      {editingUser && (
+        <EditUserForm
+          user={editingUser}
+          onEdit={() => {
+            setEditingUser(null);
+            triggerRefresh();
+          }}
+          onCancel={() => setEditingUser(null)}
+        />
+      )}
+
+      <DeleteDialog
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={async () => {
+          if (userToDelete) {
+            const result = await deleteUser(userToDelete);
+            if (!result?.success) {
+              setUserError(result?.message || t('users.deleteError'));
+            }
+            setUserToDelete(null);
+          }
+        }}
+        serverName={userToDelete || ''}
+        isGroup={false}
+        isUser={true}
+      />
+    </div>
+  );
+};
+
+export default UsersPage;

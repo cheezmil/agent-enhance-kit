@@ -69,6 +69,7 @@ packages/aek/bin/
 packages/aek/platforms/
 packages/aek-websearch/bin/
 packages/aek-websearch/platforms/
+packages/aek-mcp/bin/
 
 # Build artifacts
 *.exe
@@ -117,6 +118,8 @@ pnpm-lock.yaml
 # Build
 dist/
 build/
+packages/aek-mcp/frontend/dist/
+packages/aek-mcp/frontend/node_modules/
 
 # cqg-start-line
 .cheezmil_task_manager/

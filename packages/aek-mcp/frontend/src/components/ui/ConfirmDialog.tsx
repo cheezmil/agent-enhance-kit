@@ -1,68 +1,142 @@
 import React from 'react';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog'; // Assuming alert-dialog is already part of shadcn/ui setup
-import { ButtonProps } from '@/components/ui/button'; // For confirmButtonVariant
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmDialogProps {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    onConfirm: () => void;
-    onCancel?: () => void;
-    title: React.ReactNode;
-    description: React.ReactNode;
-    confirmText?: string;
-    cancelText?: string;
-    confirmButtonVariant?: ButtonProps['variant'];
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning' | 'info';
 }
 
-export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-    isOpen,
-    onOpenChange,
-    onConfirm,
-    onCancel,
-    title,
-    description,
-    confirmText = 'Confirm',
-    cancelText = 'Cancel',
+const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmText,
+  cancelText,
+  variant = 'warning'
 }) => {
-    if (!isOpen) {
-        return null;
+  const { t } = useTranslation();
+
+  if (!isOpen) return null;
+
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'danger':
+        return {
+          icon: (
+            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          ),
+          confirmBtnClass: 'hub-btn danger',
+        };
+      case 'warning':
+        return {
+          icon: (
+            <svg className="w-6 h-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          ),
+          confirmBtnClass: 'hub-btn primary',
+        };
+      case 'info':
+        return {
+          icon: (
+            <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+          confirmBtnClass: 'hub-btn primary',
+        };
+      default:
+        return {
+          icon: null,
+          confirmBtnClass: 'hub-btn primary',
+        };
     }
+  };
 
-    const handleConfirm = () => {
-        onConfirm();
-        onOpenChange(false); // Close dialog after confirm
-    };
+  const { icon, confirmBtnClass } = getVariantStyles();
 
-    const handleCancel = () => {
-        if (onCancel) {
-            onCancel();
-        }
-        onOpenChange(false); // Close dialog after cancel
-    };
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
-    return (
-        <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>{title}</AlertDialogTitle>
-                    <AlertDialogDescription>{description}</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={handleCancel}>{cancelText}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirm}>
-                        {confirmText}
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    );
-}; 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    } else if (e.key === 'Enter') {
+      onConfirm();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+    >
+      <div
+        className="hub-card max-w-md w-full transform transition-all duration-200 ease-out"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-message"
+      >
+        <div className="p-6">
+          <div className="flex items-start space-x-3">
+            {icon && (
+              <div className="flex-shrink-0">
+                {icon}
+              </div>
+            )}
+            <div className="flex-1">
+              {title && (
+                <h3
+                  id="confirm-dialog-title"
+                  className="text-lg font-medium text-gray-900 mb-2"
+                >
+                  {title}
+                </h3>
+              )}
+              <p
+                id="confirm-dialog-message"
+                className="text-gray-600 leading-relaxed"
+              >
+                {message}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              onClick={onClose}
+              className="hub-btn"
+              autoFocus
+            >
+              {cancelText || t('common.cancel')}
+            </button>
+            <button
+              onClick={onConfirm}
+              className={confirmBtnClass}
+            >
+              {confirmText || t('common.confirm')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmDialog;
