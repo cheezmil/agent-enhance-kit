@@ -100,14 +100,6 @@ python3 scripts/aek-mcp/build-linux-x64.py
 
 ```jsonc
 {
-  "CTM": {
-    "CTM": {
-      "type": "streamable-http",
-      "url": "http://localhost:1112/mcp"
-    },
-    "enabled": true,
-    "owner": "admin"
-  },
   "CTI": {
     "CTI": {
       "type": "streamable-http",

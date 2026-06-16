@@ -894,18 +894,10 @@ func GetRuntimeConfig(c *gin.Context) {
 }
 
 func GetPublicConfig(c *gin.Context) {
-	sysConfig := services.Store.GetSystemConfig()
-	skipAuth := false
-	if sysConfig != nil && sysConfig.Routing != nil {
-		if v, ok := sysConfig.Routing["skipAuth"].(bool); ok {
-			skipAuth = v
-		}
-	}
-
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"skipAuth": skipAuth,
+			"skipAuth": config.AppConfig.SkipAuth,
 		},
 	})
 }

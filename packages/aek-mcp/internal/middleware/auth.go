@@ -13,18 +13,14 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// skipAuth mode: if routing.skipAuth is true, allow all with admin guest
-		sysCfg := services.Store.GetSystemConfig()
-		if sysCfg != nil && sysCfg.Routing != nil {
-			if skipAuth, ok := sysCfg.Routing["skipAuth"].(bool); ok && skipAuth {
-				c.Set("user", &map[string]interface{}{
-					"username": "guest",
-					"role":     "admin",
-				})
-				c.Set("username", "guest")
-				c.Next()
-				return
-			}
+		if config.AppConfig.SkipAuth {
+			c.Set("user", &map[string]interface{}{
+				"username": "guest",
+				"role":     "admin",
+			})
+			c.Set("username", "guest")
+			c.Next()
+			return
 		}
 
 		// 1. Check Bearer key authentication
