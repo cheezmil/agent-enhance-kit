@@ -47,7 +47,7 @@ def main():
 
     print(f"[1/5] Building in WSL...")
     pkg_dir = f"/home/{user}/CodeRelated/agent-enhance-kit/packages/aek-websearch"
-    subprocess.run(["go", "build", "-o", "bin/aek.exe", "./cmd/aek/"], cwd=pkg_dir, check=True)
+    subprocess.run(["go", "build", "-a", "-o", "bin/aek.exe", "./cmd/aek/"], cwd=pkg_dir, check=True)
 
     print(f"[2/5] 复制到 Windows 临时目录...")
     print(f"  源: {src}")

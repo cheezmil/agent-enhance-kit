@@ -15,9 +15,16 @@ def main():
 
     print("=== Deploying aek-websearch ===\n")
 
-    # 1. Build
+    # 1. Build (-a forces rebuild to bypass Go 1.24+ binary cache)
     print("[1/2] Building...")
-    run(["go", "build", "-o", f"bin/aek{ext}", "./cmd/aek/"], cwd=AEK_WS_DIR)
+    run(["go", "build", "-a", "-o", f"bin/aek{ext}", "./cmd/aek/"], cwd=AEK_WS_DIR)
+    # Also copy to platforms/ so postinstall doesn't overwrite with stale binary
+    platforms_dir = AEK_WS_DIR / "platforms" / ("win32-x64" if is_win() else "linux-x64")
+    platforms_bin = platforms_dir / f"aek{ext}"
+    if platforms_bin.parent.exists():
+        import shutil
+        shutil.copy2(AEK_WS_DIR / f"bin/aek{ext}", platforms_bin)
+        print(f"[aek-websearch] Copied to {platforms_bin}")
     print(f"[aek-websearch] Built to bin/aek{ext}")
 
     # 2. Install to PATH

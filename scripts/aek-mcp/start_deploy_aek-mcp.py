@@ -44,7 +44,7 @@ def main():
 
     # 2. Build backend
     print("\n[2/3] Building backend...")
-    run(["go", "build", "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
+    run(["go", "build", "-a", "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
     print("[aek-mcp] Built to bin/aek-mcp")
 
     # 3. Build frontend

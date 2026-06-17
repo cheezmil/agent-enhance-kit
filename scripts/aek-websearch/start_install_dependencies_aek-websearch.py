@@ -16,7 +16,7 @@ def main():
 
     if not src_bin.exists():
         print("[aek-websearch] Binary not found, building first...")
-        run(["go", "build", "-o", f"bin/aek{ext}", "./cmd/aek/"], cwd=AEK_WS_DIR)
+        run(["go", "build", "-a", "-o", f"bin/aek{ext}", "./cmd/aek/"], cwd=AEK_WS_DIR)
 
     print("[aek-websearch] Uninstalling old version...")
     run_safe(["npm", "uninstall", "-g", "aek-websearch"], cwd=AEK_WS_DIR)
