@@ -16,12 +16,14 @@ import (
 )
 
 type MCPClients struct {
-	mu      sync.RWMutex
-	clients map[string]client.MCPClient
+	mu       sync.RWMutex
+	clients  map[string]client.MCPClient
+	closers  map[string]chan struct{} // per-server done signal channels
 }
 
 var GlobalMCPClients = &MCPClients{
 	clients: make(map[string]client.MCPClient),
+	closers: make(map[string]chan struct{}),
 }
 
 func (mc *MCPClients) Get(serverName string) (client.MCPClient, bool) {
@@ -83,6 +85,10 @@ func (mc *MCPClients) ConnectStdio(ctx context.Context, serverName, command stri
 		old.Close()
 		delete(mc.clients, serverName)
 	}
+	if oldDone, ok := mc.closers[serverName]; ok {
+		close(oldDone)
+		delete(mc.closers, serverName)
+	}
 
 	env := os.Environ()
 	for k, v := range envMap {
@@ -109,6 +115,50 @@ func (mc *MCPClients) ConnectStdio(ctx context.Context, serverName, command stri
 	log.Printf("[MCP] Connected to %s via stdio (server: %s %s)", serverName, initResult.ServerInfo.Name, initResult.ServerInfo.Version)
 
 	mc.clients[serverName] = c
+
+	// Start a goroutine to monitor stdio process exit.
+	// The underlying transport's readResponses goroutine will encounter EOF
+	// when the subprocess exits, which causes all pending requests to fail
+	// with ErrTransportClosed. We detect this by polling with a short Ping.
+	done := make(chan struct{})
+	mc.closers[serverName] = done
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				// Check if the transport is still alive by sending a Ping.
+				pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				err := c.Ping(pingCtx)
+				cancel()
+				if err != nil {
+					log.Printf("[MCP] Stdio process %s exited: %v", serverName, err)
+					// Clean up the client
+					mc.mu.Lock()
+					if c2, ok := mc.clients[serverName]; ok && c2 == c {
+						c.Close()
+						delete(mc.clients, serverName)
+					}
+					delete(mc.closers, serverName)
+					mc.mu.Unlock()
+
+					// Update server status in store
+					s := Store.GetServer(serverName)
+					if s != nil {
+						s.Status = "disconnected"
+						Store.UpdateServer(serverName, s)
+					}
+					RefreshProxyToolsIfAvailable()
+					return
+				}
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -117,6 +167,10 @@ func (mc *MCPClients) Disconnect(serverName string) {
 	if c, ok := mc.clients[serverName]; ok {
 		c.Close()
 		delete(mc.clients, serverName)
+	}
+	if done, ok := mc.closers[serverName]; ok {
+		close(done)
+		delete(mc.closers, serverName)
 	}
 	mc.mu.Unlock()
 	RefreshProxyToolsIfAvailable()
@@ -198,6 +252,10 @@ func (mc *MCPClients) CloseAll() {
 	for name, c := range mc.clients {
 		c.Close()
 		delete(mc.clients, name)
+	}
+	for name, done := range mc.closers {
+		close(done)
+		delete(mc.closers, name)
 	}
 }
 
