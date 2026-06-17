@@ -45,7 +45,11 @@ def main():
     user = get_wsl_user()
     src = f"\\\\wsl.localhost\\{distro}\\home\\{user}\\CodeRelated\\agent-enhance-kit\\packages\\aek-websearch"
 
-    print(f"[1/4] 复制到 Windows 临时目录...")
+    print(f"[1/5] Building in WSL...")
+    pkg_dir = f"/home/{user}/CodeRelated/agent-enhance-kit/packages/aek-websearch"
+    subprocess.run(["go", "build", "-o", "bin/aek.exe", "./cmd/aek/"], cwd=pkg_dir, check=True)
+
+    print(f"[2/5] 复制到 Windows 临时目录...")
     print(f"  源: {src}")
 
     ps_script = f"""
@@ -53,12 +57,12 @@ $src = "{src}"
 $dest = Join-Path $env:TEMP "aek-websearch"
 if (Test-Path $dest) {{ Remove-Item $dest -Recurse -Force }}
 Copy-Item $src $dest -Recurse
-Write-Host "[2/4] npm uninstall -g aek-websearch (if exists)..."
+Write-Host "[3/5] npm uninstall -g aek-websearch (if exists)..."
 npm uninstall -g aek-websearch 2>$null
-Write-Host "[3/4] npm install -g (may have postinstall error, continuing)..."
+Write-Host "[4/5] npm install -g..."
 Set-Location $env:TEMP
 npm install -g $dest 2>&1 | Write-Host
-Write-Host "[4/4] 复制 aek.exe 到用户 bin 目录..."
+Write-Host "[5/5] 复制 aek.exe 到用户 bin 目录..."
 $userBin = Join-Path $env:USERPROFILE "bin"
 if (!(Test-Path $userBin)) {{ New-Item -ItemType Directory -Path $userBin | Out-Null }}
 $aekExe = Join-Path $dest "bin" "aek.exe"
