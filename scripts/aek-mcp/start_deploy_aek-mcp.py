@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Build aek-mcp backend / 构建 aek-mcp 后端
+# Deploy aek-mcp: stop old → build be+fe → start / 部署 aek-mcp：停旧实例 → 编译 → 启动
 
 import os
 import signal
@@ -9,9 +9,10 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from start_scripts_shared_logic import run, run_safe, is_win
+from start_scripts_shared_logic import run, run_safe, kill_port, can_bind, is_win
 
 AEK_MCP_DIR = Path(__file__).parent.parent.parent / "packages" / "aek-mcp"
+AEK_MCP_PORT = 1351
 
 
 def kill_old_instance():
@@ -34,11 +35,31 @@ def kill_old_instance():
 
 
 def main():
+    print("=== Deploying aek-mcp ===\n")
+
+    # 1. Stop old instance
+    print("[1/4] Stopping old instances...")
+    kill_port(AEK_MCP_PORT)
     kill_old_instance()
 
-    print("[aek-mcp] Building Go backend...")
+    # 2. Build backend
+    print("\n[2/4] Building backend...")
     run(["go", "build", "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
     print("[aek-mcp] Built to bin/aek-mcp")
+
+    # 3. Build frontend
+    print("\n[3/4] Building frontend...")
+    run(["pnpm", "install"], cwd=AEK_MCP_DIR)
+    run(["pnpm", "frontend:build"], cwd=AEK_MCP_DIR)
+    print("[aek-mcp] Frontend built to frontend/dist/")
+
+    # 4. Start
+    print("\n[4/4] Starting aek-mcp...")
+    if not can_bind(AEK_MCP_PORT):
+        print(f"Error: Port {AEK_MCP_PORT} is still occupied after kill")
+        sys.exit(1)
+
+    run([sys.executable, str(Path(__file__).parent / "start_aek-mcp.py")])
 
 
 if __name__ == "__main__":

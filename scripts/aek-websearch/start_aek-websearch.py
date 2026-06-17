@@ -16,7 +16,7 @@ def main():
 
     if not bin_path.exists():
         print(f"Error: bin/aek{ext} not found")
-        print("Run start_build_aek-websearch.py first")
+        print("Run start_deploy_aek-websearch.py first")
         sys.exit(1)
 
     print("[aek-websearch] Starting aek serve...")

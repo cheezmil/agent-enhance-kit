@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Install aek-websearch / 安装 aek-websearch
+# Install aek-websearch dependencies / 安装 aek-websearch 依赖
 
 import sys
 from pathlib import Path
@@ -19,7 +19,7 @@ def main():
         run(["go", "build", "-o", f"bin/aek{ext}", "./cmd/aek/"], cwd=AEK_WS_DIR)
 
     print("[aek-websearch] Installing globally via npm...")
-    run(["npm", "install", "-g", "."], cwd=AEK_WS_DIR)
+    run(["npm", "install", "-g", "--force", "."], cwd=AEK_WS_DIR)
     print("[aek-websearch] Done. 'aek' should now be available in PATH.")
 
 
