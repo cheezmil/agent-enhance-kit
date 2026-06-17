@@ -114,11 +114,11 @@ func (mc *MCPClients) ConnectStdio(ctx context.Context, serverName, command stri
 
 func (mc *MCPClients) Disconnect(serverName string) {
 	mc.mu.Lock()
-	defer mc.mu.Unlock()
 	if c, ok := mc.clients[serverName]; ok {
 		c.Close()
 		delete(mc.clients, serverName)
 	}
+	mc.mu.Unlock()
 	RefreshProxyToolsIfAvailable()
 }
 

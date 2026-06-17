@@ -287,15 +287,33 @@ func ReloadServer(c *gin.Context) {
 		return
 	}
 
-	services.Store.AddLogEntry(&models.LogEntry{
-		Type:    "info",
-		Source:  "server",
-		Message: "Server reloaded: " + name,
-	})
+	// Disconnect existing connection first
+	services.GlobalMCPClients.Disconnect(name)
+	server.Status = "disconnected"
+	services.Store.UpdateServer(name, server)
+
+	// Return immediately, reconnect in background
+	go func() {
+		err := services.ConnectServerByName(context.Background(), name)
+		if err != nil {
+			services.Store.AddLogEntry(&models.LogEntry{
+				Type:    "error",
+				Source:  "server",
+				Message: "Failed to reload server " + name + ": " + err.Error(),
+			})
+		} else {
+			services.Store.AddLogEntry(&models.LogEntry{
+				Type:    "info",
+				Source:  "server",
+				Message: "Server reloaded: " + name,
+			})
+		}
+		services.RefreshProxyToolsIfAvailable()
+	}()
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
-		Message: "Server reloaded",
+		Message: "Server reload started",
 		Data:    server,
 	})
 }
@@ -680,6 +698,20 @@ func GetAllSettings(c *gin.Context) {
 	bearerKeys := services.Store.GetAllBearerKeys()
 	sysConfig := services.Store.GetSystemConfig()
 
+	// Merge settings.jsonc values into systemConfig
+	settingsJson := config.ReadSettingsJson()
+	if sysConfig == nil {
+		sysConfig = &models.SystemConfig{}
+	}
+	if sysConfig.Routing == nil {
+		sysConfig.Routing = make(map[string]interface{})
+	}
+	for _, k := range []string{"skipAuth", "enableBearerAuth"} {
+		if v, ok := settingsJson[k]; ok {
+			sysConfig.Routing[k] = v
+		}
+	}
+
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
@@ -693,8 +725,8 @@ func GetAllSettings(c *gin.Context) {
 }
 
 func UpdateSystemConfig(c *gin.Context) {
-	var config map[string]interface{}
-	if err := c.ShouldBindJSON(&config); err != nil {
+	var reqBody map[string]interface{}
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{
 			Success: false,
 			Message: "Invalid request body",
@@ -708,7 +740,7 @@ func UpdateSystemConfig(c *gin.Context) {
 	}
 
 	// Merge fields
-	for key, value := range config {
+	for key, value := range reqBody {
 		if sysConfig.Routing == nil {
 			sysConfig.Routing = make(map[string]interface{})
 		}
@@ -716,6 +748,19 @@ func UpdateSystemConfig(c *gin.Context) {
 	}
 
 	services.Store.UpdateSystemConfig(sysConfig)
+
+	// Sync to settings.jsonc for key fields
+	settingsUpdates := map[string]interface{}{}
+	for k, v := range reqBody {
+		if k == "skipAuth" || k == "enableBearerAuth" {
+			settingsUpdates[k] = v
+		}
+	}
+	if len(settingsUpdates) > 0 {
+		if err := config.WriteSettingsJson(settingsUpdates); err != nil {
+			fmt.Printf("[aek-mcp] Failed to sync settings.jsonc: %v\n", err)
+		}
+	}
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,

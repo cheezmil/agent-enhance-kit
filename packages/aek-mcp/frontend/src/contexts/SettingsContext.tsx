@@ -333,7 +333,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [installConfig, setInstallConfig] = useState<InstallConfig>({
     pythonIndexUrl: '',
     npmRegistry: '',
-    baseUrl: 'http://localhost:3000',
+    baseUrl: `http://localhost:${window.location.port || '3000'}`,
   });
 
   const [smartRoutingConfig, setSmartRoutingConfig] = useState<SmartRoutingConfig>({
@@ -413,7 +413,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         setInstallConfig({
           pythonIndexUrl: data.data.systemConfig.install.pythonIndexUrl || '',
           npmRegistry: data.data.systemConfig.install.npmRegistry || '',
-          baseUrl: data.data.systemConfig.install.baseUrl || 'http://localhost:3000',
+          baseUrl: data.data.systemConfig.install.baseUrl || `http://localhost:${window.location.port || '3000'}`,
         });
       }
       if (data.success && data.data?.systemConfig?.smartRouting) {

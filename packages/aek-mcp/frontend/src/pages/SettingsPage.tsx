@@ -411,7 +411,7 @@ const SettingsPage: React.FC = () => {
   }>({
     pythonIndexUrl: '',
     npmRegistry: '',
-    baseUrl: 'http://localhost:3000',
+    baseUrl: `http://localhost:${window.location.port || '3000'}`,
   });
 
   const [tempSmartRoutingConfig, setTempSmartRoutingConfig] = useState<{
@@ -3484,61 +3484,6 @@ const SettingsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Export MCP Settings */}
-      <PermissionChecker permissions={PERMISSIONS.SETTINGS_EXPORT_CONFIG}>
-        <div className="hub-card mb-6 overflow-hidden">
-          <div
-            className="flex justify-between items-center cursor-pointer transition-colors hover:bg-[var(--hub-surface-hover)] py-3 px-5"
-            onClick={() => toggleSection('exportConfig')}
-          >
-            <div className="flex items-center gap-2.5">
-              <FileDown size={15} className="text-[var(--hub-ink-2)]" />
-              <h2 className="font-medium text-[var(--hub-ink)]">{t('settings.exportMcpSettings')}</h2>
-            </div>
-            <span className="text-[var(--hub-ink-3)]">{sectionsVisible.exportConfig ? '−' : '+'}</span>
-          </div>
-
-          {sectionsVisible.exportConfig && (
-            <div className="space-y-4 pb-4 px-6 pt-4 border-t border-[var(--hub-line-2)]">
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                <div className="mb-4">
-                  <h3 className="font-medium text-gray-700">{t('settings.mcpSettingsJson')}</h3>
-                  <p className="text-sm text-gray-500">
-                    {t('settings.mcpSettingsJsonDescription')}
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleCopyConfig}
-                      disabled={!mcpSettingsJson}
-                      className="hub-btn primary"
-                    >
-                      {copiedConfig ? <Check size={16} /> : <Copy size={16} />}
-                      {copiedConfig ? t('common.copied') : t('settings.copyToClipboard')}
-                    </button>
-                    <button
-                      onClick={handleDownloadConfig}
-                      disabled={!mcpSettingsJson}
-                      className="hub-btn"
-                    >
-                      <Download size={16} />
-                      {t('settings.downloadJson')}
-                    </button>
-                  </div>
-                  {mcpSettingsJson && (
-                    <div className="mt-3">
-                      <pre className="bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto text-xs max-h-96">
-                        {mcpSettingsJson}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </PermissionChecker>
     </div>
   );
 };

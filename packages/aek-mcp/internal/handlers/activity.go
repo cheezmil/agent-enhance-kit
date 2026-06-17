@@ -208,7 +208,23 @@ func UploadMcpbFile(c *gin.Context) {
 
 func GetBearerKeys(c *gin.Context) {
 	keys := services.Store.GetAllBearerKeys()
-	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: keys})
+	result := make([]*models.BearerKey, 0, len(keys))
+	for _, k := range keys {
+		if k.Token == "" {
+			k.Token = k.Key
+		}
+		if k.Kind == "" {
+			k.Kind = "user"
+		}
+		if k.Owner == "" {
+			k.Owner = "default"
+		}
+		if k.AccessType == "" {
+			k.AccessType = "all"
+		}
+		result = append(result, k)
+	}
+	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: result})
 }
 
 func CreateBearerKey(c *gin.Context) {
@@ -225,13 +241,21 @@ func CreateBearerKey(c *gin.Context) {
 		req.Name = "key-" + uuid.New().String()[:8]
 	}
 	token := "mcphub_" + uuid.New().String()
+	kind := req.Kind
+	if kind == "" {
+		kind = "user"
+	}
 	key := &models.BearerKey{
-		ID:        uuid.New().String(),
-		Name:      req.Name,
-		Key:       token,
-		Scope:     req.Scope,
-		Enabled:   true,
-		CreatedAt: time.Now(),
+		ID:         uuid.New().String(),
+		Name:       req.Name,
+		Key:        token,
+		Token:      token,
+		Scope:      req.Scope,
+		Kind:       kind,
+		Owner:      "default",
+		AccessType: "all",
+		Enabled:    true,
+		CreatedAt:  time.Now(),
 	}
 	services.Store.CreateBearerKey(key)
 	c.JSON(http.StatusCreated, models.ApiResponse{Success: true, Data: key})

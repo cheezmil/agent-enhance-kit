@@ -116,3 +116,33 @@ func (c *Config) FullPath(path string) string {
 	}
 	return path
 }
+
+func GetSettingsPath() string {
+	home := getHomeDir()
+	return filepath.Join(home, ".aek", "mcp", "settings.jsonc")
+}
+
+func ReadSettingsJson() map[string]interface{} {
+	path := GetSettingsPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return map[string]interface{}{}
+	}
+	return settings
+}
+
+func WriteSettingsJson(updates map[string]interface{}) error {
+	settings := ReadSettingsJson()
+	for k, v := range updates {
+		settings[k] = v
+	}
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(GetSettingsPath(), data, 0644)
+}

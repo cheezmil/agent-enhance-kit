@@ -173,12 +173,18 @@ type PromptCallRequest struct {
 }
 
 type BearerKey struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Key       string    `json:"key,omitempty"`
-	Scope     string    `json:"scope,omitempty"`
-	Enabled   bool      `json:"enabled"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Key            string    `json:"key,omitempty"`
+	Token          string    `json:"token,omitempty"`
+	Scope          string    `json:"scope,omitempty"`
+	Kind           string    `json:"kind,omitempty"`
+	Owner          string    `json:"owner,omitempty"`
+	AccessType     string    `json:"accessType,omitempty"`
+	AllowedGroups  []string  `json:"allowedGroups,omitempty"`
+	AllowedServers []string  `json:"allowedServers,omitempty"`
+	Enabled        bool      `json:"enabled"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 type OAuthClient struct {
