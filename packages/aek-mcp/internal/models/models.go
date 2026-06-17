@@ -40,6 +40,7 @@ type ServerConfig struct {
 	Args               []string               `json:"args,omitempty"`
 	Env                map[string]string      `json:"env,omitempty"`
 	Enabled            bool                   `json:"enabled"`
+	Status             string                 `json:"status,omitempty"`
 	AuthorizationToken string                 `json:"authorizationToken,omitempty"`
 	Tools              []ToolConfig           `json:"tools,omitempty"`
 	Prompts            []PromptConfig         `json:"prompts,omitempty"`

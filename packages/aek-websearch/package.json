@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "description": "AEK — Agent Enhance Kit (Web Search module)",
   "bin": {
-    "aek": "./bin/aek.js"
+    "aek": "./bin/aek"
   },
   "scripts": {
     "build": "go build -o bin/aek ./cmd/aek/",

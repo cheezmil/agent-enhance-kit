@@ -855,11 +855,9 @@ func CallTool(c *gin.Context) {
 		Duration: duration,
 	})
 
-	c.JSON(http.StatusOK, models.ApiResponse{
-		Success: true,
-		Data: map[string]interface{}{
-			"content": contentArr,
-		},
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"content": contentArr,
 	})
 }
 
@@ -867,18 +865,122 @@ func GetPrompt(c *gin.Context) {
 	serverName := c.Param("serverName")
 	promptName := c.Param("promptName")
 
+	_, connected := services.GlobalMCPClients.Get(serverName)
+	if !connected {
+		if server := services.Store.GetServer(serverName); server != nil && server.URL != "" {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+			defer cancel()
+			if err := services.ConnectServerByName(ctx, serverName); err != nil {
+				c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+					Success: false,
+					Message: "MCP server not connected: " + err.Error(),
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+				Success: false,
+				Message: "MCP server not connected",
+			})
+			return
+		}
+	}
+
+	var args map[string]string
+	c.ShouldBindJSON(&args)
+
+	result, err := services.GlobalMCPClients.GetPrompt(c.Request.Context(), serverName, promptName, args)
+	if err != nil {
+		services.Store.AddLogEntry(&models.LogEntry{
+			Type:    "error",
+			Source:  "prompt",
+			Message: "Get prompt failed: " + serverName + "/" + promptName + ": " + err.Error(),
+		})
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
 	services.Store.AddLogEntry(&models.LogEntry{
 		Type:    "info",
 		Source:  "prompt",
-		Message: "Prompt request: " + serverName + "/" + promptName,
+		Message: "Get prompt: " + serverName + "/" + promptName,
 	})
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
-		Data: map[string]interface{}{
-			"description": "Prompt placeholder",
-			"messages":    []interface{}{},
-		},
+		Data:    result,
+	})
+}
+
+func CallPrompt(c *gin.Context) {
+	serverName := c.Param("server")
+	if serverName == "" {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{
+			Success: false,
+			Message: "server parameter is required",
+		})
+		return
+	}
+
+	var req struct {
+		PromptName string            `json:"promptName"`
+		Arguments  map[string]string `json:"arguments"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{
+			Success: false,
+			Message: "Invalid request body",
+		})
+		return
+	}
+
+	_, connected := services.GlobalMCPClients.Get(serverName)
+	if !connected {
+		if server := services.Store.GetServer(serverName); server != nil && server.URL != "" {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+			defer cancel()
+			if err := services.ConnectServerByName(ctx, serverName); err != nil {
+				c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+					Success: false,
+					Message: "MCP server not connected: " + err.Error(),
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusServiceUnavailable, models.ApiResponse{
+				Success: false,
+				Message: "MCP server not connected",
+			})
+			return
+		}
+	}
+
+	result, err := services.GlobalMCPClients.GetPrompt(c.Request.Context(), serverName, req.PromptName, req.Arguments)
+	if err != nil {
+		services.Store.AddLogEntry(&models.LogEntry{
+			Type:    "error",
+			Source:  "prompt",
+			Message: "Prompt call failed: " + serverName + "/" + req.PromptName + ": " + err.Error(),
+		})
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	services.Store.AddLogEntry(&models.LogEntry{
+		Type:    "info",
+		Source:  "prompt",
+		Message: "Prompt call: " + serverName + "/" + req.PromptName,
+	})
+
+	c.JSON(http.StatusOK, models.ApiResponse{
+		Success: true,
+		Data:    result,
 	})
 }
 

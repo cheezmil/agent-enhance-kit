@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search, Upload, FileCode, AlertCircle, X } from 'lucide-react';
+import { RefreshCw, Search, Upload, FileCode, AlertCircle, X } from 'lucide-react';
 import { Server } from '@/types';
 import ServerCard from '@/components/ServerCard';
 import AddServerForm from '@/components/AddServerForm';
@@ -15,7 +14,6 @@ import { filterServers, getServerFilterCounts, type ServerFilter } from '@/utils
 
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const {
     servers,
     allServers,
@@ -83,9 +81,6 @@ const ServersPage: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="hub-btn" onClick={() => navigate('/market')}>
-            <Plus size={13} /> {t('nav.market')}
-          </button>
           <button className="hub-btn" onClick={() => setShowJsonImport(true)}>
             <FileCode size={13} /> {t('jsonImport.button')}
           </button>

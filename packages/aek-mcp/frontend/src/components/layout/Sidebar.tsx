@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutGrid,
   Server as ServerIcon,
   Users as UsersIcon,
-  Store,
   Route as RouteIcon,
   Settings as SettingsIcon,
   FileText,
@@ -51,7 +49,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const userCanManageUsers = auth.user?.isAdmin && usePermissionCheck('x');
 
   const workspaceItems: MenuItem[] = [
-    { path: '/', label: t('nav.dashboard'), icon: <LayoutGrid className="h-4 w-4" />, end: true },
     {
       path: '/servers',
       label: t('nav.servers'),
@@ -66,7 +63,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     },
     { path: '/prompts', label: t('nav.prompts'), icon: <MessageSquare className="h-4 w-4" /> },
     { path: '/resources', label: t('nav.resources'), icon: <FileText className="h-4 w-4" /> },
-    { path: '/market', label: t('nav.market'), icon: <Store className="h-4 w-4" /> },
   ];
 
   const systemItems: MenuItem[] = [

@@ -109,6 +109,8 @@ func SetupRouter() *gin.Engine {
 		api.POST("/tools/call/:server", CallTool)
 		api.GET("/tools/list/:serverName", ListServerTools)
 		api.POST("/mcp/:serverName/prompts/:promptName", GetPrompt)
+		api.POST("/prompts/call/:server", CallPrompt)
+		api.POST("/prompts/call", CallPrompt)
 
 		// Built-in prompts
 		api.GET("/prompts", ListBuiltinPrompts)
@@ -127,31 +129,6 @@ func SetupRouter() *gin.Engine {
 
 		// MCPB upload
 		api.POST("/mcpb/upload", UploadMcpbFile)
-
-		// Market
-		api.GET("/market/servers", GetAllMarketServers)
-		api.GET("/market/servers/search", SearchMarketServers)
-		api.GET("/market/servers/:serverName", GetMarketServer)
-		api.GET("/market/categories", GetAllMarketCategories)
-		api.GET("/market/categories/:category", GetMarketServersByCategory)
-		api.GET("/market/tags", GetAllMarketTags)
-		api.GET("/market/tags/:tag", GetMarketServersByTag)
-
-		// Cloud
-		api.GET("/cloud/servers", GetAllCloudServers)
-		api.GET("/cloud/servers/search", SearchCloudServers)
-		api.GET("/cloud/servers/:serverName", GetCloudServer)
-		api.GET("/cloud/categories", GetAllCloudCategories)
-		api.GET("/cloud/categories/:category", GetCloudServersByCategory)
-		api.GET("/cloud/tags", GetAllCloudTags)
-		api.GET("/cloud/tags/:tag", GetCloudServersByTag)
-		api.GET("/cloud/servers/:serverName/tools", GetCloudServerTools)
-		api.POST("/cloud/servers/:serverName/tools/:toolName/call", CallCloudTool)
-
-		// Registry
-		api.GET("/registry/servers", GetAllRegistryServers)
-		api.GET("/registry/servers/versions", GetRegistryServerVersions)
-		api.GET("/registry/servers/version", GetRegistryServerVersion)
 
 		// Changelog
 		api.GET("/changelog/update-info", GetChangelogUpdateInfo)
