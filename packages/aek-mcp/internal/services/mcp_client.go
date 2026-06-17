@@ -80,6 +80,7 @@ func (mc *MCPClients) Disconnect(serverName string) {
 		c.Close()
 		delete(mc.clients, serverName)
 	}
+	RefreshProxyToolsIfAvailable()
 }
 
 func (mc *MCPClients) ListTools(ctx context.Context, serverName string) ([]mcp.Tool, error) {
@@ -130,6 +131,11 @@ func ConnectAllEnabledServers(ctx context.Context) {
 	}
 }
 
+// RefreshProxyToolsIfAvailable refreshes the MCP proxy tool list.
+// This is a forward declaration to avoid circular imports;
+// the actual implementation is set by handlers.InitMCPProxy.
+var RefreshProxyToolsIfAvailable = func() {}
+
 func ConnectServerByName(ctx context.Context, serverName string) error {
 	s := Store.GetServer(serverName)
 	if s == nil {
@@ -138,7 +144,11 @@ func ConnectServerByName(ctx context.Context, serverName string) error {
 	if !s.Enabled {
 		return nil
 	}
-	return connectServer(ctx, s)
+	err := connectServer(ctx, s)
+	if err == nil {
+		RefreshProxyToolsIfAvailable()
+	}
+	return err
 }
 
 func connectServer(ctx context.Context, s *models.ServerConfig) error {

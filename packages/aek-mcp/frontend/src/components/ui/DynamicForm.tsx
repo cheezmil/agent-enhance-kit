@@ -492,7 +492,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             )}
 
             <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-800">
-              {Object.entries(propSchema.properties).map(([objKey, objSchema]) =>
+              {Object.entries(propSchema.properties || {}).map(([objKey, objSchema]) =>
                 renderField(objKey, objSchema as JsonSchema, fullPath),
               )}
             </div>

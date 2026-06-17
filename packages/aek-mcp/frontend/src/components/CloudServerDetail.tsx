@@ -476,7 +476,7 @@ const CloudServerDetail: React.FC<CloudServerDetailProps> = ({
                         )}
 
                         <div className="space-y-4">
-                          {Object.entries(tool.inputSchema.properties).map(([propName, propSchema]: [string, any]) => (
+                          {Object.entries(tool.inputSchema.properties || {}).map(([propName, propSchema]: [string, any]) => (
                             <div key={propName} className="space-y-2">
                               <label className="block text-sm font-medium text-gray-700">
                                 {propName}

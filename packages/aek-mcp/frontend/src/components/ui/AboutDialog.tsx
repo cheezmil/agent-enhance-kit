@@ -63,7 +63,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
     }
   }, [isOpen, updateInfo]);
 
-  const latestEntry = updateInfo?.entries[0] ?? null;
+  const latestEntry = updateInfo?.entries?.[0] ?? null;
   const hasNewVersion = Boolean(updateInfo?.hasUpdate && updateInfo.latestVersion);
   const dismissed = useMemo(
     () => localDismissed || isUpdateDismissed(updateInfo?.latestVersion),
@@ -71,7 +71,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
   );
   const extraReleaseCount = Math.max(
     0,
-    (updateInfo?.totalUpdateCount ?? 0) - (updateInfo?.entries.length ?? 0),
+    (updateInfo?.totalUpdateCount ?? 0) - (updateInfo?.entries?.length ?? 0),
   );
 
   const handleDismiss = () => {
@@ -155,7 +155,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
               </div>
             )}
 
-            {updateInfo?.entries.length ? (
+            {updateInfo?.entries?.length ? (
               <div className="hub-card overflow-hidden">
                 <div className="px-4 py-3 hub-border-b">
                   <h4 className="hub-card-title">{t('about.latestChanges')}</h4>

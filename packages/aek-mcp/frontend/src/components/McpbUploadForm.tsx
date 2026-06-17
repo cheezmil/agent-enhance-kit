@@ -254,7 +254,7 @@ const McpbUploadForm: React.FC<McpbUploadFormProps> = ({ onSuccess, onCancel }) 
                     <div>
                       <strong>{t('mcpb.tools')}:</strong>
                       <ul className="list-disc list-inside ml-4">
-                        {manifestData.tools.map((tool: any, index: number) => (
+                        {Array.isArray(manifestData.tools) && manifestData.tools.map((tool: any, index: number) => (
                           <li key={index}>
                             {tool.name} - {tool.description}
                           </li>

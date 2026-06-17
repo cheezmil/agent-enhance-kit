@@ -823,7 +823,7 @@ const ServerCard = ({
             </div>
 
             {/* Context Footprint breakdown */}
-            {expandedTab === 'cost' && cost?.connected && (
+            {expandedTab === 'cost' && cost?.connected && cost?.items && (
               <div className="mt-2 space-y-1">
                 {[...cost.items].sort((a, b) => b.cost - a.cost).map((item) => (
                   <div
@@ -848,7 +848,7 @@ const ServerCard = ({
                     readOnly={!canManage}
                     onToggle={handleToolToggle}
                     onDescriptionUpdate={handleToolDescriptionUpdate}
-                    cost={cost?.items.find((i) => i.kind === 'tool' && i.name === tool.name)?.cost}
+                    cost={cost?.items?.find((i) => i.kind === 'tool' && i.name === tool.name)?.cost}
                   />
                 ))}
               </div>
@@ -863,7 +863,7 @@ const ServerCard = ({
                     readOnly={!canManage}
                     onToggle={handlePromptToggle}
                     onDescriptionUpdate={handlePromptDescriptionUpdate}
-                    cost={cost?.items.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.cost}
+                    cost={cost?.items?.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.cost}
                   />
                 ))}
               </div>
@@ -883,7 +883,7 @@ const ServerCard = ({
                         readOnly={!canManage}
                         onToggle={handleResourceToggle}
                         onDescriptionUpdate={handleResourceDescriptionUpdate}
-                        cost={cost?.items.find((i) => i.kind === 'resource' && i.name === resource.uri)?.cost}
+                        cost={cost?.items?.find((i) => i.kind === 'resource' && i.name === resource.uri)?.cost}
                       />
                     ))}
                   </div>

@@ -227,12 +227,18 @@ func (s *Storage) GetAllGroups() []*models.Group {
 	defer s.mu.RUnlock()
 	groups := make([]*models.Group, 0, len(s.groups))
 	for _, g := range s.groups {
+		if g.Servers == nil {
+			g.Servers = []string{}
+		}
 		groups = append(groups, g)
 	}
 	return groups
 }
 
 func (s *Storage) CreateGroup(group *models.Group) {
+	if group.Servers == nil {
+		group.Servers = []string{}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.groups[group.ID] = group

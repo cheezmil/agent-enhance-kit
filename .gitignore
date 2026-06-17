@@ -70,6 +70,7 @@ packages/aek/platforms/
 packages/aek-websearch/bin/
 packages/aek-websearch/platforms/
 packages/aek-mcp/bin/
+packages/aek-mcp/aek-mcp
 
 # Build artifacts
 *.exe

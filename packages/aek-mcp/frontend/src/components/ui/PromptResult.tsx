@@ -42,7 +42,7 @@ const PromptResult: React.FC<PromptResultProps> = ({ result, onClose }) => {
               <div>
                 <h4 className="text-sm font-medium text-gray-900 mb-2">{t('prompt.messages')}</h4>
                 <div className="space-y-3">
-                  {content.messages.map((message: any, index: number) => (
+                  {Array.isArray(content.messages) && content.messages.map((message: any, index: number) => (
                     <div key={index} className="bg-gray-50 dark:bg-gray-800 rounded-md p-3">
                       <div className="flex items-center mb-2">
                         <span className="inline-block w-16 text-xs font-medium text-gray-500">

@@ -220,7 +220,6 @@ func SetupRouter() *gin.Engine {
 	// Serve frontend static files
 	if !config.AppConfig.DisableWeb {
 		r.Static("/assets", "./frontend/dist/assets")
-		r.StaticFile("/", "./frontend/dist/index.html")
 		r.NoRoute(func(c *gin.Context) {
 			c.File("./frontend/dist/index.html")
 		})

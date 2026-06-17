@@ -70,7 +70,7 @@ type Group struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
-	Servers     []string `json:"servers,omitempty"`
+	Servers     []string `json:"servers"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
