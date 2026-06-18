@@ -88,7 +88,16 @@ Or use a subcommand for specialized operations:
 				provider = fmt.Sprintf("[%s] ", *r.Provider)
 			}
 			snippet := r.Snippet
-			fmt.Printf("%d. %s%s\n   %s\n   %s\n\n", i+1, provider, r.Title, r.URL, snippet)
+			meta := ""
+			if r.Metadata != nil {
+				if pub, ok := r.Metadata["publishedDate"].(string); ok && pub != "" && pub != "null" {
+					meta += "   Published: " + pub + "\n"
+				}
+				if auth, ok := r.Metadata["author"].(string); ok && auth != "" && auth != "null" {
+					meta += "   Author: " + auth + "\n"
+				}
+			}
+			fmt.Printf("%d. %s%s\n   %s\n   %s\n%s\n", i+1, provider, r.Title, r.URL, snippet, meta)
 		}
 
 		if len(resp.Traces) > 0 {

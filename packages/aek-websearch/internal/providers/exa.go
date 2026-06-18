@@ -106,10 +106,12 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 
 		var data struct {
 			Results []struct {
-				URL        string   `json:"url"`
-				Title      string   `json:"title"`
-				Text       string   `json:"text"`
-				Highlights []string `json:"highlights"`
+				URL           string   `json:"url"`
+				Title         string   `json:"title"`
+				Text          string   `json:"text"`
+				Highlights    []string `json:"highlights"`
+				PublishedDate string   `json:"publishedDate"`
+				Author        string   `json:"author"`
 			} `json:"results"`
 		}
 		if err := json.Unmarshal(respBody, &data); err != nil {
@@ -139,6 +141,10 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 			results = append(results, models.SearchResult{
 				URL: item.URL, Title: item.Title, Snippet: snippet,
 				Domain: domain, Provider: ptrProviderName("exa"), RawRank: i,
+				Metadata: map[string]any{
+					"publishedDate": item.PublishedDate,
+					"author":        item.Author,
+				},
 			})
 		}
 
