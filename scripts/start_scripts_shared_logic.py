@@ -64,14 +64,17 @@ def run_safe(cmd: List[str], cwd: Optional[Path] = None, env: Optional[dict] = N
                          text=True, shell=shell, check=False)
 
 
-def find_pids_by_port(port: int) -> set:
-    """Find PIDs listening on a port"""
+def find_pids_by_port(port: int, listen_only: bool = True) -> set:
+    """Find PIDs occupying a port (listen_only=True for LISTEN status only)"""
     import psutil
     pids = set()
     try:
         for conn in psutil.net_connections(kind="inet"):
-            if conn.laddr.port == port and conn.status == "LISTEN":
-                pids.add(conn.pid)
+            if conn.laddr.port == port:
+                if listen_only and conn.status != "LISTEN":
+                    continue
+                if conn.pid and conn.pid > 0:
+                    pids.add(conn.pid)
     except (psutil.AccessDenied, psutil.NoSuchProcess):
         pass
     return pids
@@ -80,10 +83,21 @@ def find_pids_by_port(port: int) -> set:
 def kill_port(port: int) -> bool:
     """Kill all processes occupying a port"""
     import psutil
-    pids = find_pids_by_port(port)
-    if not pids:
+    # 先用socket检测端口是否可绑定，比psutil更可靠
+    if can_bind(port):
         print(f"  Port {port} is free")
         return True
+    pids = find_pids_by_port(port, listen_only=False)
+    if not pids:
+        # psutil找不到进程，但端口被占用，等待释放
+        print(f"  Port {port} occupied but no PID found, waiting for release...")
+        for _ in range(10):
+            time.sleep(0.5)
+            if can_bind(port):
+                print(f"  Port {port} is now free")
+                return True
+        print(f"  Warning: Port {port} still occupied after waiting")
+        return False
     print(f"  Found {len(pids)} process(es) on port {port}, killing...")
     for pid in pids:
         try:
@@ -92,20 +106,22 @@ def kill_port(port: int) -> bool:
             p.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
-    time.sleep(1.5)
-    remaining = find_pids_by_port(port)
-    if remaining:
-        print(f"  Warning: {len(remaining)} process(es) still alive on port {port}")
-        return False
-    print(f"  Port {port} is now free")
-    return True
+    # 等待端口释放
+    for _ in range(10):
+        time.sleep(0.5)
+        if can_bind(port):
+            print(f"  Port {port} is now free")
+            return True
+    print(f"  Warning: Port {port} still occupied after killing")
+    return False
 
 
 def can_bind(port: int) -> bool:
-    """Check if a port is available"""
+    """Check if a port is available by trying to bind"""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("127.0.0.1", port))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("0.0.0.0", port))
             return True
     except OSError:
         return False
