@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePathname, useParams } from 'next/navigation';
-import { BookOpen, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import ThemeSwitch from '@/components/ui/ThemeSwitch';
 import LanguageSwitch from '@/components/ui/LanguageSwitch';
 import GitHubIcon from '@/components/icons/GitHubIcon';
@@ -33,6 +33,7 @@ const useCrumbs = (): string[] => {
     }
     if (path.startsWith('/logs')) return [root, t('nav.logs')];
     if (path.startsWith('/activity')) return [root, t('nav.activity')];
+    if (path.startsWith('/keys')) return [root, t('nav.keys', 'Keys')];
     if (path.startsWith('/settings')) return [root, t('nav.settings')];
     return [root];
   }, [pathname, params, t]);
@@ -102,22 +103,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
       <div className="ml-auto flex items-center gap-1 shrink-0">
         <a
-          href="https://github.com/samanhappy/mcphub"
+          href="https://github.com/samanhappy/aek-mcp"
           target="_blank"
           rel="noopener noreferrer"
           className="hub-icon-btn"
           aria-label="GitHub Repository"
         >
           <GitHubIcon className="h-4 w-4" />
-        </a>
-        <a
-          href="https://docs.mcphub.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hub-icon-btn"
-          aria-label="Documentation"
-        >
-          <BookOpen className="h-4 w-4" />
         </a>
         <ThemeSwitch />
         <LanguageSwitch />

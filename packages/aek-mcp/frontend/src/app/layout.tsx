@@ -31,23 +31,29 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
 // Only render children on the client to avoid SSR localStorage errors
 function ClientOnly({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    async function init() {
-      try {
-        const config = await loadRuntimeConfig();
-        (window as any).__MCPHUB_CONFIG__ = config;
-      } catch {
-        (window as any).__MCPHUB_CONFIG__ = {
-          basePath: '',
-          version: 'dev',
-          name: 'mcphub',
-        };
+  const [mounted, setMounted] = useState(() => {
+    // If cached config exists, mount instantly (no loading flash)
+    try {
+      const raw = localStorage.getItem('aek-mcp_runtime_config');
+      if (raw) {
+        const config = JSON.parse(raw);
+        (window as any).__AEK_MCP_CONFIG__ = config;
+        return true;
       }
+    } catch {}
+    return false;
+  });
+
+  useEffect(() => {
+    if (mounted) return; // Already mounted from cache
+    loadRuntimeConfig().then((config) => {
+      (window as any).__AEK_MCP_CONFIG__ = config;
       setMounted(true);
-    }
-    init();
-  }, []);
+    }).catch(() => {
+      (window as any).__AEK_MCP_CONFIG__ = { basePath: '', version: 'dev', name: 'aek-mcp' };
+      setMounted(true);
+    });
+  }, [mounted]);
 
   if (!mounted) {
     return (
@@ -64,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>MCPHub Dashboard</title>
+        <title>AEK-MCP</title>
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

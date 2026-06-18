@@ -212,7 +212,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({
                 {isChecking ? t('about.checking') : t('about.checkForUpdates')}
               </button>
               <a
-                href={updateInfo?.changelogUrl || 'https://www.mcphub.app/changelog'}
+                href={updateInfo?.changelogUrl || 'https://www.aek-mcp.app/changelog'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hub-btn primary"

@@ -5,6 +5,7 @@ type ServerLike = {
 type UserLike = {
   username: string;
   isAdmin?: boolean;
+  role?: string;
 } | null | undefined;
 
 export const canManageServer = (server: ServerLike, user: UserLike): boolean => {
@@ -12,7 +13,7 @@ export const canManageServer = (server: ServerLike, user: UserLike): boolean => 
     return false;
   }
 
-  if (user.isAdmin) {
+  if (user.isAdmin || user.role === 'admin') {
     return true;
   }
 

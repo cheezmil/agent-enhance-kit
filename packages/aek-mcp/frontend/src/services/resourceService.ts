@@ -14,7 +14,7 @@ export const toggleResource = async (
       { enabled },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );
@@ -46,7 +46,7 @@ export const updateResourceDescription = async (
       { description },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );
@@ -73,7 +73,7 @@ export const resetResourceDescription = async (
       `/servers/${encodeURIComponent(serverName)}/resources/${encodeURIComponent(resourceUri)}/description`,
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );

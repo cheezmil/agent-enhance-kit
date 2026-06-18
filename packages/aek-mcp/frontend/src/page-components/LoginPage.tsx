@@ -216,7 +216,7 @@ const LoginPage: React.FC = () => {
       {/* Top-right controls */}
       <div className="absolute top-3 right-4 z-20 flex items-center gap-1">
         <a
-          href="https://github.com/samanhappy/mcphub"
+          href="https://github.com/samanhappy/aek-mcp"
           target="_blank"
           rel="noopener noreferrer"
           className="hub-icon-btn"
@@ -225,7 +225,7 @@ const LoginPage: React.FC = () => {
           <GitHubIcon className="h-4 w-4" />
         </a>
         <a
-          href="https://docs.mcphub.app"
+          href="https://docs.aek-mcp.app"
           target="_blank"
           rel="noopener noreferrer"
           className="hub-icon-btn"

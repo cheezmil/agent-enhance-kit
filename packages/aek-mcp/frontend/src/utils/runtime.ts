@@ -5,10 +5,10 @@ import type { RuntimeConfig } from '../types/runtime';
  */
 export const getRuntimeConfig = (): RuntimeConfig => {
   return (
-    window.__MCPHUB_CONFIG__ || {
+    window.__AEK_MCP_CONFIG__ || {
       basePath: '',
       version: 'dev',
-      name: 'mcphub',
+      name: 'aek-mcp',
     }
   );
 };
@@ -49,57 +49,45 @@ export const getApiUrl = (endpoint: string): string => {
 /**
  * Load runtime configuration from server
  */
-export const loadRuntimeConfig = async (): Promise<RuntimeConfig> => {
+const CONFIG_CACHE_KEY = 'aek-mcp_runtime_config';
+const DEFAULT_CONFIG: RuntimeConfig = { basePath: '', version: 'dev', name: 'aek-mcp' };
+
+function getCachedConfig(): RuntimeConfig | null {
   try {
-    // For initial config load, we need to determine the correct path
-    // Try different possible paths based on current location
-    const currentPath = window.location.pathname;
-    const possibleConfigPaths = [
-      // If we're already on a subpath, try to use it
-      currentPath.replace(/\/[^/]*$/, '') + '/config',
-      // Try root config
-      '/config',
-      // Try with potential base paths
-      ...(currentPath.includes('/')
-        ? [currentPath.split('/')[1] ? `/${currentPath.split('/')[1]}/config` : '/config']
-        : ['/config']),
-    ];
+    const raw = localStorage.getItem(CONFIG_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
 
-    for (const configPath of possibleConfigPaths) {
-      try {
-        const response = await fetch(configPath, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-            'Cache-Control': 'no-cache',
-          },
-        });
+function setCachedConfig(config: RuntimeConfig): void {
+  try { localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(config)); } catch {}
+}
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            return data.data;
-          }
-        }
-      } catch (error) {
-        // Continue to next path
-        console.debug(`Failed to load config from ${configPath}:`, error);
-      }
-    }
-
-    // Fallback to default config
-    console.warn('Could not load runtime config from server, using defaults');
-    return {
-      basePath: '',
-      version: 'dev',
-      name: 'mcphub',
-    };
-  } catch (error) {
-    console.error('Error loading runtime config:', error);
-    return {
-      basePath: '',
-      version: 'dev',
-      name: 'mcphub',
-    };
-  }
+/** Returns cached config instantly (or null), then fetches fresh in background. */
+export const loadRuntimeConfig = async (): Promise<RuntimeConfig> => {
+  const cached = getCachedConfig();
+  // Fire-and-forget background refresh
+  fetchConfigFromServer().then(setCachedConfig).catch(() => {});
+  return cached || (await fetchConfigFromServer());
 };
+
+async function fetchConfigFromServer(): Promise<RuntimeConfig> {
+  const currentPath = window.location.pathname;
+  const possibleConfigPaths = [
+    currentPath.replace(/\/[^/]*$/, '') + '/config',
+    '/config',
+    ...(currentPath.includes('/')
+      ? [currentPath.split('/')[1] ? `/${currentPath.split('/')[1]}/config` : '/config']
+      : ['/config']),
+  ];
+  for (const configPath of possibleConfigPaths) {
+    try {
+      const response = await fetch(configPath, { method: 'GET', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) return data.data;
+      }
+    } catch {}
+  }
+  return DEFAULT_CONFIG;
+}

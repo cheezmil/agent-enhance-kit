@@ -95,7 +95,7 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
 
   // Generate a unique key for localStorage based on tool name and server
   const getStorageKey = useCallback(() => {
-    return `mcphub_tool_form_${server ? `${server}_` : ''}${tool.name}`;
+    return `aek-mcp_tool_form_${server ? `${server}_` : ''}${tool.name}`;
   }, [tool.name, server]);
 
   // Clear form data from localStorage

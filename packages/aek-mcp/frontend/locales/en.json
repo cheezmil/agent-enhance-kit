@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "MCPHub Dashboard",
+    "title": "AEK-MCP",
     "error": "Error",
     "closeButton": "Close",
     "noServers": "No MCP servers available",
@@ -10,13 +10,13 @@
     "changePassword": "Change Password",
     "toggleSidebar": "Toggle Sidebar",
     "welcomeUser": "Welcome, {{username}}",
-    "name": "MCPHub",
+    "name": "AEK-MCP",
     "embeddingSyncProgress": "Embeddings for {{serverName}}",
     "embeddingSyncProgressAriaLabel": "Creating embeddings for {{serverName}}: {{current}} of {{total}} completed"
   },
   "about": {
     "title": "About",
-    "versionInfo": "MCPHub Version: {{version}}",
+    "versionInfo": "AEK-MCP Version: {{version}}",
     "newVersion": "New version available!",
     "currentVersion": "Current version",
     "newVersionAvailable": "New version {{version}} is available",
@@ -42,7 +42,7 @@
     "label": "Sponsor",
     "title": "Support the Project",
     "rewardAlt": "Reward QR Code",
-    "supportMessage": "Support the development of MCPHub by buying me a coffee!",
+    "supportMessage": "Support the development of AEK-MCP by buying me a coffee!",
     "supportButton": "Support on Ko-fi"
   },
   "wechat": {
@@ -64,7 +64,7 @@
   },
   "auth": {
     "login": "Login",
-    "loginTitle": "Login to MCPHub",
+    "loginTitle": "Login to AEK-MCP",
     "slogan": "The Unified Hub for MCP Servers",
     "subtitle": "Centralized management platform for Model Context Protocol servers. Organize, monitor, and scale multiple MCP servers with flexible routing strategies.",
     "username": "Username",
@@ -480,7 +480,7 @@
   },
   "oauthServer": {
     "authorizeTitle": "Authorize Application",
-    "authorizeSubtitle": "Allow this application to access your MCPHub account.",
+    "authorizeSubtitle": "Allow this application to access your AEK-MCP account.",
     "buttons": {
       "approve": "Allow access",
       "deny": "Deny",
@@ -783,10 +783,10 @@
     "mcpRouterApiKeyPlaceholder": "Enter MCPRouter API key",
     "mcpRouterReferer": "Referer",
     "mcpRouterRefererDescription": "Referer header for MCPRouter API requests",
-    "mcpRouterRefererPlaceholder": "https://www.mcphub.app",
+    "mcpRouterRefererPlaceholder": "https://www.aek-mcp.app",
     "mcpRouterTitle": "Title",
     "mcpRouterTitleDescription": "Title header for MCPRouter API requests",
-    "mcpRouterTitlePlaceholder": "MCPHub",
+    "mcpRouterTitlePlaceholder": "AEK-MCP",
     "mcpRouterBaseUrl": "Base URL",
     "mcpRouterBaseUrlDescription": "Base URL for MCPRouter API",
     "mcpRouterBaseUrlPlaceholder": "https://api.mcprouter.to/v1",
@@ -804,7 +804,7 @@
     "exportSuccess": "Settings exported successfully",
     "exportError": "Failed to fetch settings",
     "enableOauthServer": "Enable OAuth Server",
-    "enableOauthServerDescription": "Allow MCPHub to issue OAuth tokens for external clients",
+    "enableOauthServerDescription": "Allow AEK-MCP to issue OAuth tokens for external clients",
     "requireClientSecret": "Require Client Secret",
     "requireClientSecretDescription": "When enabled, confidential clients must present a client secret (disable for PKCE-only clients)",
     "requireState": "Require State Parameter",
@@ -1146,7 +1146,7 @@
     "uploadFile": "Upload Template File",
     "or": "or",
     "pasteJson": "Paste Template JSON",
-    "pastePlaceholder": "Paste your .mcphub-template.json content here...",
+    "pastePlaceholder": "Paste your .aek-mcp-template.json content here...",
     "version": "Version",
     "createdAt": "Created",
     "servers": "Servers",

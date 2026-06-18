@@ -5,7 +5,7 @@ import { applyServerListPatch } from '@/utils/serverListState';
 import { apiDelete, apiGet, apiPost, apiPut } from '../utils/fetchInterceptor';
 import { useAuth } from './AuthContext';
 
-const SERVERS_PER_PAGE_KEY = 'mcphub_servers_per_page';
+const SERVERS_PER_PAGE_KEY = 'aek-mcp_servers_per_page';
 const DEFAULT_SERVERS_PER_PAGE = 5;
 const VALID_PAGE_SIZES = new Set([5, 10, 20, 50]);
 
@@ -142,7 +142,7 @@ export const ServerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           // Build query parameters for pagination
           const params = new URLSearchParams();
           params.append('page', currentPage.toString());
-          params.append('limit', serversPerPage.toString());
+
 
           const serverData = (await apiGet(`/servers?${params.toString()}`)) as ServerListResponse;
 
@@ -217,7 +217,7 @@ export const ServerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Build query parameters for pagination
         const params = new URLSearchParams();
         params.append('page', currentPage.toString());
-        params.append('limit', serversPerPage.toString());
+
 
         const serverData = (await apiGet(`/servers?${params.toString()}`)) as ServerListResponse;
 

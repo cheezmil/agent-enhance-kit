@@ -1,13 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Search, Upload, FileCode, AlertCircle, X } from 'lucide-react';
+import { RefreshCw, Search, FileCode, AlertCircle, X } from 'lucide-react';
 import { Server } from '@/types';
 import ServerCard from '@/components/ServerCard';
 import AddServerForm from '@/components/AddServerForm';
 import EditServerForm from '@/components/EditServerForm';
-import McpbUploadForm from '@/components/McpbUploadForm';
 import JSONImportForm from '@/components/JSONImportForm';
-import Pagination from '@/components/ui/Pagination';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { filterServers, getServerFilterCounts, type ServerFilter } from '@/utils/serverFilters';
@@ -20,11 +18,6 @@ const ServersPage: React.FC = () => {
     error,
     setError,
     isLoading,
-    pagination,
-    currentPage,
-    serversPerPage,
-    setCurrentPage,
-    setServersPerPage,
     handleServerAdd,
     handleServerEdit,
     handleServerRemove,
@@ -36,21 +29,39 @@ const ServersPage: React.FC = () => {
 
   const { serverCosts, refetch: refetchCost } = useCostData();
 
-  // Re-fetch context footprint whenever server data changes (toggle, reload, edit).
   useEffect(() => {
     refetchCost();
   }, [servers, refetchCost]);
 
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showMcpbUpload, setShowMcpbUpload] = useState(false);
   const [showJsonImport, setShowJsonImport] = useState(false);
   const [filter, setFilter] = useState<ServerFilter>('all');
   const [search, setSearch] = useState('');
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('aek-mcp-favorites');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
 
-  const counts = useMemo(() => getServerFilterCounts(allServers), [allServers]);
+  const toggleFavorite = (name: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      localStorage.setItem('aek-mcp-favorites', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
-  const filteredServers = useMemo(() => filterServers(servers, filter, search), [servers, filter, search]);
+  const counts = useMemo(() => getServerFilterCounts(allServers, favorites), [allServers, favorites]);
+
+  const filteredServers = useMemo(() => {
+    const base = filter === 'favorites'
+      ? servers.filter((s) => favorites.has(s.name))
+      : filterServers(servers, filter, search);
+    return base.sort((a, b) => a.name.localeCompare(b.name));
+  }, [servers, filter, search, favorites]);
 
   const handleEditClick = async (server: Server) => {
     const fullServerData = await handleServerEdit(server);
@@ -77,15 +88,12 @@ const ServersPage: React.FC = () => {
             <span className="hub-num">{counts.all}</span> {t('nav.servers').toLowerCase()} ·{' '}
             <span className="hub-num">{counts.online}</span> {t('status.online')} ·{' '}
             <span className="hub-num">{counts.issues}</span>{' '}
-            {t('common.inactive') || 'issues'}
+            {t('status.offline') || 'Offline'}
           </p>
         </div>
         <div className="flex gap-2">
           <button className="hub-btn" onClick={() => setShowJsonImport(true)}>
             <FileCode size={13} /> {t('jsonImport.button')}
-          </button>
-          <button className="hub-btn" onClick={() => setShowMcpbUpload(true)}>
-            <Upload size={13} /> {t('mcpb.upload')}
           </button>
           <button
             className="hub-btn"
@@ -133,8 +141,9 @@ const ServersPage: React.FC = () => {
           {(
             [
               ['all', t('common.all') || 'All', counts.all],
+              ['favorites', t('common.favorites', '★'), counts.favorites],
               ['online', t('status.online'), counts.online],
-              ['issues', t('common.inactive') || 'Issues', counts.issues],
+              ['issues', t('status.offline') || 'Offline', counts.issues],
               ['disabled', t('pages.dashboard.disabledServers') || 'Disabled', counts.disabled],
             ] as [ServerFilter, string, number][]
           ).map(([k, l, n]) => (
@@ -195,61 +204,23 @@ const ServersPage: React.FC = () => {
           <p>{servers.length === 0 ? t('app.noServers') : t('market.noServers')}</p>
         </div>
       ) : (
-        <>
-          <div className="flex flex-col">
-            {filteredServers.map((server) => (
-              <ServerCard
-                key={server.name}
-                server={server}
-                cost={serverCosts.find((c) => c.name === server.name)}
-                onRemove={handleServerRemove}
-                onEdit={handleEditClick}
-                onToggle={handleServerToggle}
-                onVisibilityChange={handleServerVisibilityChange}
-                onRefresh={triggerRefresh}
-                onReload={handleServerReload}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center mt-4 text-[12px]" style={{ color: 'var(--hub-ink-3)' }}>
-            <div className="flex-[2]">
-              {pagination
-                ? t('common.showing', {
-                    start: (pagination.page - 1) * pagination.limit + 1,
-                    end: Math.min(pagination.page * pagination.limit, pagination.total),
-                    total: pagination.total,
-                  })
-                : t('common.showing', { start: 1, end: servers.length, total: servers.length })}
-            </div>
-            <div className="flex-[4] flex justify-center">
-              {pagination && pagination.totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setCurrentPage}
-                  disabled={isLoading}
-                />
-              )}
-            </div>
-            <div className="flex-[2] flex items-center justify-end gap-2">
-              <label htmlFor="perPage">{t('common.itemsPerPage')}:</label>
-              <select
-                id="perPage"
-                value={serversPerPage}
-                onChange={(e) => setServersPerPage(Number(e.target.value))}
-                disabled={isLoading}
-                className="hub-input"
-                style={{ height: 26, width: 70, padding: '0 6px', fontSize: 12 }}
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          </div>
-        </>
+        <div className="flex flex-col">
+          {filteredServers.map((server) => (
+            <ServerCard
+              key={server.name}
+              server={server}
+              cost={serverCosts.find((c) => c.name === server.name)}
+              onRemove={handleServerRemove}
+              onEdit={handleEditClick}
+              onToggle={handleServerToggle}
+              onVisibilityChange={handleServerVisibilityChange}
+              onRefresh={triggerRefresh}
+              onReload={handleServerReload}
+              isFavorite={favorites.has(server.name)}
+              onToggleFavorite={() => toggleFavorite(server.name)}
+            />
+          ))}
+        </div>
       )}
 
       {editingServer && (
@@ -260,15 +231,6 @@ const ServersPage: React.FC = () => {
             triggerRefresh();
           }}
           onCancel={() => setEditingServer(null)}
-        />
-      )}
-      {showMcpbUpload && (
-        <McpbUploadForm
-          onSuccess={() => {
-            setShowMcpbUpload(false);
-            triggerRefresh();
-          }}
-          onCancel={() => setShowMcpbUpload(false)}
         />
       )}
       {showJsonImport && (

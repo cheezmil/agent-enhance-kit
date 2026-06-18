@@ -1,12 +1,13 @@
 import { Server } from '@/types';
 
-export type ServerFilter = 'all' | 'online' | 'issues' | 'disabled';
+export type ServerFilter = 'all' | 'favorites' | 'online' | 'issues' | 'disabled';
 
-export const getServerFilterCounts = (servers: Server[]) => ({
+export const getServerFilterCounts = (servers: Server[], favorites?: Set<string>) => ({
   all: servers.length,
   online: servers.filter((server) => server.status === 'connected').length,
   issues: servers.filter((server) => server.status !== 'connected' && server.enabled !== false).length,
   disabled: servers.filter((server) => server.enabled === false).length,
+  favorites: favorites ? servers.filter((s) => favorites.has(s.name)).length : 0,
 });
 
 export const filterServers = (

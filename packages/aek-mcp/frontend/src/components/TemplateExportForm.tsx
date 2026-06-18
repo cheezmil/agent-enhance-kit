@@ -54,7 +54,7 @@ const TemplateExportForm: React.FC<TemplateExportFormProps> = ({ groups, onCance
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${template.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.mcphub-template.json`;
+        a.download = `${template.name.replace(/[^a-zA-Z0-9-_]/g, '_')}.aek-mcp-template.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

@@ -75,7 +75,7 @@ const PromptCard = ({ prompt, server, readOnly = false, onToggle, onDescriptionU
 
   // Generate a unique key for localStorage based on prompt name and server
   const getStorageKey = useCallback(() => {
-    return `mcphub_prompt_form_${server ? `${server}_` : ''}${prompt.name}`;
+    return `aek-mcp_prompt_form_${server ? `${server}_` : ''}${prompt.name}`;
   }, [prompt.name, server]);
 
   // Clear form data from localStorage

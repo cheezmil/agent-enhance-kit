@@ -13,6 +13,7 @@ import {
   X,
   Edit3,
   Trash2,
+  Star,
   type LucideIcon,
 } from 'lucide-react';
 import { Server, ServerCost } from '@/types';
@@ -42,6 +43,8 @@ interface ServerCardProps {
   onVisibilityChange?: (server: Server, visibility: 'private' | 'group' | 'public') => Promise<boolean>;
   onRefresh?: () => void;
   onReload?: (server: Server) => Promise<boolean>;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 type CapabilityTabKey = 'tools' | 'prompts' | 'resources';
@@ -138,6 +141,8 @@ const ServerCard = ({
   onVisibilityChange,
   onRefresh,
   onReload,
+  isFavorite = false,
+  onToggleFavorite,
 }: ServerCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -145,7 +150,7 @@ const ServerCard = ({
   const { auth } = useAuth();
   const baseUrl = installConfig?.baseUrl?.replace(/\/+$/, '') || '';
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'cost' | null>(
     null,
   );
@@ -463,6 +468,21 @@ const ServerCard = ({
                 flexShrink: 0,
               }}
             />
+            {onToggleFavorite && (
+              <button
+                className="flex-shrink-0 p-0.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite();
+                }}
+                aria-label={isFavorite ? "Unfavorite" : "Favorite"}
+              >
+                <Star
+                  size={14}
+                  className={isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}
+                />
+              </button>
+            )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span
@@ -579,9 +599,7 @@ const ServerCard = ({
               >
                 {transportLabel(t, server.config.type)}
               </span>
-            ) : (
-              <span style={{ color: 'var(--hub-ink-3)', fontSize: 12 }}>—</span>
-            )}
+            ) : null}
           </div>
 
           <div className="hub-server-card-visibility min-w-0" onClick={(e) => e.stopPropagation()}>
@@ -647,10 +665,6 @@ const ServerCard = ({
                 {formatTokens(cost.exposed)}/{formatTokens(cost.gross)}
               </span>
             </span>
-          ) : cost ? (
-            <span className="hub-server-capability-stat hub-mono is-empty" title={t('cost.notConnected')}>
-              <span className="hub-server-capability-value">—</span>
-            </span>
           ) : null}
 
           {/* Toggle switch */}
@@ -674,6 +688,21 @@ const ServerCard = ({
             </LoadingControl>
           </div>
 
+          {/* Reload */}
+          {onReload && (
+            <button
+              className="hub-icon-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReload(e);
+              }}
+              disabled={isReloading || isToggling || !enabled}
+              aria-label={t('server.reload')}
+              title={t('server.reload')}
+            >
+              <RefreshCw size={13} className={isReloading ? 'animate-spin' : ''} />
+            </button>
+          )}
           {/* Menu */}
           <div className="relative" ref={menuRef}>
             {canManage && (

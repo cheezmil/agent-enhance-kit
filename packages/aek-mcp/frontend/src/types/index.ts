@@ -58,7 +58,7 @@ export interface MarketServer {
 export type ChangelogCategory = 'feature' | 'fix' | 'breaking' | 'security';
 
 export interface ChangelogEntry {
-  product: 'mcphub';
+  product: 'aek-mcp';
   version: string;
   tagName: string;
   publishedAt: string;
@@ -83,7 +83,7 @@ export interface ChangelogUpdateInfo {
   totalUpdateCount: number;
   changelogUrl: string;
   allChangelogUrl: string;
-  source: 'mcphub-web' | 'npm-fallback' | 'disabled';
+  source: 'aek-mcp-web' | 'npm-fallback' | 'disabled';
 }
 
 // Cloud Server types (for MCPRouter API)

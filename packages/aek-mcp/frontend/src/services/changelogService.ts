@@ -1,7 +1,7 @@
 import { ApiResponse, apiGet } from '@/utils/fetchInterceptor';
 import { ChangelogUpdateInfo } from '@/types';
 
-const DISMISSED_UPDATE_KEY = 'mcphub.dismissedUpdateVersion';
+const DISMISSED_UPDATE_KEY = 'aek-mcp.dismissedUpdateVersion';
 
 export async function fetchChangelogUpdateInfo(input: {
   currentVersion: string;

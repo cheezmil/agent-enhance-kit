@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "MCPHub 控制面板",
+    "title": "AEK-MCP",
     "error": "错误",
     "closeButton": "关闭",
     "noServers": "没有可用的 MCP 服务器",
@@ -10,13 +10,13 @@
     "changePassword": "修改密码",
     "toggleSidebar": "切换侧边栏",
     "welcomeUser": "欢迎, {{username}}",
-    "name": "MCPHub",
+    "name": "AEK-MCP",
     "embeddingSyncProgress": "正在为 {{serverName}} 创建嵌入",
     "embeddingSyncProgressAriaLabel": "正在为 {{serverName}} 创建嵌入：已完成 {{current}}/{{total}}"
   },
   "about": {
     "title": "关于",
-    "versionInfo": "MCPHub 版本: {{version}}",
+    "versionInfo": "AEK-MCP 版本: {{version}}",
     "newVersion": "有新版本可用！",
     "currentVersion": "当前版本",
     "newVersionAvailable": "新版本 {{version}} 已发布",
@@ -42,7 +42,7 @@
     "label": "赞助",
     "title": "支持项目",
     "rewardAlt": "赞赏码",
-    "supportMessage": "通过捐赠支持 MCPHub 的开发！",
+    "supportMessage": "通过捐赠支持 AEK-MCP 的开发！",
     "supportButton": "在 Ko-fi 上支持"
   },
   "wechat": {
@@ -64,7 +64,7 @@
   },
   "auth": {
     "login": "登录",
-    "loginTitle": "登录 MCPHub",
+    "loginTitle": "登录 AEK-MCP",
     "slogan": "统一的 MCP 服务器管理平台",
     "subtitle": "模型上下文协议服务器的集中管理平台，通过灵活的路由策略组织、监控和扩展多个 MCP 服务器。",
     "username": "用户名",
@@ -482,7 +482,7 @@
   },
   "oauthServer": {
     "authorizeTitle": "授权应用",
-    "authorizeSubtitle": "允许此应用访问您的 MCPHub 账号。",
+    "authorizeSubtitle": "允许此应用访问您的 AEK-MCP 账号。",
     "buttons": {
       "approve": "允许访问",
       "deny": "拒绝",
@@ -786,10 +786,10 @@
     "mcpRouterApiKeyPlaceholder": "请输入 MCPRouter API 密钥",
     "mcpRouterReferer": "引用地址",
     "mcpRouterRefererDescription": "MCPRouter API 请求的引用地址头",
-    "mcpRouterRefererPlaceholder": "https://www.mcphub.app",
+    "mcpRouterRefererPlaceholder": "https://www.aek-mcp.app",
     "mcpRouterTitle": "标题",
     "mcpRouterTitleDescription": "MCPRouter API 请求的标题头",
-    "mcpRouterTitlePlaceholder": "MCPHub",
+    "mcpRouterTitlePlaceholder": "AEK-MCP",
     "mcpRouterBaseUrl": "基础地址",
     "mcpRouterBaseUrlDescription": "MCPRouter API 的基础地址",
     "mcpRouterBaseUrlPlaceholder": "https://api.mcprouter.to/v1",
@@ -807,7 +807,7 @@
     "exportSuccess": "配置导出成功",
     "exportError": "获取配置失败",
     "enableOauthServer": "启用 OAuth 服务器",
-    "enableOauthServerDescription": "允许 MCPHub 作为 OAuth 2.0 授权服务器向外部客户端签发令牌",
+    "enableOauthServerDescription": "允许 AEK-MCP 作为 OAuth 2.0 授权服务器向外部客户端签发令牌",
     "requireClientSecret": "需要客户端密钥",
     "requireClientSecretDescription": "开启后，保密客户端必须携带 client secret（如需仅使用 PKCE 的公共客户端可关闭）",
     "requireState": "要求 state 参数",
@@ -1148,7 +1148,7 @@
     "uploadFile": "上传模板文件",
     "or": "或",
     "pasteJson": "粘贴模板 JSON",
-    "pastePlaceholder": "在此粘贴 .mcphub-template.json 内容...",
+    "pastePlaceholder": "在此粘贴 .aek-mcp-template.json 内容...",
     "version": "版本",
     "createdAt": "创建时间",
     "servers": "服务器",

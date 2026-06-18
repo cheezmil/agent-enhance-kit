@@ -113,7 +113,7 @@ const McpbUploadForm: React.FC<McpbUploadFormProps> = ({ onSuccess, onCancel }) 
     setError(null);
 
     try {
-      // Convert MCPB manifest to MCPHub stdio server configuration
+      // Convert MCPB manifest to Aek-MCP stdio server configuration
       const serverConfig = convertMcpbToMcpConfig(manifestData, extractDir, serverName);
 
       // First, check if server exists
@@ -177,7 +177,7 @@ const McpbUploadForm: React.FC<McpbUploadFormProps> = ({ onSuccess, onCancel }) 
   const convertMcpbToMcpConfig = (manifest: any, extractPath: string, _serverName: string) => {
     const mcpConfig = manifest.server?.mcp_config || {};
 
-    // Convert MCPB manifest to MCPHub stdio configuration
+    // Convert MCPB manifest to Aek-MCP stdio configuration
     const config: any = {
       type: 'stdio',
       command: mcpConfig.command || 'node',

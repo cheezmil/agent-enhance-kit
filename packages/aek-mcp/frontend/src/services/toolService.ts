@@ -32,7 +32,7 @@ export const callTool = async (
 
     const response = await apiPost<any>(url, request.arguments, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`, // Add bearer auth for MCP routing
+        Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`, // Add bearer auth for MCP routing
       },
     });
 
@@ -71,7 +71,7 @@ export const toggleTool = async (
       { enabled },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );
@@ -104,7 +104,7 @@ export const updateToolDescription = async (
       { description },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );
@@ -134,7 +134,7 @@ export const resetToolDescription = async (
       `/servers/${encodeURIComponent(serverName)}/tools/${encodeURIComponent(toolName)}/description`,
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );

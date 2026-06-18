@@ -131,7 +131,7 @@ export const updatePromptDescription = async (
       { description },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );
@@ -158,7 +158,7 @@ export const resetPromptDescription = async (
       `/servers/${encodeURIComponent(serverName)}/prompts/${encodeURIComponent(promptName)}/description`,
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('mcphub_token')}`,
+          Authorization: `Bearer ${localStorage.getItem('aek-mcp_token')}`,
         },
       },
     );

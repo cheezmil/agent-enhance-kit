@@ -8,7 +8,7 @@ export interface RuntimeConfig {
 // Extend Window interface to include runtime config
 declare global {
   interface Window {
-    __MCPHUB_CONFIG__?: RuntimeConfig;
+    __AEK_MCP_CONFIG__?: RuntimeConfig;
   }
 }
 
