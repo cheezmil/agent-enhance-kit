@@ -70,7 +70,7 @@ func (p *mcpProxy) syncTools() {
 	var allTools []server.ServerTool
 
 	for _, srv := range servers {
-		if !srv.Enabled || srv.URL == "" {
+		if !srv.Enabled || (srv.URL == "" && srv.Command == "") {
 			continue
 		}
 
@@ -146,7 +146,7 @@ func HandleMCPProxyListTools(c *gin.Context) {
 	var allTools []MCPToolInfo
 
 	for _, srv := range servers {
-		if !srv.Enabled || srv.URL == "" {
+		if !srv.Enabled || (srv.URL == "" && srv.Command == "") {
 			continue
 		}
 

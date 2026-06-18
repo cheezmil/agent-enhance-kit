@@ -88,9 +88,6 @@ Or use a subcommand for specialized operations:
 				provider = fmt.Sprintf("[%s] ", *r.Provider)
 			}
 			snippet := r.Snippet
-			if len(snippet) > 150 {
-				snippet = snippet[:150]
-			}
 			fmt.Printf("%d. %s%s\n   %s\n   %s\n\n", i+1, provider, r.Title, r.URL, snippet)
 		}
 

@@ -38,12 +38,8 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 		"query": query.Query,
 		"type":  searchType,
 		"contents": map[string]interface{}{
-			"text": map[string]interface{}{
-				"maxCharacters": 300,
-			},
-			"highlights": map[string]interface{}{
-				"maxCharacters": 200,
-			},
+			"text":       map[string]interface{}{},
+			"highlights": map[string]interface{}{},
 		},
 	}
 	if n := config.ProviderMaxResults("exa"); n > 0 {
@@ -139,9 +135,6 @@ func (p *ExaProvider) SearchWithType(query models.SearchQuery, searchType string
 			}
 			if snippet == "" {
 				snippet = item.Text
-			}
-			if len(snippet) > 300 {
-				snippet = snippet[:300]
 			}
 			results = append(results, models.SearchResult{
 				URL: item.URL, Title: item.Title, Snippet: snippet,
