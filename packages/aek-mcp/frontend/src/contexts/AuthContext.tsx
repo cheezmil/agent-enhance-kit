@@ -35,7 +35,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Load user if token exists
   useEffect(() => {
     const loadUser = async () => {
-      // First check if authentication should be skipped
+      // Skip auto-login if user explicitly logged out
+      if (typeof window !== 'undefined' && sessionStorage.getItem('mcp_explicit_logout') === '1') {
+        sessionStorage.removeItem('mcp_explicit_logout');
+        setAuth({ ...initialState, loading: false });
+        return;
+      }
+
       const { autoLogin, permissions } = await getPublicConfig();
 
             if (autoLogin) {
@@ -209,6 +215,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Logout function
   const logout = (): void => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('mcp_explicit_logout', '1');
+    }
     authService.logout();
     setAuth({
       ...initialState,

@@ -36,6 +36,15 @@ func SetupRouter() *gin.Engine {
 	r.GET("/auth/user", middleware.AuthMiddleware(), GetAuthUser)
 	r.POST("/auth/change-password", middleware.AuthMiddleware(), ChangePassword)
 
+	// Auth routes under /api prefix (frontend getApiUrl adds /api, no auth required)
+	// Auth routes under /api prefix (frontend getApiUrl adds /api)
+	authApi := r.Group("/api")
+	authApi.POST("/auth/login", Login)
+	authApi.POST("/auth/register", Register)
+	authApi.POST("/auth/auto-login", AutoLogin)
+	authApi.GET("/auth/user", middleware.AuthMiddleware(), GetAuthUser)
+	authApi.POST("/auth/change-password", middleware.AuthMiddleware(), ChangePassword)
+
 	api := r.Group("/api")
 	{
 		api.Use(middleware.AuthMiddleware())

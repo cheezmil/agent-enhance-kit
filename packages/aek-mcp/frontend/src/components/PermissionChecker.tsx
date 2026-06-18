@@ -46,8 +46,8 @@ export const usePermissionCheck = (requiredPermissions: string | string[]): bool
     return true;
   }
 
-  // If user is admin, they have all permissions by default
-  if (auth.user.isAdmin) {
+  // If user is admin (either via isAdmin flag or role field), they have all permissions by default
+  if (auth.user.isAdmin || auth.user.role === 'admin') {
     return true;
   }
 
@@ -81,8 +81,8 @@ export const usePermissionCheckAll = (requiredPermissions: string[]): boolean =>
     return true;
   }
 
-  // If user is admin, they have all permissions by default
-  if (auth.user.isAdmin) {
+  // If user is admin (either via isAdmin flag or role field), they have all permissions by default
+  if (auth.user.isAdmin || auth.user.role === 'admin') {
     return true;
   }
 

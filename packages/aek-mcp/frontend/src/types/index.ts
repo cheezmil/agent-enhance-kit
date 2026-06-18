@@ -432,6 +432,7 @@ export interface BearerKey {
 export interface IUser {
   username: string;
   isAdmin?: boolean;
+  role?: string;
   permissions?: string[];
 }
 

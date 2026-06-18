@@ -104,13 +104,22 @@ const LoginPage: React.FC = () => {
     if (returnUrl) {
       window.location.assign(buildRedirectTarget());
     } else {
-      router.replace('/');
+      // Use full page navigation to avoid Next.js client-side routing issues
+      // with Go backend SPA fallback. Token is already in localStorage.
+      window.location.href = '/';
     }
-  }, [buildRedirectTarget, router, returnUrl]);
+  }, [buildRedirectTarget, returnUrl]);
 
   useEffect(() => {
-    if (!auth.loading && auth.isAuthenticated) redirectAfterLogin();
-  }, [auth.isAuthenticated, auth.loading, redirectAfterLogin]);
+    if (!auth.loading && auth.isAuthenticated) {
+      // Token already stored by authService.login, just navigate
+      if (!returnUrl) {
+        window.location.href = '/';
+      } else {
+        redirectAfterLogin();
+      }
+    }
+  }, [auth.isAuthenticated, auth.loading, redirectAfterLogin, returnUrl]);
 
   useEffect(() => {
     const errorCode = searchParams?.get('error');
@@ -464,7 +473,7 @@ const LoginPage: React.FC = () => {
               </p>
               {[
                 { label: 'Linux/macOS', path: '~/.aek/mcp/db/user.jsonc' },
-                { label: 'Windows', path: '%userprofile%/.aek/mcp/db/user.jsonc' },
+                { label: 'Windows', path: String.raw`%userprofile%\.aek\mcp\db\user.jsonc` },
               ].map(({ label, path }) => (
                 <div key={path} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontSize: 11, color: 'var(--hub-ink-3)', minWidth: 70 }}>{label}:</span>
