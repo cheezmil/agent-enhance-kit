@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Copy, Check } from 'lucide-react';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,13 +45,27 @@ const LoginPage: React.FC = () => {
   });
   const [oidcProviderId, setOidcProviderId] = useState<string>('oidc');
   const [showDefaultPasswordWarning, setShowDefaultPasswordWarning] = useState(false);
+  const [showLoginHint, setShowLoginHint] = useState(false);
+  const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const { login, auth } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const returnUrl = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return sanitizeReturnUrl(params.get('returnUrl'));
-  }, [location.search]);
+    return sanitizeReturnUrl(searchParams?.get('returnUrl') ?? null);
+  }, [searchParams]);
+
+  useEffect(() => {
+    getPublicConfig().then(config => {
+      setShowLoginHint(config.showLoginHint !== false);
+    });
+  }, []);
+
+  const copyToClipboard = async (text: string, path: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedPath(path);
+    setTimeout(() => setCopiedPath(null), 2000);
+  };
 
   const isServerUnavailableError = useCallback((message?: string) => {
     if (!message) return false;
@@ -89,23 +104,22 @@ const LoginPage: React.FC = () => {
     if (returnUrl) {
       window.location.assign(buildRedirectTarget());
     } else {
-      navigate('/');
+      router.replace('/');
     }
-  }, [buildRedirectTarget, navigate, returnUrl]);
+  }, [buildRedirectTarget, router, returnUrl]);
 
   useEffect(() => {
     if (!auth.loading && auth.isAuthenticated) redirectAfterLogin();
   }, [auth.isAuthenticated, auth.loading, redirectAfterLogin]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const errorCode = params.get('error');
+    const errorCode = searchParams?.get('error');
     if (errorCode) {
       const i18nKey = `auth.error.${errorCode}`;
       const translated = t(i18nKey);
       setSocialError(translated !== i18nKey ? translated : t('auth.socialLoginFailed'));
     }
-  }, [location.search, t]);
+  }, [searchParams, t]);
 
   useEffect(() => {
     const loadAuthProviders = async () => {
@@ -440,11 +454,38 @@ const LoginPage: React.FC = () => {
             )}
           </div>
 
+          {showLoginHint && (
+            <div
+              className="hub-card"
+              style={{ padding: '14px 16px', marginTop: 12 }}
+            >
+              <p style={{ fontSize: 12, color: 'var(--hub-ink-3)', marginBottom: 8 }}>
+                Register users in config file:
+              </p>
+              {[
+                { label: 'Linux/macOS', path: '~/.aek/mcp/db/user.jsonc' },
+                { label: 'Windows', path: '%userprofile%/.aek/mcp/db/user.jsonc' },
+              ].map(({ label, path }) => (
+                <div key={path} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: 'var(--hub-ink-3)', minWidth: 70 }}>{label}:</span>
+                  <code style={{ fontSize: 11, color: 'var(--hub-ink)', flex: 1, wordBreak: 'break-all' }}>{path}</code>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(path, path)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--hub-ink-3)' }}
+                  >
+                    {copiedPath === path ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <p
             className="text-center hub-mono"
             style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
           >
-            v{import.meta.env.PACKAGE_VERSION}
+            v{process.env.NEXT_PUBLIC_PACKAGE_VERSION || 'dev'}
           </p>
         </div>
       </div>

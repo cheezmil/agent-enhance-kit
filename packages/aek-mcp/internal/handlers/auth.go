@@ -153,6 +153,47 @@ func Register(c *gin.Context) {
 	})
 }
 
+func AutoLogin(c *gin.Context) {
+	if !config.AppConfig.AutoLogin {
+		c.JSON(http.StatusUnauthorized, models.ApiResponse{
+			Success: false,
+			Message: "Auto-login not enabled",
+		})
+		return
+	}
+
+	// Find the first admin user
+	var user *models.User
+	for _, u := range services.Store.GetAllUsers() {
+		if u.Role == "admin" {
+			user = u
+			break
+		}
+	}
+	if user == nil {
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: "No admin user found",
+		})
+		return
+	}
+
+	tokenString, err := generateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{
+			Success: false,
+			Message: "Failed to generate token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.AuthResponse{
+		Success: true,
+		Token:   tokenString,
+		User:    user,
+	})
+}
+
 func GetCurrentUser(c *gin.Context) {
 	username, _ := c.Get("username")
 	user := services.Store.GetUser(username.(string))

@@ -1,5 +1,4 @@
 import React, { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Content from '@/components/layout/Content';
@@ -14,7 +13,11 @@ const PageFallback: React.FC = () => (
   </div>
 );
 
-const MainLayout: React.FC = () => {
+interface MainLayoutProps {
+  children?: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   const toggleSidebar = () => {
@@ -29,7 +32,7 @@ const MainLayout: React.FC = () => {
           <Header onToggleSidebar={toggleSidebar} />
           <Content>
             <Suspense fallback={<PageFallback />}>
-              <Outlet />
+              {children}
             </Suspense>
           </Content>
         </div>

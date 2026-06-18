@@ -9,7 +9,6 @@ export interface SystemConfig {
     bearerAuthKey?: string;
     bearerAuthHeaderName?: string;
     jsonBodyLimit?: string;
-    skipAuth?: boolean;
   };
   install?: {
     pythonIndexUrl?: string;
@@ -88,8 +87,9 @@ interface BetterAuthConfig {
 export interface PublicConfigResponse {
   success: boolean;
   data?: {
-    skipAuth?: boolean;
-    permissions?: any;
+    autoLogin?: boolean;
+        showLoginHint?: boolean;
+        permissions?: any;
     betterAuth?: BetterAuthConfig;
   };
   message?: string;
@@ -104,10 +104,11 @@ export interface SystemConfigResponse {
 }
 
 /**
- * Get public configuration (skipAuth setting) without authentication
+ * Get public configuration (autoLogin setting) without authentication
  */
 export const getPublicConfig = async (): Promise<{
-  skipAuth: boolean;
+  autoLogin: boolean;
+  showLoginHint: boolean;
   permissions?: any;
   betterAuth?: BetterAuthConfig;
 }> => {
@@ -123,17 +124,18 @@ export const getPublicConfig = async (): Promise<{
     if (response.ok) {
       const data: PublicConfigResponse = await response.json();
       return {
-        skipAuth: data.data?.skipAuth === true,
+        autoLogin: data.data?.autoLogin === true,
+        showLoginHint: data.data?.showLoginHint !== false,
         permissions: data.data?.permissions || {},
         betterAuth: data.data?.betterAuth,
       };
     }
 
-    return { skipAuth: false };
-  } catch (error) {
-    console.debug('Failed to get public config:', error);
-    return { skipAuth: false };
-  }
+    return { autoLogin: false, showLoginHint: true };
+      } catch (error) {
+        console.debug('Failed to get public config:', error);
+        return { autoLogin: false, showLoginHint: true };
+      }
 };
 
 /**
@@ -159,12 +161,12 @@ export const getSystemConfigPublic = async (): Promise<SystemConfig | null> => {
 /**
  * Check if dashboard login should be skipped based on system configuration
  */
-export const shouldSkipAuth = async (): Promise<boolean> => {
+export const shouldAutoLogin = async (): Promise<boolean> => {
   try {
     const config = await getPublicConfig();
-    return config.skipAuth;
+    return config.autoLogin;
   } catch (error) {
-    console.debug('Failed to check skipAuth setting:', error);
+    console.debug('Failed to check autoLogin setting:', error);
     return false;
   }
 };

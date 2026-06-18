@@ -109,13 +109,14 @@ export const EmbeddingSyncProvider: React.FC<{ children: React.ReactNode }> = ({
 
         upsertSync(nextState);
 
-        if (data.progress.status === 'completed') {
+        if (data.progress && data.progress.status === 'completed') {
+          const serverName = data.progress.serverName;
           const timer = setTimeout(() => {
-            removeSync(data.progress.serverName);
-            hideTimersRef.current.delete(data.progress.serverName);
+            removeSync(serverName);
+            hideTimersRef.current.delete(serverName);
           }, COMPLETION_VISIBILITY_MS);
 
-          hideTimersRef.current.set(data.progress.serverName, timer);
+          hideTimersRef.current.set(serverName, timer);
         }
       } catch {
         // Ignore malformed stream messages.

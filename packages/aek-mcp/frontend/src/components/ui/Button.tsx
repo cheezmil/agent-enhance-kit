@@ -46,16 +46,12 @@ export function Button({
     if (!onClick) return;
     
     try {
-      const result = onClick(e);
-      if (result && typeof (result as any).then === 'function') {
+      const result = onClick?.(e) as any;
+      if (result && typeof result.then === 'function') {
         setInternalLoading(true);
         await result;
       }
     } finally {
-      if (internalLoading) {
-        // Need to check if component unmounted?
-        // It's a standard pattern, state update on unmounted is no longer an error in React 18+
-      }
       setInternalLoading(false);
     }
   };

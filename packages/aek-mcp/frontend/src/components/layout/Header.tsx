@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams } from 'react-router-dom';
+import { usePathname, useParams } from 'next/navigation';
 import { BookOpen, Menu } from 'lucide-react';
 import ThemeSwitch from '@/components/ui/ThemeSwitch';
 import LanguageSwitch from '@/components/ui/LanguageSwitch';
@@ -13,11 +13,11 @@ interface HeaderProps {
 
 const useCrumbs = (): string[] => {
   const { t } = useTranslation();
-  const location = useLocation();
+  const pathname = usePathname();
   const params = useParams();
 
   return useMemo(() => {
-    const path = location.pathname;
+    const path = pathname || '/';
     const root = t('app.title');
     if (path === '/') return [root, t('nav.dashboard')];
     if (path.startsWith('/servers')) return [root, t('nav.servers')];
@@ -35,7 +35,7 @@ const useCrumbs = (): string[] => {
     if (path.startsWith('/activity')) return [root, t('nav.activity')];
     if (path.startsWith('/settings')) return [root, t('nav.settings')];
     return [root];
-  }, [location.pathname, params, t]);
+  }, [pathname, params, t]);
 };
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {

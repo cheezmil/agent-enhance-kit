@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface DefaultPasswordWarningModalProps {
   isOpen: boolean;
@@ -12,13 +12,13 @@ const DefaultPasswordWarningModal: React.FC<DefaultPasswordWarningModalProps> = 
   onClose,
 }) => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   if (!isOpen) return null;
 
   const handleGoToSettings = () => {
     onClose();
-    navigate('/settings');
+    router.push('/settings');
     // Auto-scroll to password section after a small delay to ensure page is loaded
     setTimeout(() => {
       const passwordSection = document.querySelector('[data-section="password"]');

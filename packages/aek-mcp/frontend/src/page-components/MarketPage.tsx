@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Search, AlertCircle, X, ChevronDown } from 'lucide-react';
 import {
   MarketServer,
@@ -26,12 +26,13 @@ import CursorPagination from '@/components/ui/CursorPagination';
 
 const MarketPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { serverName } = useParams<{ serverName?: string }>();
+  const router = useRouter();
+  const params = useParams<{ serverName?: string }>();
+  const serverName = params?.serverName;
   const { showToast } = useToast();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const currentTab = searchParams.get('tab') || 'cloud';
+  const searchParams = useSearchParams();
+  const currentTab = searchParams?.get('tab') || 'cloud';
 
   const {
     servers: localServers,
@@ -108,15 +109,15 @@ const MarketPage: React.FC = () => {
         if (currentTab === 'cloud') {
           const server = cloudServers.find((s) => s.name === serverName);
           if (server) setSelectedCloudServer(server);
-          else navigate('/market?tab=cloud');
+          else router.push('/market?tab=cloud');
         } else if (currentTab === 'registry') {
           const serverEntry = await fetchRegistryServerByName(serverName);
           if (serverEntry) setSelectedRegistryServer(serverEntry);
-          else navigate('/market?tab=registry');
+          else router.push('/market?tab=registry');
         } else {
           const server = await fetchLocalServerByName(serverName);
           if (server) setSelectedServer(server);
-          else navigate('/market?tab=local');
+          else router.push('/market?tab=local');
         }
       } else {
         setSelectedServer(null);
@@ -131,14 +132,13 @@ const MarketPage: React.FC = () => {
     cloudServers,
     fetchLocalServerByName,
     fetchRegistryServerByName,
-    navigate,
+    router,
   ]);
 
   const switchTab = (tab: 'local' | 'cloud' | 'registry') => {
-    const newParams = new URLSearchParams(searchParams);
+    const newParams = new URLSearchParams(searchParams?.toString() || '');
     newParams.set('tab', tab);
-    setSearchParams(newParams);
-    if (serverName) navigate('/market?' + newParams.toString());
+    router.push('/market?' + newParams.toString());
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -165,18 +165,18 @@ const MarketPage: React.FC = () => {
   const handleServerClick = (server: MarketServer | CloudServer | RegistryServerEntry) => {
     if (currentTab === 'cloud') {
       const cloudServer = server as CloudServer;
-      navigate(`/market/${cloudServer.name}?tab=cloud`);
+      router.push(`/market/${cloudServer.name}?tab=cloud`);
     } else if (currentTab === 'registry') {
       const registryServer = server as RegistryServerEntry;
       const name = registryServer.server?.name;
-      if (name) navigate(`/market/${encodeURIComponent(name)}?tab=registry`);
+      if (name) router.push(`/market/${encodeURIComponent(name)}?tab=registry`);
     } else {
       const marketServer = server as MarketServer;
-      navigate(`/market/${marketServer.name}?tab=local`);
+      router.push(`/market/${marketServer.name}?tab=local`);
     }
   };
 
-  const handleBackToList = () => navigate(`/market?tab=${currentTab}`);
+  const handleBackToList = () => router.push(`/market?tab=${currentTab}`);
 
   const handleLocalInstall = async (server: MarketServer, config: ServerConfig) => {
     try {

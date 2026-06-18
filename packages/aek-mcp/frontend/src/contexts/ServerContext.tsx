@@ -10,11 +10,11 @@ const DEFAULT_SERVERS_PER_PAGE = 5;
 const VALID_PAGE_SIZES = new Set([5, 10, 20, 50]);
 
 const getInitialServersPerPage = (): number => {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
     return DEFAULT_SERVERS_PER_PAGE;
   }
 
-  const saved = window.localStorage.getItem(SERVERS_PER_PAGE_KEY);
+  const saved = localStorage.getItem(SERVERS_PER_PAGE_KEY);
   if (!saved) {
     return DEFAULT_SERVERS_PER_PAGE;
   }

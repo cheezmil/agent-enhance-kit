@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import ChangePasswordForm from '@/components/ChangePasswordForm';
 import { Switch } from '@/components/ui/ToggleGroup';
 import { MultiSelect } from '@/components/ui/MultiSelect';
@@ -397,7 +397,7 @@ const DEFAULT_OIDC_SCOPES = ['openid', 'profile', 'email'];
 
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { showToast } = useToast();
   const { allServers: servers } = useServerContext(); // Use allServers for settings (not paginated)
   const { groups } = useGroupData();
@@ -713,8 +713,7 @@ const SettingsPage: React.FC = () => {
       | 'enableBearerAuth'
       | 'bearerAuthKey'
       | 'bearerAuthHeaderName'
-      | 'jsonBodyLimit'
-      | 'skipAuth',
+      | 'jsonBodyLimit',
     value: boolean | string,
   ) => {
     await updateRoutingConfig(key, value);
@@ -1201,7 +1200,7 @@ const SettingsPage: React.FC = () => {
 
   const handlePasswordChangeSuccess = () => {
     setTimeout(() => {
-      navigate('/');
+      router.push('/');
     }, 2000);
   };
 
@@ -3331,17 +3330,7 @@ const SettingsPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-                <div>
-                  <h3 className="font-medium text-gray-700">{t('settings.skipAuth')}</h3>
-                  <p className="text-sm text-gray-500">{t('settings.skipAuthDescription')}</p>
-                </div>
-                <Switch
-                  disabled={loading}
-                  checked={routingConfig.skipAuth}
-                  onCheckedChange={(checked) => handleRoutingConfigChange('skipAuth', checked)}
-                />
-              </div>
+
 
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
                 <div className="mb-2">

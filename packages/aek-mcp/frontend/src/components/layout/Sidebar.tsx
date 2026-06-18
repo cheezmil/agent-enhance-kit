@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Server as ServerIcon,
   Users as UsersIcon,
@@ -38,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const { groups } = useGroupData();
   const [activityAvailable, setActivityAvailable] = useState(false);
 
-  const appVersion = import.meta.env.PACKAGE_VERSION as string;
+  const appVersion = (process.env.NEXT_PUBLIC_PACKAGE_VERSION as string) || 'dev';
 
   useEffect(() => {
     checkActivityAvailable()
@@ -78,46 +79,47 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     { path: '/settings', label: t('nav.settings'), icon: <SettingsIcon className="h-4 w-4" /> },
   ];
 
-  const renderItem = (item: MenuItem) => (
-    <NavLink
-      key={item.path}
-      to={item.path}
-      end={item.end}
-      className={({ isActive }) =>
-        [
-          'group flex items-center gap-2.5 rounded-md text-[13.5px] transition-colors',
-          collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-1.5',
-          isActive
+  const pathname = usePathname() || '/';
+
+  const renderItem = (item: MenuItem) => {
+    const isActive = item.end
+      ? pathname === item.path
+      : pathname.startsWith(item.path);
+    return (
+      <Link
+        key={item.path}
+        href={item.path}
+        className={
+          'group flex items-center gap-2.5 rounded-md text-[13.5px] transition-colors ' +
+          (collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-1.5') +
+          ' ' +
+          (isActive
             ? 'bg-[var(--hub-surface)] text-[var(--hub-ink)] ring-1 ring-inset ring-[var(--hub-line)]'
-            : 'text-[var(--hub-ink-2)] hover:bg-[var(--hub-surface-hover)] hover:text-[var(--hub-ink)]',
-        ].join(' ')
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <span
-            className={
-              isActive
-                ? 'text-[var(--hub-ink)] flex-shrink-0'
-                : 'text-[var(--hub-ink-3)] group-hover:text-[var(--hub-ink-2)] flex-shrink-0'
-            }
-          >
-            {item.icon}
-          </span>
-          {!collapsed && (
-            <>
-              <span className="truncate">{item.label}</span>
-              {item.badge != null && (
-                <span className="ml-auto hub-mono hub-num text-[11px] text-[var(--hub-ink-3)]">
-                  {item.badge}
-                </span>
-              )}
-            </>
-          )}
-        </>
-      )}
-    </NavLink>
-  );
+            : 'text-[var(--hub-ink-2)] hover:bg-[var(--hub-surface-hover)] hover:text-[var(--hub-ink)]')
+        }
+      >
+        <span
+          className={
+            isActive
+              ? 'text-[var(--hub-ink)] flex-shrink-0'
+              : 'text-[var(--hub-ink-3)] group-hover:text-[var(--hub-ink-2)] flex-shrink-0'
+          }
+        >
+          {item.icon}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="truncate">{item.label}</span>
+            {item.badge != null && (
+              <span className="ml-auto hub-mono hub-num text-[11px] text-[var(--hub-ink-3)]">
+                {item.badge}
+              </span>
+            )}
+          </>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside

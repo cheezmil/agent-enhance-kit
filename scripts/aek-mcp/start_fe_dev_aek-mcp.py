@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from start_scripts_shared_logic import run_safe, kill_port
 
 AEK_MCP_DIR = Path(__file__).parent.parent.parent / "packages" / "aek-mcp"
-VITE_PORT = 5173
+VITE_PORT = 1352
 
 
 def main():

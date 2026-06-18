@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { RefreshCw, Plus, ChevronRight, AlertCircle } from 'lucide-react';
 import { useServerData } from '@/hooks/useServerData';
 import { useGroupData } from '@/hooks/useGroupData';
@@ -59,7 +59,7 @@ const transportLabel = (t: any, type?: string) => {
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { allServers, error, setError, isLoading, triggerRefresh } = useServerData({
     refreshOnMount: true,
   });
@@ -126,7 +126,7 @@ const DashboardPage: React.FC = () => {
           <button className="hub-btn" onClick={() => triggerRefresh()}>
             <RefreshCw size={13} /> {t('common.refresh')}
           </button>
-          <button className="hub-btn primary" onClick={() => navigate('/servers')}>
+          <button className="hub-btn primary" onClick={() => router.push('/servers')}>
             <Plus size={13} /> {t('server.add')}
           </button>
         </div>
@@ -189,7 +189,7 @@ const DashboardPage: React.FC = () => {
             <button
               className="hub-btn ghost sm"
               style={{ color: 'var(--hub-ink-3)' }}
-              onClick={() => navigate('/servers')}
+              onClick={() => router.push('/servers')}
             >
               {t('common.viewAll') || 'View all'}
               <ChevronRight size={12} />
@@ -212,7 +212,7 @@ const DashboardPage: React.FC = () => {
               key={s.name}
               className="hub-row hover cursor-pointer"
               style={{ gridTemplateColumns: recentServerColumns }}
-              onClick={() => navigate('/servers')}
+              onClick={() => router.push('/servers')}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span

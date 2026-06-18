@@ -1,13 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 const MCPRouterApiKeyError: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleConfigureSettings = () => {
-    navigate('/settings');
+    router.push('/settings');
   };
 
   const handleGetApiKey = () => {

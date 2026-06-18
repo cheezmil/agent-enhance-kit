@@ -20,7 +20,6 @@ interface RoutingConfig {
   bearerAuthKey: string;
   bearerAuthHeaderName: string;
   jsonBodyLimit: string;
-  skipAuth: boolean;
 }
 
 interface InstallConfig {
@@ -321,7 +320,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     bearerAuthKey: '',
     bearerAuthHeaderName: 'Authorization',
     jsonBodyLimit: '1mb',
-    skipAuth: false,
   });
 
   const [tempRoutingConfig, setTempRoutingConfig] = useState<TempRoutingConfig>({
@@ -406,7 +404,6 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           bearerAuthHeaderName:
             data.data.systemConfig.routing.bearerAuthHeaderName || 'Authorization',
           jsonBodyLimit: data.data.systemConfig.routing.jsonBodyLimit || '1mb',
-          skipAuth: data.data.systemConfig.routing.skipAuth ?? false,
         });
       }
       if (data.success && data.data?.systemConfig?.install) {

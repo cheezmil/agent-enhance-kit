@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AuthState } from '../types';
 import * as authService from '../services/authService';
 import { getPublicConfig } from '../services/configService';
+import { getBasePath } from '../utils/runtime';
 
 // Initial auth state
 const initialState: AuthState = {
@@ -35,22 +36,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const loadUser = async () => {
       // First check if authentication should be skipped
-      const { skipAuth, permissions } = await getPublicConfig();
+      const { autoLogin, permissions } = await getPublicConfig();
 
-      if (skipAuth) {
-        // If authentication is disabled, set user as authenticated with a dummy user
-        setAuth({
-          isAuthenticated: true,
-          loading: false,
-          user: {
-            username: 'guest',
-            isAdmin: true,
-            permissions,
-          },
-          error: null,
-        });
-        return;
-      }
+            if (autoLogin) {
+              // Auto-login: call the auto-login API (no credentials needed)
+              try {
+                const basePath = getBasePath();
+                const response = await fetch(`${basePath}/auth/auto-login`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                });
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.success && data.token) {
+                    authService.setToken(data.token);
+                    setAuth({
+                      isAuthenticated: true,
+                      loading: false,
+                      user: data.user || { username: 'admin', isAdmin: true, permissions },
+                      error: null,
+                    });
+                    return;
+                  }
+                }
+              } catch {
+                // Auto-login failed, fall through to normal flow
+              }
+            }
 
       // Normal authentication flow
       const token = authService.getToken();

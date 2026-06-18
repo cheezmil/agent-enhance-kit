@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/cheezmil/aek-mcp/internal/config"
@@ -31,6 +32,7 @@ func SetupRouter() *gin.Engine {
 
 	r.POST("/auth/login", Login)
 	r.POST("/auth/register", Register)
+	r.POST("/auth/auto-login", AutoLogin)
 	r.GET("/auth/user", middleware.AuthMiddleware(), GetAuthUser)
 	r.POST("/auth/change-password", middleware.AuthMiddleware(), ChangePassword)
 
@@ -197,7 +199,22 @@ func SetupRouter() *gin.Engine {
 	// Serve frontend static files
 	if !config.AppConfig.DisableWeb {
 		r.Static("/assets", "./frontend/dist/assets")
+		r.Static("/_next/static", "./frontend/dist/_next/static")
 		r.NoRoute(func(c *gin.Context) {
+			// For Next.js static export, try to serve the matching HTML file
+			// e.g. /servers -> ./frontend/dist/servers.html
+			path := c.Request.URL.Path
+			if path == "/" {
+				c.File("./frontend/dist/index.html")
+				return
+			}
+			// Strip leading slash and try the matching HTML file
+			htmlFile := "./frontend/dist" + path + ".html"
+			if _, err := os.Stat(htmlFile); err == nil {
+				c.File(htmlFile)
+				return
+			}
+			// Fallback to index.html for SPA client-side routing
 			c.File("./frontend/dist/index.html")
 		})
 	}

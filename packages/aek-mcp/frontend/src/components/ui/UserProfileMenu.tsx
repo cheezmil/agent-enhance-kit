@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { User, Settings, LogOut, Info } from 'lucide-react';
 import AboutDialog from './AboutDialog';
@@ -22,7 +22,7 @@ interface UserProfileMenuProps {
 
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ collapsed, version }) => {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { auth, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [showNewVersionInfo, setShowNewVersionInfo] = useState(false);
@@ -65,13 +65,13 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ collapsed, version })
   }, []);
 
   const handleSettingsClick = () => {
-    navigate('/settings');
+    router.push('/settings');
     setIsOpen(false);
   };
 
   const handleLogoutClick = () => {
     logout();
-    navigate('/login');
+    router.replace('/login');
   };
 
   const handleAboutClick = () => {

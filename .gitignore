@@ -122,6 +122,7 @@ dist/
 build/
 packages/aek-mcp/frontend/dist/
 packages/aek-mcp/frontend/node_modules/
+packages/aek-mcp/frontend/.next/
 
 # cqg-start-line
 .cheezmil_task_manager/

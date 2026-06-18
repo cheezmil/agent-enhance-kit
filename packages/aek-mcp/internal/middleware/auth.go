@@ -13,16 +13,6 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if config.AppConfig.SkipAuth {
-			c.Set("user", &map[string]interface{}{
-				"username": "guest",
-				"role":     "admin",
-			})
-			c.Set("username", "guest")
-			c.Next()
-			return
-		}
-
 		// 1. Check Bearer key authentication
 		tokenString := c.GetHeader("Authorization")
 		if tokenString != "" {

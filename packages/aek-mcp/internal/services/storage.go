@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cheezmil/aek-mcp/internal/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type DataFile struct {
@@ -45,6 +48,10 @@ func getDataFilePath() string {
 	return filepath.Join(getDataDir(), "db", "data.json")
 }
 
+func getUserFilePath() string {
+	return filepath.Join(getDataDir(), "db", "user.jsonc")
+}
+
 func InitStore() {
 	filePath := getDataFilePath()
 
@@ -61,10 +68,7 @@ func InitStore() {
 	}
 
 	Store.loadFromFile()
-	if len(Store.users) == 0 {
-		Store.initDefaultAdmin()
-		Store.saveToFile()
-	}
+	Store.loadUsersFromFile()
 }
 
 func (s *Storage) loadFromFile() {
@@ -123,11 +127,93 @@ func (s *Storage) initDefaultAdmin() {
 	}
 }
 
+// UserFileEntry represents a user entry in user.jsonc
+type UserFileEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+	Key      string `json:"key"`
+}
+
+// UserFileData is the structure of user.jsonc
+type UserFileData struct {
+	Users []UserFileEntry `json:"users"`
+}
+
+func generateKey() string {
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+func (s *Storage) loadUsersFromFile() {
+	path := getUserFilePath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Printf("[aek-mcp] No user.jsonc found at %s, using defaults\n", path)
+		return
+	}
+
+	var userData UserFileData
+	if err := json.Unmarshal(data, &userData); err != nil {
+		fmt.Printf("[aek-mcp] Failed to parse user.jsonc: %v\n", err)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Clear existing users and load from file
+	s.users = make(map[string]*models.User)
+	needsSave := false
+	for i, u := range userData.Users {
+		// Auto-generate key if empty
+		if u.Key == "" {
+			userData.Users[i].Key = generateKey()
+			u.Key = userData.Users[i].Key
+			needsSave = true
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+		if err != nil {
+			fmt.Printf("[aek-mcp] Failed to hash password for user %s: %v\n", u.Username, err)
+			continue
+		}
+		s.users[u.Username] = &models.User{
+			Username:  u.Username,
+			Password:  string(hashedPassword),
+			Role:      u.Role,
+			Key:       u.Key,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+	}
+
+	// Save back if keys were generated
+	if needsSave {
+		newData, _ := json.MarshalIndent(userData, "", "  ")
+		os.WriteFile(path, newData, 0644)
+	}
+
+	fmt.Printf("[aek-mcp] Loaded %d users from user.jsonc\n", len(s.users))
+}
+
 // User operations
 func (s *Storage) GetUser(username string) *models.User {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.users[username]
+}
+
+func (s *Storage) GetUserByKey(key string) *models.User {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, u := range s.users {
+		if u.Key == key {
+			return u
+		}
+	}
+	return nil
 }
 
 func (s *Storage) GetAllUsers() []*models.User {

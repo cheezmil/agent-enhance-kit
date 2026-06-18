@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +20,8 @@ type Config struct {
 	DisableWeb bool
 	JWTSecret  string
 	NodeEnv    string
-	SkipAuth   bool
+	AutoLogin     bool
+	ShowLoginHint bool
 }
 
 var AppConfig *Config
@@ -43,7 +47,8 @@ func Load() *Config {
 	basePath := ""
 	disableWeb := false
 	jwtSecret := "mcphub-default-secret"
-	skipAuth := false
+	autoLogin := false
+	showLoginHint := true
 
 	if data, err := os.ReadFile(settingsPath); err == nil {
 		var settings map[string]interface{}
@@ -60,11 +65,12 @@ func Load() *Config {
 			if v, ok := settings["disableWeb"].(bool); ok {
 				disableWeb = v
 			}
-			if v, ok := settings["jwtSecret"].(string); ok && v != "" {
-				jwtSecret = v
+			// jwtSecret is auto-managed
+			if v, ok := settings["autoLogin"].(bool); ok {
+				autoLogin = v
 			}
-			if v, ok := settings["skipAuth"].(bool); ok {
-				skipAuth = v
+			if v, ok := settings["showLoginHint"].(bool); ok {
+				showLoginHint = v
 			}
 		}
 	}
@@ -82,9 +88,10 @@ func Load() *Config {
 	if v := os.Getenv("DISABLE_WEB"); v != "" {
 		disableWeb, _ = strconv.ParseBool(v)
 	}
-	if v := os.Getenv("JWT_SECRET"); v != "" {
-		jwtSecret = v
-	}
+	// jwtSecret is auto-managed
+
+	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "db", ".internal.json")
+	jwtSecret = loadOrCreateSecret(internalPath)
 
 	nodeEnv := os.Getenv("NODE_ENV")
 	if nodeEnv == "" {
@@ -98,7 +105,8 @@ func Load() *Config {
 		DisableWeb: disableWeb,
 		JWTSecret:  jwtSecret,
 		NodeEnv:    nodeEnv,
-		SkipAuth:   skipAuth,
+		AutoLogin:     autoLogin,
+		ShowLoginHint: showLoginHint,
 	}
 	return AppConfig
 }
@@ -115,6 +123,29 @@ func (c *Config) FullPath(path string) string {
 		return c.BasePath + path
 	}
 	return path
+}
+
+type internalConfig struct {
+	JWTSecret string `json:"jwtSecret"`
+}
+
+func loadOrCreateSecret(path string) string {
+	data, err := os.ReadFile(path)
+	if err == nil {
+		var cfg internalConfig
+		if err := json.Unmarshal(data, &cfg); err == nil && cfg.JWTSecret != "" {
+			return cfg.JWTSecret
+		}
+	}
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+	secret := hex.EncodeToString(bytes)
+	cfg := internalConfig{JWTSecret: secret}
+	newData, _ := json.MarshalIndent(cfg, "", "  ")
+	os.MkdirAll(filepath.Dir(path), 0755)
+	os.WriteFile(path, newData, 0600)
+	fmt.Printf("[aek-mcp] Generated new JWT secret\n")
+	return secret
 }
 
 func GetSettingsPath() string {

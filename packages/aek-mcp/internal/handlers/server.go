@@ -706,7 +706,7 @@ func GetAllSettings(c *gin.Context) {
 	if sysConfig.Routing == nil {
 		sysConfig.Routing = make(map[string]interface{})
 	}
-	for _, k := range []string{"skipAuth", "enableBearerAuth"} {
+	for _, k := range []string{"enableBearerAuth"} {
 		if v, ok := settingsJson[k]; ok {
 			sysConfig.Routing[k] = v
 		}
@@ -752,7 +752,7 @@ func UpdateSystemConfig(c *gin.Context) {
 	// Sync to settings.jsonc for key fields
 	settingsUpdates := map[string]interface{}{}
 	for k, v := range reqBody {
-		if k == "skipAuth" || k == "enableBearerAuth" {
+		if k == "enableBearerAuth" {
 			settingsUpdates[k] = v
 		}
 	}
@@ -1044,7 +1044,8 @@ func GetPublicConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"skipAuth":    config.AppConfig.SkipAuth,
+			"autoLogin":     config.AppConfig.AutoLogin,
+			"showLoginHint": config.AppConfig.ShowLoginHint,
 			"permissions": []string{},
 			"betterAuth":  nil,
 		},
