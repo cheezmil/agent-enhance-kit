@@ -261,12 +261,18 @@ func (mc *MCPClients) CloseAll() {
 
 func ConnectAllEnabledServers(ctx context.Context) {
 	servers := Store.GetAllServers()
+	var wg sync.WaitGroup
 	for _, s := range servers {
 		if !s.Enabled {
 			continue
 		}
-		connectServer(ctx, s)
+		wg.Add(1)
+		go func(s *models.ServerConfig) {
+			defer wg.Done()
+			connectServer(ctx, s)
+		}(s)
 	}
+	wg.Wait()
 }
 
 // RefreshProxyToolsIfAvailable refreshes the MCP proxy tool list.
