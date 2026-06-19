@@ -592,10 +592,10 @@ const ServerCard = ({
           })}
 
           {/* Context Footprint stat */}
-          {tokenInput && tokenInput?.connected ? (
+          {tokenInput ? (
             <span
               className="hub-server-capability-stat hub-mono hub-num"
-              title={`${t('tokenInput.exposed')} ${tokenInput?.exposed} / ${t('tokenInput.gross')} ${tokenInput?.gross} · ${t('tokenInput.estimate')}`}
+              title={`${t('tokenInput.exposed')} ${tokenInput?.exposed ?? 0} / ${t('tokenInput.gross')} ${tokenInput?.gross ?? 0}`}
             >
               <span className="text-[var(--hub-ink-3)]">Σ</span>
               <span className="hub-server-capability-value">
