@@ -18,13 +18,12 @@ export const useGroupData = () => {
       if (data && data.success && Array.isArray(data.data)) {
         setGroups(data.data);
       } else {
-        console.error('Invalid group data format:', data);
-        setGroups([]);
+        // Groups may legitimately be empty or endpoint may not be available
+        setGroups(Array.isArray(data?.data) ? data.data : []);
       }
 
       setError(null);
     } catch (err) {
-      console.error('Error fetching groups:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch groups');
       setGroups([]);
     } finally {
@@ -42,122 +41,105 @@ export const useGroupData = () => {
     name: string,
     description?: string,
     servers: string[] | IGroupServerConfig[] = [],
-  ) => {
+  ): Promise<Group | null> => {
     try {
-      const result: ApiResponse<Group> = await apiPost('/groups', { name, description, servers });
-      console.log('Group created successfully:', result);
-
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.createError'));
-        return result;
-      }
-
-      triggerRefresh();
-      return result || null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create group');
-      return null;
-    }
-  };
-
-  // Update an existing group with server associations
-  const updateGroup = async (
-    id: string,
-    data: { name?: string; description?: string; servers?: string[] | IGroupServerConfig[] },
-  ) => {
-    try {
-      const result: ApiResponse<Group> = await apiPut(`/groups/${id}`, data);
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.updateError'));
-        return result;
-      }
-
-      triggerRefresh();
-      return result || null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update group');
-      return null;
-    }
-  };
-
-  // Update servers in a group (for batch updates)
-  const updateGroupServers = async (groupId: string, servers: string[] | IGroupServerConfig[]) => {
-    try {
-      const result: ApiResponse<Group> = await apiPut(`/groups/${groupId}/servers/batch`, {
+      const data = await apiPost('/groups', {
+        name,
+        description,
         servers,
       });
-
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.updateError'));
-        return null;
+      if (data.success) {
+        await fetchGroups();
+        return data.data;
       }
-
-      triggerRefresh();
-      return result.data || null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update group servers');
       return null;
+    } catch (err) {
+      console.error('Error creating group:', err);
+      return null;
+    }
+  };
+
+  // Update an existing group
+  const updateGroup = async (
+    groupId: string,
+    name: string,
+    description?: string,
+    servers?: string[] | IGroupServerConfig[],
+  ): Promise<boolean> => {
+    try {
+      const updateData: Record<string, any> = { name };
+      if (description !== undefined) updateData.description = description;
+      if (servers !== undefined) updateData.servers = servers;
+
+      const data = await apiPut(`/groups/${groupId}`, updateData);
+      if (data.success) {
+        await fetchGroups();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error updating group:', err);
+      return false;
     }
   };
 
   // Delete a group
-  const deleteGroup = async (id: string) => {
+  const deleteGroup = async (groupId: string): Promise<boolean> => {
     try {
-      const result = await apiDelete(`/groups/${id}`);
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.deleteError'));
-        return result;
+      const data = await apiDelete(`/groups/${groupId}`);
+      if (data.success) {
+        await fetchGroups();
+        return true;
       }
-
-      triggerRefresh();
-      return result;
+      return false;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete group');
-      return null;
+      console.error('Error deleting group:', err);
+      return false;
     }
   };
 
-  // Add server to a group
-  const addServerToGroup = async (groupId: string, serverName: string) => {
+  // Add servers to a group
+  const addServersToGroup = async (
+    groupId: string,
+    serverNames: string[],
+  ): Promise<boolean> => {
     try {
-      const result: ApiResponse<Group> = await apiPost(`/groups/${groupId}/servers`, {
-        serverName,
+      const data = await apiPost(`/groups/${groupId}/servers`, {
+        serverNames,
       });
-
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.serverAddError'));
-        return null;
+      if (data.success) {
+        await fetchGroups();
+        return true;
       }
-
-      triggerRefresh();
-      return result.data || null;
+      return false;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add server to group');
-      return null;
+      console.error('Error adding servers to group:', err);
+      return false;
     }
   };
 
-  // Remove server from group
-  const removeServerFromGroup = async (groupId: string, serverName: string) => {
+  // Remove servers from a group
+  const removeServersFromGroup = async (
+    groupId: string,
+    serverNames: string[],
+  ): Promise<boolean> => {
     try {
-      const result: ApiResponse<Group> = await apiDelete(
-        `/groups/${groupId}/servers/${serverName}`,
-      );
-
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.serverRemoveError'));
-        return null;
+      const data = await apiDelete(`/groups/${groupId}/servers`, {
+        body: JSON.stringify({ serverNames }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (data.success) {
+        await fetchGroups();
+        return true;
       }
-
-      triggerRefresh();
-      return result.data || null;
+      return false;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove server from group');
-      return null;
+      console.error('Error removing servers from group:', err);
+      return false;
     }
   };
 
-  // Fetch groups when the component mounts or refreshKey changes
+  // Fetch data when refreshKey changes
   useEffect(() => {
     fetchGroups();
   }, [fetchGroups, refreshKey]);
@@ -166,13 +148,12 @@ export const useGroupData = () => {
     groups,
     loading,
     error,
-    setError,
+    fetchGroups,
     triggerRefresh,
     createGroup,
     updateGroup,
-    updateGroupServers,
     deleteGroup,
-    addServerToGroup,
-    removeServerFromGroup,
+    addServersToGroup,
+    removeServersFromGroup,
   };
 };
