@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  devIndicators: false,
   trailingSlash: false,
   distDir: 'dist',
   async rewrites() {
