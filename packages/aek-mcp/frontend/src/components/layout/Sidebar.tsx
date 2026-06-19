@@ -127,7 +127,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     <aside
       className={
         'flex flex-col h-full relative shrink-0 transition-[width] duration-200 ease-out ' +
-        'bg-[var(--hub-bg-2)] border-r border-[var(--hub-line)] ' +
+        'shrink-0 transition-[width] duration-200 ease-out ' +
+        'bg-[rgba(255,255,255,0.72)] backdrop-blur-[40px] backdrop-saturate-[180%] ' +
+        'border-r border-[rgba(255,255,255,0.6)] ' +
         (collapsed ? 'w-14' : 'w-[232px]')
       }
     >
