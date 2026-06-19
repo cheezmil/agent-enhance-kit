@@ -23,6 +23,7 @@ import ToolCard from '@/components/ui/ToolCard';
 import PromptCard from '@/components/ui/PromptCard';
 import ResourceCard from '@/components/ui/ResourceCard';
 import DeleteDialog from '@/components/ui/DeleteDialog';
+import ReloadButton from '@/components/ReloadButton';
 import { Switch } from '@/components/ui/ToggleGroup';
 import { useToast } from '@/contexts/ToastContext';
 import { useSettingsData } from '@/hooks/useSettingsData';
@@ -627,18 +628,11 @@ const ServerCard = ({
 
           {/* Reload */}
           {onReload && (
-            <button
-              className="hub-icon-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleReload(e);
-              }}
-              disabled={isReloading || isToggling || !enabled}
-              aria-label={t('server.reload')}
-              title={t('server.reload')}
-            >
-              <RefreshCw size={13} className={isReloading ? 'animate-spin' : ''} />
-            </button>
+            <ReloadButton
+              server={server}
+              onReload={onReload}
+              enabled={!!enabled}
+            />
           )}
           {/* Menu */}
           <div className="relative" ref={menuRef}>
