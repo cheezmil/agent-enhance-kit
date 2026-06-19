@@ -18,6 +18,7 @@ type Config struct {
 	Host       string
 	BasePath   string
 	DisableWeb bool
+	DevProxy   string // reverse proxy target for dev mode, e.g. "http://localhost:1352"
 	JWTSecret  string
 	NodeEnv    string
 	AutoLogin     bool
@@ -46,6 +47,7 @@ func Load() *Config {
 	host := "0.0.0.0"
 	basePath := ""
 	disableWeb := false
+	devProxy := ""
 	jwtSecret := "mcphub-default-secret"
 	autoLogin := false
 	showLoginHint := true
@@ -64,6 +66,9 @@ func Load() *Config {
 			}
 			if v, ok := settings["disableWeb"].(bool); ok {
 				disableWeb = v
+			}
+			if v, ok := settings["devProxy"].(string); ok {
+				devProxy = v
 			}
 			// jwtSecret is auto-managed
 			if v, ok := settings["autoLogin"].(bool); ok {
@@ -88,6 +93,9 @@ func Load() *Config {
 	if v := os.Getenv("DISABLE_WEB"); v != "" {
 		disableWeb, _ = strconv.ParseBool(v)
 	}
+	if v := os.Getenv("DEV_PROXY"); v != "" {
+		devProxy = v
+	}
 	// jwtSecret is auto-managed
 
 	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "db", ".internal.json")
@@ -103,6 +111,7 @@ func Load() *Config {
 		Host:       host,
 		BasePath:   basePath,
 		DisableWeb: disableWeb,
+		DevProxy:   devProxy,
 		JWTSecret:  jwtSecret,
 		NodeEnv:    nodeEnv,
 		AutoLogin:     autoLogin,

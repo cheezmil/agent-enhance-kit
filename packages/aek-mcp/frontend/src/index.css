@@ -2,46 +2,46 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ----- redesign tokens (hairline borders, Linear-style density) ----- */
+/* ----- shadcn/ui design tokens ----- */
 :root {
-  --hub-bg: oklch(0.985 0.002 250);
-  --hub-bg-2: oklch(0.975 0.002 250);
+  --hub-bg: #ffffff;
+  --hub-bg-2: #f8fafc;
   --hub-surface: #ffffff;
-  --hub-surface-hover: oklch(0.97 0.003 250);
-  --hub-switch-track-on: oklch(0.3 0.004 250);
-  --hub-ink: oklch(0.18 0.01 250);
-  --hub-ink-2: oklch(0.42 0.01 250);
-  --hub-ink-3: oklch(0.6 0.01 250);
-  --hub-line: oklch(0.92 0.004 250);
-  --hub-line-2: oklch(0.96 0.003 250);
-  --hub-accent: oklch(0.55 0.15 250);
-  --hub-accent-soft: oklch(0.95 0.04 250);
-  --hub-ok: oklch(0.66 0.15 145);
-  --hub-warn: oklch(0.78 0.13 80);
-  --hub-err: oklch(0.62 0.18 25);
+  --hub-surface-hover: #f1f5f9;
+  --hub-switch-track-on: #18181b;
+  --hub-ink: #0f172a;
+  --hub-ink-2: #475569;
+  --hub-ink-3: #94a3b8;
+  --hub-line: #e2e8f0;
+  --hub-line-2: #f1f5f9;
+  --hub-accent: #0f172a;
+  --hub-accent-soft: #f1f5f9;
+  --hub-ok: #22c55e;
+  --hub-warn: #f59e0b;
+  --hub-err: #ef4444;
   --hub-mono:
-    'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .dark {
-  --hub-bg: oklch(0.18 0.005 250);
-  --hub-bg-2: oklch(0.21 0.005 250);
-  --hub-surface: oklch(0.22 0.005 250);
-  --hub-surface-hover: oklch(0.25 0.005 250);
-  --hub-switch-track-on: oklch(0.86 0.004 250);
-  --hub-ink: oklch(0.97 0.005 250);
-  --hub-ink-2: oklch(0.78 0.005 250);
-  --hub-ink-3: oklch(0.55 0.005 250);
-  --hub-line: oklch(0.3 0.005 250);
-  --hub-line-2: oklch(0.26 0.005 250);
-  --hub-accent-soft: oklch(0.32 0.06 250);
+  --hub-bg: #0a0a0b;
+  --hub-bg-2: #18181b;
+  --hub-surface: #18181b;
+  --hub-surface-hover: #27272a;
+  --hub-switch-track-on: #fafafa;
+  --hub-ink: #fafafa;
+  --hub-ink-2: #a1a1aa;
+  --hub-ink-3: #71717a;
+  --hub-line: #27272a;
+  --hub-line-2: #1f1f23;
+  --hub-accent-soft: #27272a;
 }
 
-/* Hairline border + crisp surfaces */
+/* shadcn/ui surfaces */
 .hub-card {
   background: var(--hub-surface);
   border: 1px solid var(--hub-line);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 .hub-card-pad { padding: 16px; }
 .hub-surface { background: var(--hub-surface); }

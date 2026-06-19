@@ -103,8 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         <span
           className={
             isActive
-              ? 'text-[var(--hub-ink)] flex-shrink-0'
-              : 'text-[var(--hub-ink-3)] group-hover:text-[var(--hub-ink-2)] flex-shrink-0'
+                ? 'text-[var(--hub-ink)] flex-shrink-0'
+                : 'text-[var(--hub-ink-3)] group-hover:text-[var(--hub-ink-2)] flex-shrink-0'
           }
         >
           {item.icon}

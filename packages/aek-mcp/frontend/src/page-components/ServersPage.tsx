@@ -36,7 +36,12 @@ const ServersPage: React.FC = () => {
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showJsonImport, setShowJsonImport] = useState(false);
-  const [filter, setFilter] = useState<ServerFilter>('all');
+  const [filter, setFilter] = useState<ServerFilter>(() => {
+    try {
+      const saved = localStorage.getItem('aek-mcp-server-filter');
+      return (saved as ServerFilter) || 'all';
+    } catch { return 'all'; }
+  });
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
@@ -149,7 +154,7 @@ const ServersPage: React.FC = () => {
           ).map(([k, l, n]) => (
             <button
               key={k}
-              onClick={() => setFilter(k)}
+              onClick={() => { setFilter(k); localStorage.setItem('aek-mcp-server-filter', k); }}
               className="inline-flex items-center gap-1.5 px-3 text-[12px]"
               style={{
                 height: 24,

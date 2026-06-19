@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -206,8 +209,50 @@ func SetupRouter() *gin.Engine {
 	r.GET("/discovery/categories", ListDiscoveryCategories)
 	r.GET("/discovery/tags", ListDiscoveryTags)
 
-	// Serve frontend static files
-	if !config.AppConfig.DisableWeb {
+	// Serve frontend static files or reverse proxy in dev mode
+	if config.AppConfig.DevProxy != "" {
+		// Dev mode: reverse proxy all non-API requests to Next.js dev server
+		proxyTarget := config.AppConfig.DevProxy
+		r.NoRoute(func(c *gin.Context) {
+			proxyURL := proxyTarget + c.Request.URL.Path
+			if c.Request.URL.RawQuery != "" {
+				proxyURL += "?" + c.Request.URL.RawQuery
+			}
+
+			// WebSocket upgrade detection
+			if isWebSocketUpgrade(c.Request) {
+				proxyWebSocket(c, proxyTarget)
+				return
+			}
+
+			// Normal HTTP proxy
+			req, err := http.NewRequest(c.Request.Method, proxyURL, c.Request.Body)
+			if err != nil {
+				c.Status(http.StatusBadGateway)
+				return
+			}
+			for key, values := range c.Request.Header {
+				for _, value := range values {
+					req.Header.Add(key, value)
+				}
+			}
+			req.Header.Set("Host", c.Request.Host)
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				c.Status(http.StatusBadGateway)
+				return
+			}
+			defer resp.Body.Close()
+
+			for key, values := range resp.Header {
+				for _, value := range values {
+					c.Header(key, value)
+				}
+			}
+			c.DataFromReader(resp.StatusCode, resp.ContentLength, resp.Header.Get("Content-Type"), resp.Body, nil)
+		})
+	} else if !config.AppConfig.DisableWeb {
 		r.Static("/assets", "./frontend/dist/assets")
 		r.Static("/_next/static", "./frontend/dist/_next/static")
 		r.NoRoute(func(c *gin.Context) {
@@ -282,4 +327,65 @@ func SetupRouter() *gin.Engine {
 	}
 
 	return r
+}
+
+// isWebSocketUpgrade checks if the request is a WebSocket upgrade request.
+func isWebSocketUpgrade(r *http.Request) bool {
+	for _, v := range r.Header["Upgrade"] {
+		if strings.ToLower(v) == "websocket" {
+			return true
+		}
+	}
+	return false
+}
+
+// proxyWebSocket proxies a WebSocket connection to the target server.
+func proxyWebSocket(c *gin.Context, target string) {
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		c.Status(http.StatusBadGateway)
+		return
+	}
+
+	// Connect to the backend
+	backendAddr := targetURL.Host
+	if !strings.Contains(backendAddr, ":") {
+		backendAddr += ":80"
+	}
+	backendConn, err := net.Dial("tcp", backendAddr)
+	if err != nil {
+		c.Status(http.StatusBadGateway)
+		return
+	}
+
+	// Hijack the client connection
+	clientConn, _, err := c.Writer.Hijack()
+	if err != nil {
+		backendConn.Close()
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
+	// Forward the original HTTP request to the backend
+	err = c.Request.Write(backendConn)
+	if err != nil {
+		clientConn.Close()
+		backendConn.Close()
+		return
+	}
+
+	// Bidirectional copy
+	done := make(chan struct{}, 2)
+	go func() {
+		io.Copy(backendConn, clientConn)
+		done <- struct{}{}
+	}()
+	go func() {
+		io.Copy(clientConn, backendConn)
+		done <- struct{}{}
+	}()
+
+	<-done
+	clientConn.Close()
+	backendConn.Close()
 }

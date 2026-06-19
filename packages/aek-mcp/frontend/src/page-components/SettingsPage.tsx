@@ -339,17 +339,17 @@ const SettingsPage: React.FC = () => {
   }, [bearerKeyScopeFilter, bearerKeyScopeFilterOptions]);
 
   const [sectionsVisible, setSectionsVisible] = useState({
-    routingConfig: false,
-    installConfig: false,
-    smartRoutingConfig: false,
-    toolResultCompressionConfig: false,
-    oauthServerConfig: false,
-    betterAuthConfig: false,
-    mcpRouterConfig: false,
-    nameSeparator: false,
-    password: false,
-    exportConfig: false,
-    bearerKeys: false,
+    routingConfig: true,
+    installConfig: true,
+    smartRoutingConfig: true,
+    toolResultCompressionConfig: true,
+    oauthServerConfig: true,
+    betterAuthConfig: true,
+    mcpRouterConfig: true,
+    nameSeparator: true,
+    password: true,
+    exportConfig: true,
+    bearerKeys: true,
   });
 
   const toggleSection = (

@@ -71,7 +71,7 @@ packages/aek-websearch/bin/
 packages/aek-websearch/platforms/
 packages/aek-mcp/bin/
 packages/aek-mcp/aek-mcp
-packages/aek-mcp/aek-mcp
+packages/aek-mcp/tmp/
 
 # Build artifacts
 *.exe

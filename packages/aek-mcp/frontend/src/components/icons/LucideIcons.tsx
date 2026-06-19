@@ -20,7 +20,8 @@ import {
   Wrench,
   MessageSquare,
   FileText,
-  RotateCcw
+  RotateCcw,
+  RotateCw
 } from 'lucide-react'
 
 export {
@@ -45,7 +46,8 @@ export {
   Wrench,
   MessageSquare,
   FileText,
-  RotateCcw
+  RotateCcw,
+  RotateCw
 }
 
 const LucideIcons = {
@@ -67,7 +69,8 @@ const LucideIcons = {
   Link,
   FileCode,
   DropdownIcon,
-  RotateCcw
+  RotateCcw,
+  RotateCw
 }
 
 export default LucideIcons

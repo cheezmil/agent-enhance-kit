@@ -152,7 +152,7 @@ const ServerCard = ({
 
   const [expanded, setExpanded] = useState(true);
   const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'cost' | null>(
-    null,
+    'tools',
   );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isToggling, setIsToggling] = useState(false);

@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { RotateCcw } from '@/components/icons/LucideIcons';
+import { RotateCw } from '@/components/icons/LucideIcons';
 
 interface ResetDescriptionButtonProps {
   title: string;
@@ -23,7 +23,7 @@ const ResetDescriptionButton = ({
       title={title}
       aria-label={title}
     >
-      <RotateCcw size={14} className={loading ? 'animate-spin' : ''} />
+      <RotateCw size={14} className={loading ? 'animate-spin' : ''} />
     </button>
   );
 };

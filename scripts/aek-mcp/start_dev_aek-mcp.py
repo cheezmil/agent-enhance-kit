@@ -46,8 +46,8 @@ def ensure_air():
 
 def main():
     print("=== aek-mcp Dev Mode ===\n")
-    print(f"  Go backend:    http://localhost:{GO_PORT} (auto-reload)")
-    print(f"  Next.js frontend: http://localhost:{NEXT_PORT} (hot reload)")
+    print(f"  Go backend + Frontend proxy: http://localhost:{GO_PORT}")
+    print(f"  Next.js dev server (internal): http://localhost:{NEXT_PORT}")
     print(f"  Press Ctrl+C to stop\n")
 
     air_path = ensure_air()
@@ -63,6 +63,7 @@ def main():
         print("[dev] Starting Go backend with air...")
         go_env = os.environ.copy()
         go_env["PORT"] = str(GO_PORT)
+        go_env["DEV_PROXY"] = f"http://localhost:{NEXT_PORT}"
         air_cmd = [air_path, "-c", ".air.toml"] if (AEK_MCP_DIR / ".air.toml").exists() else [air_path]
         go_proc = subprocess.Popen(
             air_cmd,
