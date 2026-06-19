@@ -4,7 +4,9 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import MainLayout from '../layouts/MainLayout';
+import dynamic from 'next/dynamic';
+
+const MainLayout = dynamic(() => import('../layouts/MainLayout'), { ssr: false });
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { auth } = useAuth();
@@ -13,7 +15,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   // Skip auth check for login page
   const isLoginPage = pathname === '/login';
-
   useEffect(() => {
     if (!isLoginPage && !auth.loading && !auth.isAuthenticated) {
       router.replace('/login');
@@ -25,7 +26,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     return <>{children}</>;
   }
 
-  // Always render MainLayout to avoid hydration mismatch.
-  // Auth gating happens via useEffect redirect below.
+  // MainLayout loaded client-only to avoid hydration mismatch
   return <MainLayout>{children}</MainLayout>;
 }

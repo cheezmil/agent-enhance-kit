@@ -127,7 +127,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   return (
     <aside
-      suppressHydrationWarning
       className={
         'flex flex-col h-full relative shrink-0 transition-[width] duration-200 ease-out ' +
         'shrink-0 transition-[width] duration-200 ease-out ' +
