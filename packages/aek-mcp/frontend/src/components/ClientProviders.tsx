@@ -31,20 +31,20 @@ function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(() => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Try cached config first, then fetch fresh
     try {
       const raw = localStorage.getItem('aek-mcp_runtime_config');
       if (raw) {
         const config = JSON.parse(raw);
         (window as any).__AEK_MCP_CONFIG__ = config;
-        return true;
+        setMounted(true);
+        return;
       }
     } catch {}
-    return false;
-  });
 
-  useEffect(() => {
-    if (mounted) return;
     loadRuntimeConfig().then((config) => {
       (window as any).__AEK_MCP_CONFIG__ = config;
       setMounted(true);
@@ -52,7 +52,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
       (window as any).__AEK_MCP_CONFIG__ = { basePath: '', version: 'dev', name: 'aek-mcp' };
       setMounted(true);
     });
-  }, [mounted]);
+  }, []);
 
   if (!mounted) {
     return (
