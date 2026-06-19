@@ -815,9 +815,12 @@ func GetServerCosts(c *gin.Context) {
 		exposed := 0
 		gross := 0
 
-		// Calculate tool tokens
+		// Calculate tool tokens: name + description + JSON schema structure overhead
 		for _, tool := range s.Tools {
-			tokens := countTokens(tool.Name) + countTokens(tool.Description) + 50 // base schema overhead
+			// Tool JSON structure includes: {"name":"...","description":"...","inputSchema":{"type":"object","properties":{...},"required":[...]}}
+			// Approximate overhead for schema structure: ~150 tokens
+			schemaTokens := countTokens(tool.Description) + 150
+			tokens := countTokens(tool.Name) + schemaTokens
 			gross += tokens
 			if tool.Enabled {
 				exposed += tokens
@@ -830,9 +833,9 @@ func GetServerCosts(c *gin.Context) {
 			})
 		}
 
-		// Calculate prompt tokens
+		// Calculate prompt tokens: name + description + JSON structure overhead (~80)
 		for _, prompt := range s.Prompts {
-			tokens := countTokens(prompt.Name) + countTokens(prompt.Description) + 30
+			tokens := countTokens(prompt.Name) + countTokens(prompt.Description) + 80
 			gross += tokens
 			if prompt.Enabled {
 				exposed += tokens
@@ -845,9 +848,9 @@ func GetServerCosts(c *gin.Context) {
 			})
 		}
 
-		// Calculate resource tokens
+		// Calculate resource tokens: uri + name + description + JSON structure overhead (~60)
 		for _, resource := range s.Resources {
-			tokens := countTokens(resource.URI) + countTokens(resource.Name) + countTokens(resource.Description) + 20
+			tokens := countTokens(resource.URI) + countTokens(resource.Name) + countTokens(resource.Description) + 60
 			gross += tokens
 			if resource.Enabled {
 				exposed += tokens
