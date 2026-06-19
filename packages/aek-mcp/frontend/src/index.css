@@ -505,7 +505,6 @@
   font-size: 11px;
   color: var(--hub-ink-3);
   font-family: var(--hub-mono);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
   flex: 0 0 auto;
 }
