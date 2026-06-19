@@ -4,10 +4,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
-
+	"time"
 	"github.com/gin-gonic/gin"
 	"github.com/cheezmil/aek-mcp/internal/config"
 	"github.com/cheezmil/aek-mcp/internal/middleware"
@@ -212,45 +213,28 @@ func SetupRouter() *gin.Engine {
 	// Serve frontend static files or reverse proxy in dev mode
 	if config.AppConfig.DevProxy != "" {
 		// Dev mode: reverse proxy all non-API requests to Next.js dev server
-		proxyTarget := config.AppConfig.DevProxy
+		proxyTarget, _ := url.Parse(config.AppConfig.DevProxy)
+		proxy := &httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.URL.Scheme = proxyTarget.Scheme
+				req.URL.Host = proxyTarget.Host
+				req.Host = proxyTarget.Host
+			},
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   10 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				ResponseHeaderTimeout: 30 * time.Second,
+			},
+		}
+		// WebSocket upgrade detection
 		r.NoRoute(func(c *gin.Context) {
-			proxyURL := proxyTarget + c.Request.URL.Path
-			if c.Request.URL.RawQuery != "" {
-				proxyURL += "?" + c.Request.URL.RawQuery
-			}
-
-			// WebSocket upgrade detection
 			if isWebSocketUpgrade(c.Request) {
-				proxyWebSocket(c, proxyTarget)
+				proxyWebSocket(c, config.AppConfig.DevProxy)
 				return
 			}
-
-			// Normal HTTP proxy
-			req, err := http.NewRequest(c.Request.Method, proxyURL, c.Request.Body)
-			if err != nil {
-				c.Status(http.StatusBadGateway)
-				return
-			}
-			for key, values := range c.Request.Header {
-				for _, value := range values {
-					req.Header.Add(key, value)
-				}
-			}
-			req.Header.Set("Host", c.Request.Host)
-
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				c.Status(http.StatusBadGateway)
-				return
-			}
-			defer resp.Body.Close()
-
-			for key, values := range resp.Header {
-				for _, value := range values {
-					c.Header(key, value)
-				}
-			}
-			c.DataFromReader(resp.StatusCode, resp.ContentLength, resp.Header.Get("Content-Type"), resp.Body, nil)
+			proxy.ServeHTTP(c.Writer, c.Request)
 		})
 	} else if !config.AppConfig.DisableWeb {
 		r.Static("/assets", "./frontend/dist/assets")
