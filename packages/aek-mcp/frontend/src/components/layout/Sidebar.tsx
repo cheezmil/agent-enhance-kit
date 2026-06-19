@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
@@ -125,6 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   return (
     <aside
+      suppressHydrationWarning
       className={
         'flex flex-col h-full relative shrink-0 transition-[width] duration-200 ease-out ' +
         'shrink-0 transition-[width] duration-200 ease-out ' +

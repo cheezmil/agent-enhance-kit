@@ -25,7 +25,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     return <>{children}</>;
   }
 
-  // Always render MainLayout to avoid hydration mismatch
-  // Loading/auth state is handled inside MainLayout
+  // Always render MainLayout to avoid hydration mismatch.
+  // Auth gating happens via useEffect redirect below.
   return <MainLayout>{children}</MainLayout>;
 }
