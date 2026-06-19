@@ -806,16 +806,6 @@ const ServerCard = ({
 
             {expandedTab === 'tools' && server.tools && (
               <div className="space-y-3 mt-2">
-                {tokenInput?.connected && tokenInput?.items && (() => {
-                  const toolItems = tokenInput?.items.filter((i) => i.kind === 'tool');
-                  const totalToolTokens = toolItems.reduce((sum, i) => sum + i.tokens, 0);
-                  return totalToolTokens > 0 ? (
-                    <div className="flex items-center justify-between hub-mono" style={{ fontSize: 11.5, color: 'var(--hub-ink-2)', padding: '4px 8px', background: 'var(--hub-bg-2)', borderRadius: 6 }}>
-                      <span>Σ {t('tokenInput.totalFootprint')}</span>
-                      <span className="hub-num">{formatTokens(totalToolTokens)}</span>
-                    </div>
-                  ) : null;
-                })()}
                 {server.tools.map((tool, index) => (
                   <ToolCard
                     key={index}

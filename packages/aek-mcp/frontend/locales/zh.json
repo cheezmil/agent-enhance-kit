@@ -1157,7 +1157,7 @@
     "envVarsNeeded": "所需环境变量 — 请在使用导入的服务器前设置这些变量：",
     "importResult": "服务器：创建 {{serversCreated}} 个，跳过 {{serversSkipped}} 个。分组：创建 {{groupsCreated}} 个，跳过 {{groupsSkipped}} 个。"
   },
-  "cost": {
+  "tokenInput": {
     "exposed": "已暴露",
     "gross": "总量",
     "estimate": "预估 Token 数（cl100k）— 近似值",

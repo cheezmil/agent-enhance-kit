@@ -1155,7 +1155,7 @@
     "envVarsNeeded": "Required Environment Variables — set these before using the imported servers:",
     "importResult": "Servers: {{serversCreated}} created, {{serversSkipped}} skipped. Groups: {{groupsCreated}} created, {{groupsSkipped}} skipped."
   },
-  "cost": {
+  "tokenInput": {
     "exposed": "Exposed",
     "gross": "Gross",
     "estimate": "Estimated tokens (cl100k) — approximate",
