@@ -28,11 +28,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSettingsData } from '@/hooks/useSettingsData';
 import { useAuth } from '@/contexts/AuthContext';
 import { canManageServer } from '@/utils/serverPermissions';
-import {
-  getServerVisibilityDisplay,
-  getServerVisibilityOptions,
-  normalizeServerVisibility,
-} from '@/utils/serverVisibility';
+
 
 interface ServerCardProps {
   server: Server;
@@ -40,7 +36,6 @@ interface ServerCardProps {
   onRemove: (serverName: string) => void;
   onEdit: (server: Server) => void;
   onToggle?: (server: Server, enabled: boolean) => Promise<boolean>;
-  onVisibilityChange?: (server: Server, visibility: 'private' | 'group' | 'public') => Promise<boolean>;
   onRefresh?: () => void;
   onReload?: (server: Server) => Promise<boolean>;
   isFavorite?: boolean;
@@ -138,7 +133,6 @@ const ServerCard = ({
   onRemove,
   onEdit,
   onToggle,
-  onVisibilityChange,
   onRefresh,
   onReload,
   isFavorite = false,
@@ -156,7 +150,6 @@ const ServerCard = ({
   );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
-  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showErrorPopover, setShowErrorPopover] = useState(false);
@@ -208,23 +201,6 @@ const ServerCard = ({
       }
     } finally {
       setIsReloading(false);
-    }
-  };
-
-  const handleVisibilityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    e.stopPropagation();
-    if (!canManage || isUpdatingVisibility || !onVisibilityChange) return;
-
-    const nextVisibility = e.target.value as 'private' | 'group' | 'public';
-    if (nextVisibility === normalizeServerVisibility(server.visibility ?? server.config?.visibility)) {
-      return;
-    }
-
-    setIsUpdatingVisibility(true);
-    try {
-      await onVisibilityChange(server, nextVisibility);
-    } finally {
-      setIsUpdatingVisibility(false);
     }
   };
 
@@ -416,12 +392,6 @@ const ServerCard = ({
   })();
 
   const serverEndpoint = `${baseUrl}/mcp/${server.name}`;
-  const translateVisibility = (key: string, options?: { defaultValue?: string }) => t(key, options);
-  const visibility = getServerVisibilityDisplay(
-    translateVisibility,
-    server.visibility ?? server.config?.visibility,
-  );
-  const visibilityOptions = getServerVisibilityOptions(translateVisibility, visibility.value);
   const capabilitySummaries: CapabilitySummary[] = [
     {
       key: 'tools',
@@ -600,39 +570,6 @@ const ServerCard = ({
                 {transportLabel(t, server.config.type)}
               </span>
             ) : null}
-          </div>
-
-          <div className="hub-server-card-visibility min-w-0" onClick={(e) => e.stopPropagation()}>
-            {canManage && onVisibilityChange ? (
-              <LoadingControl
-                isLoading={isUpdatingVisibility}
-                className="w-full"
-                overlayStyle={{ borderRadius: 6 }}
-              >
-                <select
-                  value={visibility.value}
-                  onChange={handleVisibilityChange}
-                  disabled={isUpdatingVisibility}
-                  className="hub-server-card-select w-full rounded-md border px-2 py-1 text-[11.5px] bg-[var(--hub-surface)] text-[var(--hub-ink)]"
-                  style={{ borderColor: 'var(--hub-line-2)' }}
-                  aria-label={t('server.visibility', 'Visibility')}
-                  title={visibility.longLabel}
-                >
-                  {visibilityOptions.map((option) => (
-                    <option key={option.value} value={option.value} disabled={option.disabled}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </LoadingControl>
-            ) : (
-              <span
-                className={`hub-server-card-visibility-badge inline-flex items-center rounded-md border px-2 py-0.5 text-[11.5px] ${visibility.className}`}
-                title={visibility.longLabel}
-              >
-                {visibility.shortLabel}
-              </span>
-            )}
           </div>
 
           {/* Tools / Prompts / Resources counts */}

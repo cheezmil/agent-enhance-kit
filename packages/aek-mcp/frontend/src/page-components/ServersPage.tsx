@@ -218,7 +218,6 @@ const ServersPage: React.FC = () => {
               onRemove={handleServerRemove}
               onEdit={handleEditClick}
               onToggle={handleServerToggle}
-              onVisibilityChange={handleServerVisibilityChange}
               onRefresh={triggerRefresh}
               onReload={handleServerReload}
               isFavorite={favorites.has(server.name)}
