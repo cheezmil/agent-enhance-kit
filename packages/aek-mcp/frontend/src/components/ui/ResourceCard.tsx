@@ -15,10 +15,10 @@ interface ResourceCardProps {
     description: string,
     options?: { restored?: boolean },
   ) => Promise<void> | void;
-  cost?: number;
+  tokenInput?: number;
 }
 
-const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdate, cost }: ResourceCardProps) => {
+const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdate, tokenInput }: ResourceCardProps) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -153,13 +153,13 @@ const ResourceCard = ({ resource, readOnly = false, onToggle, onDescriptionUpdat
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {cost != null && (
+          {tokenInput != null && (
             <span
               className="hub-mono flex-shrink-0"
               style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
-              title={t('cost.estimate')}
+              title={t('tokenInput.estimate')}
             >
-              Σ {formatTokens(cost)}
+              Σ {formatTokens(tokenInput)}
             </span>
           )}
           <div className="flex h-[26px] items-center" onClick={(e) => e.stopPropagation()}>

@@ -25,17 +25,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     return <>{children}</>;
   }
 
-  if (auth.loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!auth.isAuthenticated) {
-    return null;
-  }
-
+  // Always render MainLayout to avoid hydration mismatch
+  // Loading/auth state is handled inside MainLayout
   return <MainLayout>{children}</MainLayout>;
 }

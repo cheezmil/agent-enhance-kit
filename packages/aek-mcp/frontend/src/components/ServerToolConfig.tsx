@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { IGroupServerConfig, Prompt, Resource, Server, ServerCost, Tool } from '@/types';
+import { IGroupServerConfig, Prompt, Resource, Server, ServerTokenInput, Tool } from '@/types';
 import { Wrench, MessageSquare, FileText } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useSettingsData } from '@/hooks/useSettingsData';
@@ -26,7 +26,7 @@ interface ServerToolConfigProps {
   value: string[] | IGroupServerConfig[];
   onChange: (value: IGroupServerConfig[]) => void;
   className?: string;
-  serverCosts?: ServerCost[];
+  serverTokenInputs?: ServerTokenInput[];
 }
 
 interface CapabilityItem {
@@ -42,7 +42,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
   value,
   onChange,
   className,
-  serverCosts = [],
+  serverTokenInputs = [],
 }) => {
   const { t } = useTranslation();
   const { nameSeparator } = useSettingsData();
@@ -187,20 +187,20 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
     }));
   };
 
-  // Build one nested map (server -> item name -> cost) once per serverCosts change,
+  // Build one nested map (server -> item name -> cost) once per serverTokenInputs change,
   // so per-render lookups don't rebuild a Map on every call (avoids O(N^2) churn).
-  const serverCostsMap = React.useMemo(() => {
+  const serverTokenInputsMap = React.useMemo(() => {
     const outerMap = new Map<string, Map<string, number>>();
-    serverCosts.forEach((sc) => {
+    serverTokenInputs.forEach((sc) => {
       const innerMap = new Map<string, number>();
       sc.items.forEach((i) => innerMap.set(i.name, i.cost));
       outerMap.set(sc.name, innerMap);
     });
     return outerMap;
-  }, [serverCosts]);
+  }, [serverTokenInputs]);
 
   const costMapForServer = (serverName: string): Map<string, number> =>
-    serverCostsMap.get(serverName) ?? new Map<string, number>();
+    serverTokenInputsMap.get(serverName) ?? new Map<string, number>();
 
   const getSelectedCapabilityCost = (server: Server, capability: CapabilityKey): number => {
     const costMap = costMapForServer(server.name);
@@ -342,7 +342,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
 
                 <div className="flex items-center space-x-3">
                   {getServerSelectedCost(server) > 0 && (
-                    <span className="text-sm text-gray-400 hub-mono" title={t('cost.estimate')}>
+                    <span className="text-sm text-gray-400 hub-mono" title={t('tokenInput.estimate')}>
                       Σ {formatTokens(getServerSelectedCost(server))}
                     </span>
                   )}
@@ -393,7 +393,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
                                 </span>
                               )}
                               {serverConfig && getSelectedCapabilityCost(server, key) > 0 && (
-                                <span className="text-xs text-gray-400 hub-mono" title={t('cost.estimate')}>
+                                <span className="text-xs text-gray-400 hub-mono" title={t('tokenInput.estimate')}>
                                   Σ {formatTokens(getSelectedCapabilityCost(server, key))}
                                 </span>
                               )}
@@ -460,7 +460,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
                                     </span>
                                   )}
                                   {costMap.get(item.key) != null && (
-                                    <span className="text-xs text-gray-400 hub-mono whitespace-nowrap ml-auto flex-shrink-0" title={t('cost.estimate')}>
+                                    <span className="text-xs text-gray-400 hub-mono whitespace-nowrap ml-auto flex-shrink-0" title={t('tokenInput.estimate')}>
                                       Σ {formatTokens(costMap.get(item.key)!)}
                                     </span>
                                   )}

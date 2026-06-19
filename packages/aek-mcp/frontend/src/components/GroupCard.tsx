@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Edit3, Trash2, Copy, Check, Link as LinkIcon, FileCode, ChevronDown } from 'lucide-react';
-import { Group, Server, IGroupServerConfig, GroupCost } from '@/types';
+import { Group, Server, IGroupServerConfig, GroupTokenInput } from '@/types';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import { useToast } from '@/contexts/ToastContext';
 import { useSettingsData } from '@/hooks/useSettingsData';
@@ -12,7 +12,7 @@ interface GroupCardProps {
   servers: Server[];
   onEdit: (group: Group) => void;
   onDelete: (groupId: string) => void;
-  cost?: GroupCost;
+  tokenInput?: GroupTokenInput;
 }
 
 const getServerNames = (servers: string[] | IGroupServerConfig[]): string[] =>
@@ -366,24 +366,24 @@ const GroupCard = ({ group, servers, onEdit, onDelete, cost }: GroupCardProps) =
             <span style={{ color: 'var(--hub-ink-2)' }}>{totalVisibleTools}</span>{' '}
             {t('server.tools').toLowerCase()}
           </div>
-          {cost && (
+          {tokenInput && (
             <div className="hub-mono mt-1" style={{ fontSize: 11.5, color: 'var(--hub-ink-3)' }}>
-              <div title={t('cost.estimate')}>
-                {t('cost.totalFootprint')}: {formatTokens(cost.direct.exposed)}/{formatTokens(cost.direct.gross)}
+              <div title={t('tokenInput.estimate')}>
+                {t('tokenInput.totalFootprint')}: {formatTokens(tokenInput?.direct.exposed)}/{formatTokens(tokenInput?.direct.gross)}
               </div>
-              {cost.smartRouting && (
+              {tokenInput?.smartRouting && (
                 <>
                   <div>
-                    {t('cost.smartRouting')}: {formatTokens(cost.smartRouting.base)}{' '}
-                    ({t('cost.saved', { percent: percentSaved(cost.direct.exposed, cost.smartRouting.base) })})
+                    {t('tokenInput.smartRouting')}: {formatTokens(tokenInput?.smartRouting.base)}{' '}
+                    ({t('tokenInput.saved', { percent: percentSaved(tokenInput?.direct.exposed, tokenInput?.smartRouting.base) })})
                   </div>
-                  <div title={t('cost.smartRoutingPdHint')}>
-                    {t('cost.smartRoutingPd')}: {formatTokens(cost.smartRouting.progressiveDisclosure)}
+                  <div title={t('tokenInput.smartRoutingPdHint')}>
+                    {t('tokenInput.smartRoutingPd')}: {formatTokens(tokenInput?.smartRouting.progressiveDisclosure)}
                   </div>
                 </>
               )}
-              {cost.connectedCount < cost.totalCount && (
-                <div>{t('cost.connectedOf', { connected: cost.connectedCount, total: cost.totalCount })}</div>
+              {tokenInput?.connectedCount < tokenInput?.totalCount && (
+                <div>{t('tokenInput.connectedOf', { connected: tokenInput?.connectedCount, total: tokenInput?.totalCount })}</div>
               )}
             </div>
           )}

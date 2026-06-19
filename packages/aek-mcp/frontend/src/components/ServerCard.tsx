@@ -16,7 +16,7 @@ import {
   Star,
   type LucideIcon,
 } from 'lucide-react';
-import { Server, ServerCost } from '@/types';
+import { Server, ServerTokenInput } from '@/types';
 import { formatTokens } from '@/utils/contextCost';
 import { ServerStatusDot } from '@/components/ui/StatusDot';
 import ToolCard from '@/components/ui/ToolCard';
@@ -32,7 +32,7 @@ import { canManageServer } from '@/utils/serverPermissions';
 
 interface ServerCardProps {
   server: Server;
-  cost?: ServerCost;
+  tokenInput?: ServerTokenInput;
   onRemove: (serverName: string) => void;
   onEdit: (server: Server) => void;
   onToggle?: (server: Server, enabled: boolean) => Promise<boolean>;
@@ -129,7 +129,7 @@ const serverExposesMcpApp = (server: Server) => {
 
 const ServerCard = ({
   server,
-  cost,
+  tokenInput,
   onRemove,
   onEdit,
   onToggle,
@@ -145,7 +145,7 @@ const ServerCard = ({
   const baseUrl = installConfig?.baseUrl?.replace(/\/+$/, '') || '';
 
   const [expanded, setExpanded] = useState(true);
-  const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'cost' | null>(
+  const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'tokenInput' | null>(
     'tools',
   );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -592,14 +592,14 @@ const ServerCard = ({
           })}
 
           {/* Context Footprint stat */}
-          {cost && cost.connected ? (
+          {tokenInput && tokenInput?.connected ? (
             <span
               className="hub-server-capability-stat hub-mono hub-num"
-              title={`${t('cost.exposed')} ${cost.exposed} / ${t('cost.gross')} ${cost.gross} · ${t('cost.estimate')}`}
+              title={`${t('tokenInput.exposed')} ${tokenInput?.exposed} / ${t('tokenInput.gross')} ${tokenInput?.gross} · ${t('tokenInput.estimate')}`}
             >
               <span className="text-[var(--hub-ink-3)]">Σ</span>
               <span className="hub-server-capability-value">
-                {formatTokens(cost.exposed)}/{formatTokens(cost.gross)}
+                {formatTokens(tokenInput?.exposed)}/{formatTokens(tokenInput?.gross)}
               </span>
             </span>
           ) : null}
@@ -739,25 +739,25 @@ const ServerCard = ({
                 );
               })}
 
-              {/* Context cost tab */}
-              {cost && cost.connected && (
+              {/* Context tokenInput tab */}
+              {tokenInput && tokenInput?.connected && (
                 <button
-                  onClick={() => setExpandedTab(expandedTab === 'cost' ? null : 'cost')}
+                  onClick={() => setExpandedTab(expandedTab === 'tokenInput' ? null : 'tokenInput')}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors hover:bg-[var(--hub-surface-hover)]"
                   style={{
-                    background: expandedTab === 'cost' ? 'var(--hub-surface)' : 'transparent',
-                    border: '1px solid ' + (expandedTab === 'cost' ? 'var(--hub-line)' : 'transparent'),
-                    color: expandedTab === 'cost' ? 'var(--hub-ink)' : 'var(--hub-ink-2)',
+                    background: expandedTab === 'tokenInput' ? 'var(--hub-surface)' : 'transparent',
+                    border: '1px solid ' + (expandedTab === 'tokenInput' ? 'var(--hub-line)' : 'transparent'),
+                    color: expandedTab === 'tokenInput' ? 'var(--hub-ink)' : 'var(--hub-ink-2)',
                   }}
-                  title={t('cost.estimate')}
+                  title={t('tokenInput.estimate')}
                 >
                   <span style={{ color: 'var(--hub-ink-3)' }}>Σ</span>
-                  <span>{t('cost.totalFootprint')}</span>
+                  <span>{t('tokenInput.totalFootprint')}</span>
                   <span
                     className="hub-mono hub-num"
                     style={{ color: 'var(--hub-ink-3)', fontSize: 11 }}
                   >
-                    {formatTokens(cost.exposed)}/{formatTokens(cost.gross)}
+                    {formatTokens(tokenInput?.exposed)}/{formatTokens(tokenInput?.gross)}
                   </span>
                 </button>
               )}
@@ -789,16 +789,16 @@ const ServerCard = ({
             </div>
 
             {/* Context Footprint breakdown */}
-            {expandedTab === 'cost' && cost?.connected && cost?.items && (
+            {expandedTab === 'tokenInput' && tokenInput?.connected && tokenInput?.items && (
               <div className="mt-2 space-y-1">
-                {[...cost.items].sort((a, b) => b.cost - a.cost).map((item) => (
+                {[...tokenInput?.items].sort((a, b) => b.tokens - a.tokens).map((item) => (
                   <div
                     key={`${item.kind}:${item.name}`}
                     className="flex items-center justify-between hub-mono"
                     style={{ fontSize: 11.5, color: item.enabled ? 'var(--hub-ink-2)' : 'var(--hub-ink-3)' }}
                   >
                     <span className="truncate">{item.name}</span>
-                    <span className="hub-num flex-shrink-0">{formatTokens(item.cost)}</span>
+                    <span className="hub-num flex-shrink-0">{formatTokens(item.tokens)}</span>
                   </div>
                 ))}
               </div>
@@ -806,6 +806,16 @@ const ServerCard = ({
 
             {expandedTab === 'tools' && server.tools && (
               <div className="space-y-3 mt-2">
+                {tokenInput?.connected && tokenInput?.items && (() => {
+                  const toolItems = tokenInput?.items.filter((i) => i.kind === 'tool');
+                  const totalToolTokens = toolItems.reduce((sum, i) => sum + i.tokens, 0);
+                  return totalToolTokens > 0 ? (
+                    <div className="flex items-center justify-between hub-mono" style={{ fontSize: 11.5, color: 'var(--hub-ink-2)', padding: '4px 8px', background: 'var(--hub-bg-2)', borderRadius: 6 }}>
+                      <span>Σ {t('tokenInput.totalFootprint')}</span>
+                      <span className="hub-num">{formatTokens(totalToolTokens)}</span>
+                    </div>
+                  ) : null;
+                })()}
                 {server.tools.map((tool, index) => (
                   <ToolCard
                     key={index}
@@ -814,7 +824,7 @@ const ServerCard = ({
                     readOnly={!canManage}
                     onToggle={handleToolToggle}
                     onDescriptionUpdate={handleToolDescriptionUpdate}
-                    cost={cost?.items?.find((i) => i.kind === 'tool' && i.name === tool.name)?.cost}
+                    tokenInput={tokenInput?.items?.find((i) => i.kind === 'tool' && i.name === tool.name)?.tokens}
                   />
                 ))}
               </div>
@@ -829,7 +839,7 @@ const ServerCard = ({
                     readOnly={!canManage}
                     onToggle={handlePromptToggle}
                     onDescriptionUpdate={handlePromptDescriptionUpdate}
-                    cost={cost?.items?.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.cost}
+                    tokenInput={tokenInput?.items?.find((i) => i.kind === 'prompt' && i.name === prompt.name)?.tokens}
                   />
                 ))}
               </div>
@@ -849,7 +859,7 @@ const ServerCard = ({
                         readOnly={!canManage}
                         onToggle={handleResourceToggle}
                         onDescriptionUpdate={handleResourceDescriptionUpdate}
-                        cost={cost?.items?.find((i) => i.kind === 'resource' && i.name === resource.uri)?.cost}
+                        tokenInput={tokenInput?.items?.find((i) => i.kind === 'resource' && i.name === resource.uri)?.tokens}
                       />
                     ))}
                   </div>

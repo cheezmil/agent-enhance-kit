@@ -27,7 +27,7 @@ const ServersPage: React.FC = () => {
     triggerRefresh,
   } = useServerData({ refreshOnMount: true });
 
-  const { serverCosts, refetch: refetchCost } = useCostData();
+  const { serverTokenInputs, refetch: refetchCost } = useCostData();
 
   useEffect(() => {
     refetchCost();
@@ -214,7 +214,7 @@ const ServersPage: React.FC = () => {
             <ServerCard
               key={server.name}
               server={server}
-              cost={serverCosts.find((c) => c.name === server.name)}
+              tokenInput={serverTokenInputs.find((c) => c.name === server.name)}
               onRemove={handleServerRemove}
               onEdit={handleEditClick}
               onToggle={handleServerToggle}

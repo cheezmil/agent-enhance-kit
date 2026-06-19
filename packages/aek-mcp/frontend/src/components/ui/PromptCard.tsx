@@ -33,10 +33,10 @@ interface PromptCardProps {
     description: string,
     options?: { restored?: boolean },
   ) => void;
-  cost?: number;
+  tokenInput?: number;
 }
 
-const PromptCard = ({ prompt, server, readOnly = false, onToggle, onDescriptionUpdate, cost }: PromptCardProps) => {
+const PromptCard = ({ prompt, server, readOnly = false, onToggle, onDescriptionUpdate, tokenInput }: PromptCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { nameSeparator } = useSettingsData();
@@ -282,13 +282,13 @@ const PromptCard = ({ prompt, server, readOnly = false, onToggle, onDescriptionU
           </span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {cost != null && (
+          {tokenInput != null && (
             <span
               className="hub-mono flex-shrink-0"
               style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
-              title={t('cost.estimate')}
+              title={t('tokenInput.estimate')}
             >
-              Σ {formatTokens(cost)}
+              Σ {formatTokens(tokenInput)}
             </span>
           )}
           <div className="flex h-[26px] items-center" onClick={(e) => e.stopPropagation()}>

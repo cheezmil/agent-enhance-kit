@@ -174,7 +174,7 @@ const DashboardPage: React.FC = () => {
           <Stat label={t('pages.dashboard.connectingServers')} value={stats.connecting} tone="warn" />
           <Stat label={t('pages.dashboard.offlineServers')} value={stats.offline} tone="err" />
           <Stat label={t('pages.dashboard.disabledServers')} value={stats.disabled} tone="muted" />
-          <Stat label={t('cost.totalFootprint')} value={formatTokens(footprint)} />
+          <Stat label={t('tokenInput.totalFootprint')} value={formatTokens(footprint)} />
         </div>
       )}
 

@@ -770,10 +770,90 @@ func UpdateSystemConfig(c *gin.Context) {
 	})
 }
 
+// estimateTokens estimates token count from text (cl100k: ~4 chars per token)
+func estimateTokens(text string) int {
+	if len(text) == 0 {
+		return 0
+	}
+	// Rough estimation: 1 token per 4 bytes, minimum 1
+	tokens := len(text) / 4
+	if tokens < 1 {
+		tokens = 1
+	}
+	return tokens
+}
+
 func GetServerCosts(c *gin.Context) {
+	servers := services.Store.GetAllServers()
+	result := make([]map[string]interface{}, 0, len(servers))
+
+	for _, s := range servers {
+		connected := false
+		if _, ok := services.GlobalMCPClients.Get(s.Name); ok {
+			connected = true
+		}
+
+		items := make([]map[string]interface{}, 0)
+		exposed := 0
+		gross := 0
+
+		// Calculate tool tokens
+		for _, tool := range s.Tools {
+			tokens := estimateTokens(tool.Name) + estimateTokens(tool.Description) + 50 // base schema overhead
+			gross += tokens
+			if tool.Enabled {
+				exposed += tokens
+			}
+			items = append(items, map[string]interface{}{
+				"kind":    "tool",
+				"name":    tool.Name,
+				"tokens":  tokens,
+				"enabled": tool.Enabled,
+			})
+		}
+
+		// Calculate prompt tokens
+		for _, prompt := range s.Prompts {
+			tokens := estimateTokens(prompt.Name) + estimateTokens(prompt.Description) + 30
+			gross += tokens
+			if prompt.Enabled {
+				exposed += tokens
+			}
+			items = append(items, map[string]interface{}{
+				"kind":    "prompt",
+				"name":    prompt.Name,
+				"tokens":  tokens,
+				"enabled": prompt.Enabled,
+			})
+		}
+
+		// Calculate resource tokens
+		for _, resource := range s.Resources {
+			tokens := estimateTokens(resource.URI) + estimateTokens(resource.Name) + estimateTokens(resource.Description) + 20
+			gross += tokens
+			if resource.Enabled {
+				exposed += tokens
+			}
+			items = append(items, map[string]interface{}{
+				"kind":    "resource",
+				"name":    resource.Name,
+				"tokens":  tokens,
+				"enabled": resource.Enabled,
+			})
+		}
+
+		result = append(result, map[string]interface{}{
+			"name":      s.Name,
+			"connected": connected,
+			"exposed":   exposed,
+			"gross":     gross,
+			"items":     items,
+		})
+	}
+
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
-		Data:    map[string]interface{}{},
+		Data:    result,
 	})
 }
 

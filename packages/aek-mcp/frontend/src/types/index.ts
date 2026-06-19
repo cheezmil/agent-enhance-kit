@@ -773,32 +773,32 @@ export interface TemplateImportDetail {
   message?: string;
 }
 
-// Context Footprint cost DTOs
-export interface ItemCost {
+// Context Footprint token DTOs
+export interface ItemTokenInput {
   kind: 'tool' | 'prompt' | 'resource';
   name: string;
-  cost: number;
+  tokens: number;
   enabled: boolean;
 }
 
-export interface ServerCost {
+export interface ServerTokenInput {
   name: string;
   connected: boolean;
   exposed: number;
   gross: number;
-  items: ItemCost[];
+  items: ItemTokenInput[];
 }
 
-export interface SmartRoutingCost {
+export interface SmartRoutingTokenInput {
   base: number;
   progressiveDisclosure: number;
 }
 
-export interface GroupCost {
+export interface GroupTokenInput {
   id: string;
   name: string;
   connectedCount: number;
   totalCount: number;
   direct: { exposed: number; gross: number };
-  smartRouting: SmartRoutingCost | null;
+  smartRouting: SmartRoutingTokenInput | null;
 }

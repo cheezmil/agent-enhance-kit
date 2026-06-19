@@ -35,7 +35,7 @@ interface ToolCardProps {
     description: string,
     options?: { restored?: boolean },
   ) => void;
-  cost?: number;
+  tokenInput?: number;
 }
 
 // Helper to check for "empty" values
@@ -47,7 +47,7 @@ function isEmptyValue(value: any): boolean {
   return false;
 }
 
-const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdate, cost }: ToolCardProps) => {
+const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdate, tokenInput }: ToolCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { nameSeparator } = useSettingsData();
@@ -335,13 +335,13 @@ const ToolCard = ({ tool, server, readOnly = false, onToggle, onDescriptionUpdat
           </span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {cost != null && (
+          {tokenInput != null && (
             <span
               className="hub-mono flex-shrink-0"
               style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}
-              title={t('cost.estimate')}
+              title={t('tokenInput.estimate')}
             >
-              Σ {formatTokens(cost)}
+              Σ {formatTokens(tokenInput)}
             </span>
           )}
           <div className="flex h-[26px] items-center" onClick={(e) => e.stopPropagation()}>
