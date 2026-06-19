@@ -1,7 +1,5 @@
 'use client';
-import ProtectedLayout from '../../components/ProtectedLayout';
-import dynamic from 'next/dynamic';
-const ActivityPage = dynamic(() => import('../../page-components/ActivityPage'), { ssr: false });
+import ActivityPage from '../../page-components/ActivityPage';
 export default function Activity() {
-  return <ProtectedLayout><ActivityPage /></ProtectedLayout>;
+  return <ActivityPage />;
 }

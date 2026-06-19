@@ -1,7 +1,5 @@
 'use client';
-import ProtectedLayout from '../../components/ProtectedLayout';
-import dynamic from 'next/dynamic';
-const SettingsPage = dynamic(() => import('../../page-components/SettingsPage'), { ssr: false });
+import SettingsPage from '../../page-components/SettingsPage';
 export default function Settings() {
-  return <ProtectedLayout><SettingsPage /></ProtectedLayout>;
+  return <SettingsPage />;
 }

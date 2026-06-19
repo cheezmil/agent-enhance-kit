@@ -28,9 +28,41 @@ const AuthContext = createContext<{
   logout: () => {},
 });
 
+const AUTH_CACHE_KEY = 'aek-mcp_auth_cache';
+
+function getCachedAuth(): AuthState | null {
+  try {
+    const raw = localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (cached && cached.isAuthenticated && cached.user) {
+      return { ...cached, loading: false };
+    }
+  } catch {}
+  return null;
+}
+
 // Auth provider component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [auth, setAuth] = useState<AuthState>(initialState);
+  const [auth, setAuth] = useState<AuthState>(() => {
+    const cached = getCachedAuth();
+    return cached || initialState;
+  });
+
+  // Cache auth state to localStorage for instant restore on page reload
+  useEffect(() => {
+    try {
+      if (auth.isAuthenticated && auth.user) {
+        localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+          isAuthenticated: true,
+          user: auth.user,
+          error: null,
+        }));
+      } else if (!auth.isAuthenticated && !auth.loading) {
+        localStorage.removeItem(AUTH_CACHE_KEY);
+      }
+    } catch {}
+  }, [auth.isAuthenticated, auth.user, auth.loading]);
 
   // Load user if token exists
   useEffect(() => {

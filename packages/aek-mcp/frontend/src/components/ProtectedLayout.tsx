@@ -11,11 +11,19 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
 
+  // Skip auth check for login page
+  const isLoginPage = pathname === '/login';
+
   useEffect(() => {
-    if (!auth.loading && !auth.isAuthenticated) {
+    if (!isLoginPage && !auth.loading && !auth.isAuthenticated) {
       router.replace('/login');
     }
-  }, [auth.loading, auth.isAuthenticated, router]);
+  }, [isLoginPage, auth.loading, auth.isAuthenticated, router]);
+
+  // Login page renders children directly (no MainLayout wrapper)
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (auth.loading) {
     return (

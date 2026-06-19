@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/cheezmil/aek-mcp/internal/config"
@@ -210,21 +211,73 @@ func SetupRouter() *gin.Engine {
 		r.Static("/assets", "./frontend/dist/assets")
 		r.Static("/_next/static", "./frontend/dist/_next/static")
 		r.NoRoute(func(c *gin.Context) {
-			// For Next.js static export, try to serve the matching HTML file
-			// e.g. /servers -> ./frontend/dist/servers.html
 			path := c.Request.URL.Path
-			if path == "/" {
-				c.File("./frontend/dist/index.html")
-				return
+
+			// Next.js static export generates .txt files with RSC payload per route
+			// e.g. /groups.txt contains the RSC payload for /groups
+			if strings.HasSuffix(path, ".txt") {
+				rscFile := "./frontend/dist" + path
+				if _, err := os.Stat(rscFile); err == nil {
+					c.Header("Content-Type", "text/x-component; charset=utf-8")
+					c.File(rscFile)
+					return
+				}
 			}
-			// Strip leading slash and try the matching HTML file
-			htmlFile := "./frontend/dist" + path + ".html"
-			if _, err := os.Stat(htmlFile); err == nil {
-				c.File(htmlFile)
-				return
+
+			// Determine which HTML file to serve
+			htmlFile := "./frontend/dist/index.html"
+			if path != "/" {
+				candidate := "./frontend/dist" + path + ".html"
+				if _, err := os.Stat(candidate); err == nil {
+					htmlFile = candidate
+				}
 			}
-			// Fallback to index.html for SPA client-side routing
-			c.File("./frontend/dist/index.html")
+
+			// Next.js RSC navigation: extract payload from HTML and return as RSC stream
+			if c.GetHeader("RSC") == "1" || c.GetHeader("Next-Router-State-Tree") != "" {
+				data, err := os.ReadFile(htmlFile)
+				if err != nil {
+					c.Status(500)
+					return
+				}
+				html := string(data)
+
+				// Extract RSC payloads: all <script>self.__next_f.push(...)</script> tags
+				var rscPayload string
+				for {
+					idx := strings.Index(html, "self.__next_f.push(")
+					if idx == -1 {
+						break
+					}
+					// Find the enclosing <script> tag
+					scriptStart := strings.LastIndex(html[:idx], "<script>")
+					scriptEnd := strings.Index(html[idx:], "</script>")
+					if scriptStart == -1 || scriptEnd == -1 {
+						break
+					}
+					scriptContent := html[scriptStart : idx+scriptEnd+len("</script>")]
+					// Extract just the push call content
+					pushStart := strings.Index(scriptContent, "self.__next_f.push(")
+					pushEnd := strings.LastIndex(scriptContent, ")")
+					if pushStart != -1 && pushEnd != -1 {
+						// Get the argument inside push(...)
+						argStart := pushStart + len("self.__next_f.push(")
+						rscPayload += scriptContent[argStart:pushEnd] + "\n"
+					}
+					html = html[idx+scriptEnd+len("</script>"):]
+				}
+
+				if rscPayload != "" {
+					c.Header("Content-Type", "text/x-component")
+					c.Header("RSC", "1")
+					c.Header("Next-Router-State-Tree", c.GetHeader("Next-Router-State-Tree"))
+					c.String(200, rscPayload)
+					return
+				}
+			}
+
+			// Full HTML page load
+			c.File(htmlFile)
 		})
 	}
 

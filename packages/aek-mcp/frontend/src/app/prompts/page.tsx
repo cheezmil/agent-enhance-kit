@@ -1,7 +1,5 @@
 'use client';
-import ProtectedLayout from '../../components/ProtectedLayout';
-import dynamic from 'next/dynamic';
-const PromptsPage = dynamic(() => import('../../page-components/PromptsPage'), { ssr: false });
+import PromptsPage from '../../page-components/PromptsPage';
 export default function Prompts() {
-  return <ProtectedLayout><PromptsPage /></ProtectedLayout>;
+  return <PromptsPage />;
 }
