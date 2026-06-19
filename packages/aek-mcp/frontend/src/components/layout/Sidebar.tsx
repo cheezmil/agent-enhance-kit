@@ -2,124 +2,69 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
-  Server as ServerIcon,
-  Users as UsersIcon,
-  Route as RouteIcon,
-  Settings as SettingsIcon,
-  FileText,
-  MessageSquare,
-  Activity,
-  ScrollText,
-  Key,
+  Server, FolderTree, FileText, Database, Key, Settings, Shield, BarChart3,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useServerContext } from '@/contexts/ServerContext';
-import { useGroupData } from '@/hooks/useGroupData';
-import { canViewSystemLogs } from '@/utils/navigationPermissions';
-import { usePermissionCheck } from '../PermissionChecker';
-import UserProfileMenu from '@/components/ui/UserProfileMenu';
-import { checkActivityAvailable } from '@/services/activityService';
+import { useAuth } from '../../contexts/AuthContext';
+import UserProfileMenu from '../UserProfileMenu';
 
 interface SidebarProps {
   collapsed: boolean;
 }
 
-interface MenuItem {
-  path: string;
-  label: string;
+interface NavItem {
+  href: string;
+  labelKey: string;
   icon: React.ReactNode;
-  badge?: string | number;
-  end?: boolean;
+  show?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const { t } = useTranslation();
+  const pathname = usePathname();
   const { auth } = useAuth();
-  const { allServers } = useServerContext();
-  const { groups } = useGroupData();
-  const [activityAvailable, setActivityAvailable] = useState(false);
-
-  const appVersion = (process.env.NEXT_PUBLIC_PACKAGE_VERSION as string) || 'dev';
+  const [appVersion, setAppVersion] = useState('dev');
 
   useEffect(() => {
-    checkActivityAvailable()
-      .then(setActivityAvailable)
-      .catch(() => setActivityAvailable(false));
+    fetch('/public-config')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.data?.appVersion) setAppVersion(d.data.appVersion);
+      })
+      .catch(() => {});
   }, []);
 
-  const userCanManageUsers = auth.user?.isAdmin && usePermissionCheck('x');
+  const userCanManageUsers = auth.user?.isAdmin || auth.user?.role === 'admin';
 
-  const workspaceItems: MenuItem[] = [
-    {
-      path: '/servers',
-      label: t('nav.servers'),
-      icon: <ServerIcon className="h-4 w-4" />,
-      badge: allServers.length || undefined,
-    },
-    {
-      path: '/groups',
-      label: t('nav.groups'),
-      icon: <RouteIcon className="h-4 w-4" />,
-      badge: groups.length || undefined,
-    },
-    { path: '/prompts', label: t('nav.prompts'), icon: <MessageSquare className="h-4 w-4" /> },
-    { path: '/resources', label: t('nav.resources'), icon: <FileText className="h-4 w-4" /> },
-    { path: '/keys', label: t('nav.keys', 'Keys'), icon: <Key className="h-4 w-4" /> },
+  const workspaceItems: NavItem[] = [
+    { href: '/servers', labelKey: 'nav.servers', icon: <Server size={18} /> },
+    { href: '/groups', labelKey: 'nav.groups', icon: <FolderTree size={18} /> },
+    { href: '/prompts', labelKey: 'nav.prompts', icon: <FileText size={18} /> },
+    { href: '/resources', labelKey: 'nav.resources', icon: <Database size={18} /> },
+    { href: '/keys', labelKey: 'nav.keys', icon: <Key size={18} /> },
   ];
 
-  const systemItems: MenuItem[] = [
-    ...(userCanManageUsers
-      ? [{ path: '/users', label: t('nav.users'), icon: <UsersIcon className="h-4 w-4" /> }]
-      : []),
-    ...(activityAvailable && auth.user?.isAdmin
-      ? [{ path: '/activity', label: t('nav.activity'), icon: <Activity className="h-4 w-4" /> }]
-      : []),
-    ...(canViewSystemLogs(auth.user)
-      ? [{ path: '/logs', label: t('nav.logs'), icon: <ScrollText className="h-4 w-4" /> }]
-      : []),
-    { path: '/settings', label: t('nav.settings'), icon: <SettingsIcon className="h-4 w-4" /> },
+  const systemItems: NavItem[] = [
+    { href: '/settings', labelKey: 'nav.settings', icon: <Settings size={18} /> },
   ];
 
-  const pathname = usePathname() || '/';
-
-  const renderItem = (item: MenuItem) => {
-    const isActive = item.end
-      ? pathname === item.path
-      : pathname.startsWith(item.path);
+  const renderItem = (item: NavItem) => {
+    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
     return (
       <Link
-        key={item.path}
-        href={item.path}
+        key={item.href}
+        href={item.href}
         className={
-          'group flex items-center gap-2.5 rounded-md text-[13.5px] transition-colors ' +
-          (collapsed ? 'justify-center px-2 py-2' : 'px-2.5 py-1.5') +
-          ' ' +
-          (isActive
-            ? 'bg-[var(--hub-surface)] text-[var(--hub-ink)] ring-1 ring-inset ring-[var(--hub-line)]'
-            : 'text-[var(--hub-ink-2)] hover:bg-[var(--hub-surface-hover)] hover:text-[var(--hub-ink)]')
+          'hub-nav-item ' +
+          (isActive ? 'hub-nav-active' : '')
         }
+        title={collapsed ? t(item.labelKey) : undefined}
       >
-        <span
-          className={
-            isActive
-                ? 'text-[var(--hub-ink)] flex-shrink-0'
-                : 'text-[var(--hub-ink-3)] group-hover:text-[var(--hub-ink-2)] flex-shrink-0'
-          }
-        >
-          {item.icon}
-        </span>
+        <span className="flex items-center justify-center w-5 h-5 shrink-0">{item.icon}</span>
         {!collapsed && (
-          <>
-            <span className="truncate">{item.label}</span>
-            {item.badge != null && (
-              <span className="ml-auto hub-mono hub-num text-[11px] text-[var(--hub-ink-3)]">
-                {item.badge}
-              </span>
-            )}
-          </>
+          <span className="truncate text-[13px]">{t(item.labelKey)}</span>
         )}
       </Link>
     );
@@ -129,9 +74,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     <aside
       className={
         'flex flex-col h-full relative shrink-0 transition-[width] duration-200 ease-out ' +
-        'shrink-0 transition-[width] duration-200 ease-out ' +
-        'bg-[rgba(255,255,255,0.72)] backdrop-blur-[40px] backdrop-saturate-[180%] ' +
-        'border-r border-[rgba(255,255,255,0.6)] ' +
+        'bg-[var(--hub-bg-2)] backdrop-blur-[40px] backdrop-saturate-[180%] ' +
+        'border-r border-[var(--hub-line)] ' +
         (collapsed ? 'w-14' : 'w-[232px]')
       }
     >

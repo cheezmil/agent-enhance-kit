@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/pkoukk/tiktoken-go"
 	"github.com/cheezmil/aek-mcp/internal/config"
 	"github.com/cheezmil/aek-mcp/internal/models"
 	"github.com/cheezmil/aek-mcp/internal/services"
@@ -770,17 +771,34 @@ func UpdateSystemConfig(c *gin.Context) {
 	})
 }
 
-// estimateTokens estimates token count from text (cl100k: ~4 chars per token)
-func estimateTokens(text string) int {
-	if len(text) == 0 {
+// tiktokenEncoder is a lazily-initialized cl100k_base encoder
+var tiktokenEncoder *tiktoken.Tiktoken
+
+func getEncoder() *tiktoken.Tiktoken {
+	if tiktokenEncoder == nil {
+		tke, err := tiktoken.GetEncoding("cl100k_base")
+		if err != nil {
+			return nil
+		}
+		tiktokenEncoder = tke
+	}
+	return tiktokenEncoder
+}
+
+// countTokens uses cl100k_base encoding (GPT-4/Claude) for accurate token count
+func countTokens(text string) int {
+	if text == "" {
 		return 0
 	}
-	// Rough estimation: 1 token per 4 bytes, minimum 1
-	tokens := len(text) / 4
-	if tokens < 1 {
-		tokens = 1
+	if enc := getEncoder(); enc != nil {
+		return len(enc.Encode(text, nil, nil))
 	}
-	return tokens
+	// Fallback: ~4 chars per token
+	n := len(text) / 4
+	if n < 1 {
+		n = 1
+	}
+	return n
 }
 
 func GetServerCosts(c *gin.Context) {
@@ -799,7 +817,7 @@ func GetServerCosts(c *gin.Context) {
 
 		// Calculate tool tokens
 		for _, tool := range s.Tools {
-			tokens := estimateTokens(tool.Name) + estimateTokens(tool.Description) + 50 // base schema overhead
+			tokens := countTokens(tool.Name) + countTokens(tool.Description) + 50 // base schema overhead
 			gross += tokens
 			if tool.Enabled {
 				exposed += tokens
@@ -814,7 +832,7 @@ func GetServerCosts(c *gin.Context) {
 
 		// Calculate prompt tokens
 		for _, prompt := range s.Prompts {
-			tokens := estimateTokens(prompt.Name) + estimateTokens(prompt.Description) + 30
+			tokens := countTokens(prompt.Name) + countTokens(prompt.Description) + 30
 			gross += tokens
 			if prompt.Enabled {
 				exposed += tokens
@@ -829,7 +847,7 @@ func GetServerCosts(c *gin.Context) {
 
 		// Calculate resource tokens
 		for _, resource := range s.Resources {
-			tokens := estimateTokens(resource.URI) + estimateTokens(resource.Name) + estimateTokens(resource.Description) + 20
+			tokens := countTokens(resource.URI) + countTokens(resource.Name) + countTokens(resource.Description) + 20
 			gross += tokens
 			if resource.Enabled {
 				exposed += tokens

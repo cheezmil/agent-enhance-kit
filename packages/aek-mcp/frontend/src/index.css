@@ -121,6 +121,13 @@
     0 8px 32px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
+.dark .hub-card {
+  background: var(--hub-surface);
+  border-color: var(--hub-line);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
 .hub-card-pad { padding: 16px; }
 .hub-surface { background: var(--hub-surface); }
 .hub-bg-2 { background: var(--hub-bg-2); }
