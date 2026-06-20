@@ -233,7 +233,8 @@
       "resource": "资源 / 受众",
       "accessToken": "访问令牌",
       "refreshToken": "刷新令牌"
-    }
+    },
+    "detecting": "检测中"
   },
   "status": {
     "online": "在线",

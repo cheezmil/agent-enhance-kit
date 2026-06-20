@@ -43,6 +43,7 @@ interface ServerStatusDotProps {
   enabled?: boolean;
   onAuthClick?: (e: React.MouseEvent) => void;
   className?: string;
+  label?: string;
 }
 
 export const ServerStatusDot: React.FC<ServerStatusDotProps> = ({
@@ -50,6 +51,7 @@ export const ServerStatusDot: React.FC<ServerStatusDotProps> = ({
   enabled,
   onAuthClick,
   className,
+  label,
 }) => {
   const { t } = useTranslation();
   if (enabled === false) {
@@ -63,7 +65,7 @@ export const ServerStatusDot: React.FC<ServerStatusDotProps> = ({
       label={
         <>
           {isOAuth && <span aria-hidden>🔐</span>}
-          <span>{t(STATUS_TO_KEY[status] || status)}</span>
+          <span>{label || t(STATUS_TO_KEY[status] || status)}</span>
         </>
       }
       onClick={isOAuth && onAuthClick ? onAuthClick : undefined}

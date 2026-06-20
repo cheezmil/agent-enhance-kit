@@ -233,7 +233,8 @@
       "resource": "Resource / Audience",
       "accessToken": "Access Token",
       "refreshToken": "Refresh Token"
-    }
+    },
+    "detecting": "Detecting"
   },
   "status": {
     "online": "Online",
