@@ -90,7 +90,7 @@ const ServerCard = ({
   const { showToast } = useToast();
   const { exportMCPSettings, installConfig } = useSettingsData();
   const { auth } = useAuth();
-  const baseUrl = installConfig?.baseUrl?.replace(/\\/+$/, '') || '';
+  const baseUrl = installConfig?.baseUrl?.replace(/\/+$/, '') || '';
 
   const [expanded, setExpanded] = useState(true);
   const [expandedTab, setExpandedTab] = useState<'tools' | 'prompts' | 'resources' | 'tokenInput' | null>(
