@@ -1,46 +1,57 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePathname, useParams } from 'next/navigation';
-import { Menu, Search, RefreshCw } from 'lucide-react';
 import { useEmbeddingSync } from '../../contexts/EmbeddingSyncContext';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
+const LANGUAGES = [
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'zh', label: '中文', flag: '🇨🇳' },
+];
+
 const useCrumbs = (): string[] => {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const params = useParams();
-
   return useMemo(() => {
-    const path = pathname || '/';
-    if (path === '/') return [t('nav.dashboard')];
-    if (path.startsWith('/servers')) return [t('nav.servers')];
-    if (path.startsWith('/groups')) return [t('nav.groups')];
-    if (path.startsWith('/prompts')) return [t('nav.prompts')];
-    if (path.startsWith('/resources')) return [t('nav.resources')];
-    if (path.startsWith('/users')) return [t('nav.users')];
-    if (path.startsWith('/market')) {
-      const serverName = (params as { serverName?: string }).serverName;
-      const crumbs = [t('nav.market')];
-      if (serverName) crumbs.push(serverName);
-      return crumbs;
-    }
-    if (path.startsWith('/logs')) return [t('nav.logs')];
-    if (path.startsWith('/activity')) return [t('nav.activity')];
-    if (path.startsWith('/keys')) return [t('nav.keys', 'Keys')];
-    if (path.startsWith('/settings')) return [t('nav.settings')];
-    return [t('nav.dashboard')];
-  }, [pathname, params, t]);
+    const segs = pathname.replace(/^\//, '').split('/').filter(Boolean);
+    if (segs.length === 0) return [t('app.title')];
+    const pageKey = `pages.${segs[segs.length - 1]}`;
+    const translated = t(pageKey);
+    const last = translated !== pageKey ? translated : segs[segs.length - 1];
+    return [t('app.title'), ...segs.slice(0, -1).map((s) => s), last];
+  }, [pathname, t]);
 };
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { activeSyncs } = useEmbeddingSync();
   const crumbs = useCrumbs();
+  const [isDark, setIsDark] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    document.documentElement.classList.toggle('dark');
+    const nowDark = document.documentElement.classList.contains('dark');
+    setIsDark(nowDark);
+    localStorage.setItem('theme', nowDark ? 'dark' : 'light');
+  };
+
+  const switchLang = (code: string) => {
+    i18n.changeLanguage(code);
+    localStorage.setItem('i18nextLng', code);
+    setShowLangMenu(false);
+  };
+
+  const currentLang = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
 
   return (
     <header className="hub-topbar shrink-0">
@@ -49,7 +60,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         className="hub-icon-btn"
         aria-label={t('app.toggleSidebar')}
       >
-        <Menu size={16} />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
       </button>
 
       <div className="hub-crumb flex items-center min-w-0">
@@ -100,26 +115,66 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       </div>
 
       <div className="flex items-center gap-1">
-        <button
-          className="hub-icon-btn"
-          aria-label={t('app.search')}
-          onClick={() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
-          }}
-        >
-          <Search size={16} />
-        </button>
+        {/* Theme toggle */}
         <button
           className="hub-icon-btn"
           aria-label={t('settings.appearance.theme.toggle', 'Toggle theme')}
-          onClick={() => {
-            document.documentElement.classList.toggle('dark');
-            const isDark = document.documentElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-          }}
+          onClick={toggleTheme}
         >
-          {typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? '☀' : '☾'}
+          {isDark ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          )}
         </button>
+
+        {/* Language switcher */}
+        <div className="relative">
+          <button
+            className="hub-icon-btn text-xs"
+            aria-label="Language"
+            onClick={() => setShowLangMenu((v) => !v)}
+            style={{ fontSize: 13, lineHeight: 1 }}
+          >
+            {currentLang.flag}
+          </button>
+          {showLangMenu && (
+            <div
+              className="absolute right-0 top-full z-50 mt-1 w-36 rounded-md border py-1"
+              style={{ background: 'var(--hub-surface)', borderColor: 'var(--hub-line)' }}
+            >
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left transition-colors hover:bg-[var(--hub-surface-hover)]"
+                  style={{
+                    color: lang.code === i18n.language ? 'var(--hub-accent)' : 'var(--hub-ink)',
+                    fontWeight: lang.code === i18n.language ? 500 : 400,
+                  }}
+                  onClick={() => switchLang(lang.code)}
+                >
+                  <span>{lang.flag}</span>
+                  <span>{lang.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* GitHub */}
         <button
           className="hub-icon-btn"
           aria-label="GitHub Repository"
