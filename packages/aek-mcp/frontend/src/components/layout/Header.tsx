@@ -19,11 +19,11 @@ const useCrumbs = (): string[] => {
   const pathname = usePathname();
   return useMemo(() => {
     const segs = pathname.replace(/^\//, '').split('/').filter(Boolean);
-    if (segs.length === 0) return [t('app.title')];
-    const pageKey = `pages.${segs[segs.length - 1]}`;
+    if (segs.length === 0) return [];
+    const pageKey = `pages.${segs[segs.length - 1]}.title`;
     const translated = t(pageKey);
     const last = translated !== pageKey ? translated : segs[segs.length - 1];
-    return [t('app.title'), ...segs.slice(0, -1).map((s) => s), last];
+    return [...segs.slice(0, -1).map((s) => s), last];
   }, [pathname, t]);
 };
 
