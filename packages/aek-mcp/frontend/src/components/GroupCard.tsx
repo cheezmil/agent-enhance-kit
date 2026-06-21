@@ -57,7 +57,7 @@ const copyText = async (value: string): Promise<boolean> => {
   }
 };
 
-const GroupCard = ({ group, servers, onEdit, onDelete, cost }: GroupCardProps) => {
+const GroupCard = ({ group, servers, onEdit, onDelete, tokenInput }: GroupCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { installConfig, nameSeparator } = useSettingsData();

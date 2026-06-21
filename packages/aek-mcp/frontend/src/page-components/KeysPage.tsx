@@ -35,7 +35,6 @@ const KeysPage: React.FC = () => {
   };
 
   const maskedKey = apiKey ? apiKey.substring(0, 8) + '••••••••' + apiKey.substring(apiKey.length - 8) : '';
-  const shortKey = apiKey ? apiKey.substring(0, 12) + '...' : 'YOUR_KEY';
 
   return (
     <div>
@@ -98,20 +97,7 @@ const KeysPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
-            <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('keys.usageExamples', 'Usage Examples')}
-            </h3>
-            <div className="space-y-2 text-xs font-mono text-gray-600 dark:text-gray-400">
-              <div className="p-2 bg-gray-900 text-gray-100 rounded whitespace-pre-wrap">
-{`# Query Parameter
-curl -H "Authorization: Bearer YOUR_TOKEN" "http://your-server/mcp?key=${shortKey}"
 
-# Environment Variable
-export AEK_MCP_KEY=${shortKey}`}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

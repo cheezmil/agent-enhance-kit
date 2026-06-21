@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -460,4 +464,61 @@ func ListDiscoveryTags(c *gin.Context) {
 
 func GetMarketplaceWellKnown(c *gin.Context) {
 	c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Marketplace not enabled"})
+}
+
+func getMcpSettingsFilePath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".aek", "mcp", "mcp-settings.jsonc")
+}
+
+func GetMcpSettingsRaw(c *gin.Context) {
+	path := getMcpSettingsFilePath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		c.JSON(http.StatusOK, models.ApiResponse{
+			Success: true,
+			Data:    map[string]interface{}{"content": "", "path": path},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, models.ApiResponse{
+		Success: true,
+		Data:    map[string]interface{}{"content": string(data), "path": path},
+	})
+}
+
+func SaveMcpSettingsRaw(c *gin.Context) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Invalid request"})
+		return
+	}
+
+	path := getMcpSettingsFilePath()
+	if err := os.WriteFile(path, []byte(req.Content), 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, models.ApiResponse{Success: false, Message: "Failed to write file: " + err.Error()})
+		return
+	}
+
+	// Reload: disconnect all, clear, re-import from file, reconnect
+	for _, s := range services.Store.GetAllServers() {
+		services.GlobalMCPClients.Disconnect(s.Name)
+		services.Store.DeleteServer(s.Name)
+	}
+	services.LoadMcpSettings()
+
+	// Reconnect enabled servers in background
+	go func() {
+		for _, s := range services.Store.GetAllServers() {
+			if s.Enabled {
+				if err := services.ConnectServerByName(context.Background(), s.Name); err != nil {
+					fmt.Printf("[aek-mcp] Failed to reconnect server %s: %v\n", s.Name, err)
+				}
+			}
+		}
+	}()
+
+	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Settings saved and reloaded"})
 }

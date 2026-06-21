@@ -16,7 +16,7 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
   const { t } = useTranslation();
   const { updateGroup } = useGroupData();
   const { allServers } = useServerData();
-  const { serverCosts } = useCostData();
+  const { serverTokenInputs } = useCostData();
   const [availableServers, setAvailableServers] = useState<Server[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,14 +52,15 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
         return;
       }
 
-      const result = await updateGroup(group.id, {
-        name: formData.name,
-        description: formData.description,
-        servers: formData.servers,
-      });
+      const result = await updateGroup(
+        group.id,
+        formData.name,
+        formData.description,
+        formData.servers,
+      );
 
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.updateError'));
+      if (!result) {
+        setError(t('groups.updateError'));
         setIsSubmitting(false);
         return;
       }
@@ -112,7 +113,7 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
                   value={formData.servers as IGroupServerConfig[]}
                   onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
-                  serverCosts={serverCosts}
+                  serverTokenInputs={serverTokenInputs}
                 />
               </div>
             </div>

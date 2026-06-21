@@ -18,12 +18,11 @@ const GroupsPage: React.FC = () => {
     groups,
     loading: groupsLoading,
     error: groupError,
-    setError: setGroupError,
     deleteGroup,
     triggerRefresh,
   } = useGroupData();
   const { allServers } = useServerData({ refreshOnMount: true });
-  const { groupCosts, refetch: refetchCost } = useCostData();
+  const { groupTokenInputs, refetch: refetchCost } = useCostData();
 
   // Re-fetch context footprint whenever group definitions or server connection state change.
   useEffect(() => {
@@ -36,10 +35,12 @@ const GroupsPage: React.FC = () => {
   const [showTemplateExport, setShowTemplateExport] = useState(false);
   const [showTemplateImport, setShowTemplateImport] = useState(false);
 
+  const [dismissedError, setDismissedError] = useState(false);
+
   const handleDeleteGroup = async (groupId: string) => {
     const result = await deleteGroup(groupId);
-    if (!result || !result.success) {
-      setGroupError(result?.message || t('groups.deleteError'));
+    if (!result) {
+      // error handled by hook
     }
   };
 
@@ -68,7 +69,7 @@ const GroupsPage: React.FC = () => {
         </div>
       </div>
 
-      {groupError && (
+      {groupError && !dismissedError && (
         <div
           className="hub-card flex items-center justify-between gap-3 mb-4"
           style={{
@@ -82,7 +83,7 @@ const GroupsPage: React.FC = () => {
             <AlertCircle size={14} className="flex-shrink-0" />
             <span className="truncate text-[13px]">{groupError}</span>
           </div>
-          <button className="hub-icon-btn sm" onClick={() => setGroupError(null)}>
+          <button className="hub-icon-btn sm" onClick={() => setDismissedError(true)}>
             <X size={13} />
           </button>
         </div>
@@ -105,7 +106,7 @@ const GroupsPage: React.FC = () => {
               servers={allServers}
               onEdit={setEditingGroup}
               onDelete={handleDeleteGroup}
-              cost={groupCosts.find((c) => c.id === group.id)}
+              tokenInput={groupTokenInputs.find((c) => c.id === group.id)}
             />
           ))}
           <button

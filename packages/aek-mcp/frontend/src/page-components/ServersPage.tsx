@@ -1,14 +1,13 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Search, FileCode, AlertCircle, X } from 'lucide-react';
+import { Search, AlertCircle, X, Pencil, Save, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Server } from '@/types';
 import ServerCard from '@/components/ServerCard';
-import AddServerForm from '@/components/AddServerForm';
 import EditServerForm from '@/components/EditServerForm';
-import JSONImportForm from '@/components/JSONImportForm';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { filterServers, getServerFilterCounts, type ServerFilter } from '@/utils/serverFilters';
+import { apiGet, apiPut } from '@/utils/fetchInterceptor';
 
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -34,8 +33,6 @@ const ServersPage: React.FC = () => {
   }, [servers, refetchCost]);
 
   const [editingServer, setEditingServer] = useState<Server | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showJsonImport, setShowJsonImport] = useState(false);
   const [filter, setFilter] = useState<ServerFilter>(() => {
     try {
       const saved = localStorage.getItem('aek-mcp-server-filter');
@@ -49,6 +46,14 @@ const ServersPage: React.FC = () => {
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch { return new Set(); }
   });
+
+  // Editor state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editorContent, setEditorContent] = useState('');
+  const [editorLoading, setEditorLoading] = useState(false);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [editorSuccess, setEditorSuccess] = useState(false);
 
   const toggleFavorite = (name: string) => {
     setFavorites((prev) => {
@@ -73,43 +78,159 @@ const ServersPage: React.FC = () => {
     if (fullServerData) setEditingServer(fullServerData);
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
+  const loadSettings = useCallback(async () => {
+    setEditorLoading(true);
+    setEditorError(null);
     try {
-      triggerRefresh();
-      await new Promise((resolve) => setTimeout(resolve, 400));
+      const res = await apiGet<any>('/mcp-settings/raw');
+      if (res.success && res.data) {
+        setEditorContent(res.data.content || '');
+      } else {
+        setEditorError(res.message || 'Failed to load settings');
+      }
+    } catch (e: any) {
+      setEditorError(e.message || 'Failed to load settings');
     } finally {
-      setIsRefreshing(false);
+      setEditorLoading(false);
+    }
+  }, []);
+
+  const openEditor = () => {
+    setIsEditing(true);
+    setEditorSuccess(false);
+    loadSettings();
+  };
+
+  const saveSettings = async () => {
+    setEditorSaving(true);
+    setEditorError(null);
+    setEditorSuccess(false);
+    try {
+      const res = await apiPut<any>('/mcp-settings/raw', { content: editorContent });
+      if (res.success) {
+        setEditorSuccess(true);
+        triggerRefresh();
+        setTimeout(() => {
+          setIsEditing(false);
+          setEditorSuccess(false);
+        }, 1200);
+      } else {
+        setEditorError(res.message || 'Failed to save');
+      }
+    } catch (e: any) {
+      setEditorError(e.message || 'Failed to save');
+    } finally {
+      setEditorSaving(false);
     }
   };
+
+  // Editor view
+  if (isEditing) {
+    return (
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <button className="hub-btn" onClick={() => setIsEditing(false)}>
+            <ArrowLeft size={13} /> {t('common.back', 'Back')}
+          </button>
+          <div>
+            <h1 className="hub-h1" style={{ marginBottom: 0 }}>
+              {t('pages.servers.settingsEditor', 'MCP Settings Editor')}
+            </h1>
+            <p className="hub-sub" style={{ marginTop: 4 }}>
+              ~/.aek/mcp/mcp-settings.jsonc
+            </p>
+          </div>
+        </div>
+
+        {editorError && (
+          <div
+            className="hub-card flex items-center justify-between gap-3 mb-4"
+            style={{
+              padding: '10px 14px',
+              borderColor: 'oklch(0.85 0.1 25)',
+              background: 'oklch(0.97 0.03 25)',
+              color: 'oklch(0.4 0.18 25)',
+            }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle size={14} className="flex-shrink-0" />
+              <span className="truncate text-[13px]">{editorError}</span>
+            </div>
+            <button className="hub-icon-btn sm" onClick={() => setEditorError(null)}>
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
+        {editorSuccess && (
+          <div
+            className="hub-card flex items-center gap-2 mb-4"
+            style={{
+              padding: '10px 14px',
+              borderColor: 'oklch(0.85 0.15 145)',
+              background: 'oklch(0.97 0.03 145)',
+              color: 'oklch(0.4 0.15 145)',
+            }}
+          >
+            <Save size={14} />
+            <span className="text-[13px]">{t('common.saved', 'Saved successfully')}</span>
+          </div>
+        )}
+
+        <div className="hub-card overflow-hidden">
+          {editorLoading ? (
+            <div className="p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
+              {t('app.loading')}
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={editorContent}
+                onChange={(e) => setEditorContent(e.target.value)}
+                className="w-full bg-transparent outline-none text-[13px] font-mono resize-none"
+                style={{
+                  color: 'var(--hub-ink)',
+                  padding: '16px',
+                  minHeight: 'calc(100vh - 260px)',
+                  lineHeight: 1.6,
+                  tabSize: 2,
+                }}
+                spellCheck={false}
+              />
+              <div
+                className="flex items-center justify-end gap-2 px-4 py-3"
+                style={{ borderTop: '1px solid var(--hub-line-2)' }}
+              >
+                <button className="hub-btn" onClick={() => setIsEditing(false)}>
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  className="hub-btn primary"
+                  onClick={saveSettings}
+                  disabled={editorSaving}
+                >
+                  <Save size={13} />
+                  {editorSaving ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Header */}
-      <div className="flex items-end justify-between gap-4 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="hub-h1">{t('pages.servers.title')}</h1>
-          <p className="hub-sub">
-            <span className="hub-num">{counts.all}</span> {t('nav.servers').toLowerCase()} ·{' '}
-            <span className="hub-num">{counts.online}</span> {t('status.online')} ·{' '}
-            <span className="hub-num">{counts.issues}</span>{' '}
-            {t('status.offline') || 'Offline'}
-          </p>
         </div>
         <div className="flex gap-2">
-          <button className="hub-btn" onClick={() => setShowJsonImport(true)}>
-            <FileCode size={13} /> {t('jsonImport.button')}
+          <button className="hub-btn" onClick={openEditor}>
+            <Pencil size={13} /> {t('pages.servers.editConfig', 'Edit')}
           </button>
-          <button
-            className="hub-btn"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            aria-label={t('common.refresh')}
-          >
-            <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-            {t('common.refresh')}
-          </button>
-          <AddServerForm onAdd={handleServerAdd} />
         </div>
       </div>
 
@@ -235,15 +356,6 @@ const ServersPage: React.FC = () => {
             triggerRefresh();
           }}
           onCancel={() => setEditingServer(null)}
-        />
-      )}
-      {showJsonImport && (
-        <JSONImportForm
-          onSuccess={() => {
-            setShowJsonImport(false);
-            triggerRefresh();
-          }}
-          onCancel={() => setShowJsonImport(false)}
         />
       )}
     </div>

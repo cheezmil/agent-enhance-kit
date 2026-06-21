@@ -1,6 +1,6 @@
 platforms:
   github:
-    enabled: 0
+    enabled: 1
     remote: github
     excludeFile: '.cheezmil_quick_git/config/exclude-github'
     pushRefspec: 'main_github:main'

@@ -193,7 +193,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
     const outerMap = new Map<string, Map<string, number>>();
     serverTokenInputs.forEach((sc) => {
       const innerMap = new Map<string, number>();
-      sc.items.forEach((i) => innerMap.set(i.name, i.cost));
+      sc.items.forEach((i) => innerMap.set(i.name, i.tokens));
       outerMap.set(sc.name, innerMap);
     });
     return outerMap;

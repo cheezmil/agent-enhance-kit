@@ -15,7 +15,7 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
   const { t } = useTranslation();
   const { createGroup } = useGroupData();
   const { allServers } = useServerData();
-  const { serverCosts } = useCostData();
+  const { serverTokenInputs } = useCostData();
   const [availableServers, setAvailableServers] = useState<Server[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,8 +52,8 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
       }
 
       const result = await createGroup(formData.name, formData.description, formData.servers);
-      if (!result || !result.success) {
-        setError(result?.message || t('groups.createError'));
+      if (!result) {
+        setError(t('groups.createError'));
         setIsSubmitting(false);
         return;
       }
@@ -106,7 +106,7 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
                   value={formData.servers as IGroupServerConfig[]}
                   onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
-                  serverCosts={serverCosts}
+                  serverTokenInputs={serverTokenInputs}
                 />
               </div>
             </div>

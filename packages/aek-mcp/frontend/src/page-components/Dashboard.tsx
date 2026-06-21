@@ -65,7 +65,7 @@ const DashboardPage: React.FC = () => {
   });
   const { groups } = useGroupData();
   const { installConfig } = useSettingsData();
-  const { serverCosts } = useCostData();
+  const { serverTokenInputs } = useCostData();
 
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const loadingStartedRef = React.useRef(false);
@@ -99,8 +99,8 @@ const DashboardPage: React.FC = () => {
   );
 
   const footprint = useMemo(
-    () => serverCosts.filter((c) => c.connected).reduce((acc, c) => acc + c.exposed, 0),
-    [serverCosts],
+    () => serverTokenInputs.filter((c) => c.connected).reduce((acc, c) => acc + c.exposed, 0),
+    [serverTokenInputs],
   );
 
   const recentServers = useMemo(() => allServers.slice(0, 6), [allServers]);
