@@ -328,7 +328,9 @@
     "logs": "Logs",
     "activity": "Activity",
     "workspace": "Workspace",
-    "system": "System"
+    "system": "System",
+    "tutorial": "Tutorial",
+    "keys": "Keys"
   },
   "pages": {
     "dashboard": {
@@ -1168,5 +1170,15 @@
     "notConnected": "Not connected",
     "connectedOf": "{{connected}} of {{total}} servers connected",
     "totalFootprint": "Context footprint"
+  },
+  "tutorial": {
+    "title": "Tutorial",
+    "description": "How to configure AEK-MCP in your favorite AI coding tools",
+    "yourKey": "Your AEK_MCP_KEY",
+    "keyHint": "This key is stored in your user profile. Use it in the AEK_MCP_KEY environment variable.",
+    "fullConfig": "Example of complete fields on this platform",
+    "innerConfig": "Inner Config",
+    "copyInner": "Copy inner",
+    "docs": "Documentation"
   }
 }

@@ -160,6 +160,9 @@ func SetupRouter() *gin.Engine {
 		api.PUT("/mcp-settings/raw", SaveMcpSettingsRaw)
 		api.GET("/better-auth/user", GetBetterAuthUser)
 
+		// Tutorial config
+		api.GET("/tutorial/config", GetTutorialConfig)
+
 		// Bearer keys
 		api.GET("/auth/keys", GetBearerKeys)
 		api.POST("/auth/keys", CreateBearerKey)

@@ -14,6 +14,7 @@ import {
   Activity,
   ScrollText,
   Key,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServerContext } from '@/contexts/ServerContext';
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     { path: '/prompts', label: t('nav.prompts'), icon: <MessageSquare className="h-4 w-4" /> },
     { path: '/resources', label: t('nav.resources'), icon: <FileText className="h-4 w-4" /> },
     { path: '/keys', label: t('nav.keys', 'Keys'), icon: <Key className="h-4 w-4" /> },
+    { path: '/tutorial', label: t('nav.tutorial', 'Tutorial'), icon: <BookOpen className="h-4 w-4" /> },
   ];
 
   const systemItems: MenuItem[] = [

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -467,8 +466,7 @@ func GetMarketplaceWellKnown(c *gin.Context) {
 }
 
 func getMcpSettingsFilePath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".aek", "mcp", "mcp-settings.jsonc")
+	return services.GetMcpSettingsPath()
 }
 
 func GetMcpSettingsRaw(c *gin.Context) {

@@ -43,6 +43,95 @@ python3 scripts/aek-mcp/build-linux-x64.py
 python3 scripts/test-all.py
 ```
 
+## 客户端接入
+
+aek-mcp 启动后暴露 Streamable HTTP 端点 `http://localhost:<port>/mcp`（默认端口 1351），任何支持 MCP 协议的客户端都可接入。
+
+### OpenCode
+
+在项目根目录的 `opencode.json`（或全局配置 `~/.config/opencode/opencode.json`）中添加：
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "aek-mcp": {
+      "type": "remote",
+      "url": "http://localhost:1351/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+OpenCode 会自动发现 aek-mcp 下所有已启用的 MCP 服务器及其工具。若需要认证，加上 headers：
+
+```jsonc
+{
+  "mcp": {
+    "aek-mcp": {
+      "type": "remote",
+      "url": "http://localhost:1351/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-jwt-token>"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+### Hermes Agent
+
+编辑 `~/.hermes/config.yaml`，在 `mcp_servers` 下添加：
+
+```yaml
+mcp_servers:
+  aek-mcp:
+    url: "http://localhost:1351/mcp"
+    timeout: 180
+    connect_timeout: 60
+```
+
+若需要认证：
+
+```yaml
+mcp_servers:
+  aek-mcp:
+    url: "http://localhost:1351/mcp"
+    headers:
+      Authorization: "Bearer <your-jwt-token>"
+    timeout: 180
+```
+
+重启 Hermes Agent 后，aek-mcp 下的工具会以 `mcp_aek-mcp_<tool_name>` 的前缀自动注册为 Hermes 内置工具。
+
+### Claude Desktop / Cursor / 其他 MCP 客户端
+
+大多数 MCP 客户端使用相同的 `mcpServers` 格式：
+
+```json
+{
+  "mcpServers": {
+    "aek-mcp": {
+      "url": "http://localhost:1351/mcp"
+    }
+  }
+}
+```
+
+具体配置文件路径因客户端而异，常见位置：
+
+| 客户端 | 配置文件 |
+|--------|----------|
+| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Cursor | `.cursor/mcp.json`（项目根目录） |
+| OpenCode | `opencode.json`（项目根目录）或 `~/.config/opencode/opencode.json` |
+| Hermes Agent | `~/.hermes/config.yaml`（`mcp_servers` 字段） |
+
+---
+
 ## 配置
 
 | 文件 | 说明 |

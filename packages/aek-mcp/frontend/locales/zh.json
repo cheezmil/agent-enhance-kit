@@ -330,7 +330,9 @@
     "logs": "日志",
     "activity": "活动",
     "workspace": "工作区",
-    "system": "系统"
+    "system": "系统",
+    "tutorial": "教程",
+    "keys": "密钥"
   },
   "pages": {
     "dashboard": {
@@ -1170,5 +1172,15 @@
     "notConnected": "未连接",
     "connectedOf": "{{total}} 个服务器中已连接 {{connected}} 个",
     "totalFootprint": "上下文占用"
+  },
+  "tutorial": {
+    "title": "教程",
+    "description": "如何在你喜爱的 AI 编程工具中配置 AEK-MCP",
+    "yourKey": "你的 AEK_MCP_KEY",
+    "keyHint": "此密钥存储在你的用户配置中。请在 AEK_MCP_KEY 环境变量中使用。",
+    "fullConfig": "此平台的完整字段示例",
+    "innerConfig": "内部配置",
+    "copyInner": "复制内部",
+    "docs": "文档"
   }
 }

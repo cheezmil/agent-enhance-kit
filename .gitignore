@@ -126,16 +126,15 @@ packages/aek-mcp/frontend/.next/
 
 
 # cqg-head
-# cqg-universal-ignore-head
+# cqg-all-platforms-ignore-head
 .cheezmil_quick_git/logs/
 .cheezmil_quick_git/_worktrees/
 .cheezmil_quick_git/*.mjs
 node_modules/
-# cqg-universal-ignore-end
-# cqg-github-ignore-head
+# cqg-all-platforms-ignore-end
+# cqg-github-all-project-ignore-head
 .cheezmil_task_manager/
-# cqg-github-ignore-end
-# cqg-github-project-ignore-head
-.cheezmil_task_manager/
-# cqg-github-project-ignore-end
+# cqg-github-all-project-ignore-end
+# cqg-github-this-project-ignore-head
+# cqg-github-this-project-ignore-end
 # cqg-end

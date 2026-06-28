@@ -1147,8 +1147,42 @@ func GetPublicConfig(c *gin.Context) {
 		Data: map[string]interface{}{
 			"autoLogin":     config.AppConfig.AutoLogin,
 			"showLoginHint": config.AppConfig.ShowLoginHint,
-			"permissions": []string{},
-			"betterAuth":  nil,
+			"permissions":   []string{},
+			"betterAuth":    nil,
+		},
+	})
+}
+
+func GetTutorialConfig(c *gin.Context) {
+	username, _ := c.Get("username")
+	user := services.Store.GetUser(username.(string))
+	if user == nil {
+		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "User not found"})
+		return
+	}
+
+	// Build the base MCP URL
+	host := config.AppConfig.Host
+	port := config.AppConfig.Port
+	basePath := config.AppConfig.BasePath
+
+	// If host is 0.0.0.0, use localhost for client config
+	displayHost := host
+	if host == "0.0.0.0" || host == "" {
+		displayHost = "localhost"
+	}
+
+	mcpURL := "http://" + displayHost + ":" + port + basePath + "/mcp"
+
+	c.JSON(http.StatusOK, models.ApiResponse{
+		Success: true,
+		Data: map[string]interface{}{
+			"username": user.Username,
+			"key":      user.Key,
+			"mcpURL":   mcpURL,
+			"host":     displayHost,
+			"port":     port,
+			"basePath": basePath,
 		},
 	})
 }

@@ -14,9 +14,27 @@ import (
 // Format: { "serverName": { "serverName": {command/url...}, "enabled": bool, "owner": "..." } }
 type McpSettingsEntry map[string]interface{}
 
+// GetMcpSettingsPath returns the legacy mcp-settings.jsonc path (for backward compat)
+func GetMcpSettingsPath() string {
+	return getMcpSettingsPath()
+}
+
+// GetMcpSettingsPathForUser returns the per-user mcp-settings.jsonc path
+func GetMcpSettingsPathForUser(username string) string {
+	return getMcpSettingsPathForUser(username)
+}
+
 func getMcpSettingsPath() string {
+	return getMcpSettingsPathForUser("")
+}
+
+func getMcpSettingsPathForUser(username string) string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".aek", "mcp", "mcp-settings.jsonc")
+	if username == "" {
+		// Fallback: return legacy path for backward compatibility
+		return filepath.Join(home, ".aek", "mcp", "db", "user-custom-configuration", "aekmcp", "mcp-settings.jsonc")
+	}
+	return filepath.Join(home, ".aek", "mcp", "db", "user-custom-configuration", username, "mcp-settings.jsonc")
 }
 
 func LoadMcpSettings() {
