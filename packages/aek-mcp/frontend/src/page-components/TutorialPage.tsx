@@ -19,7 +19,6 @@ interface AgentTool {
   id: string;
   name: string;
   description: string;
-  icon: string;
   configPath: string;
   docUrl?: string;
   buildConfig: (cfg: TutorialConfig) => { inner: string; full: string };
@@ -48,7 +47,7 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
   }
 };
 
-function buildInnerConfigFlat(cfg: TutorialConfig, extra?: Record<string, unknown>): string {
+function buildInnerConfig(name: string, cfg: TutorialConfig, extra?: Record<string, unknown>): string {
   const obj: Record<string, unknown> = {
     type: 'streamable-http',
     url: cfg.mcpURL,
@@ -56,7 +55,13 @@ function buildInnerConfigFlat(cfg: TutorialConfig, extra?: Record<string, unknow
     enabled: true,
     ...extra,
   };
-  return JSON.stringify(obj, null, 2);
+  const inner = JSON.stringify(obj, null, 2);
+  // Indent inner content by 2 spaces for nesting under the key
+  const indented = inner
+    .split('\n')
+    .map((line, i) => (i === 0 ? line : '  ' + line))
+    .join('\n');
+  return `"${name}": ${indented}`;
 }
 
 function buildFullConfig(name: string, cfg: TutorialConfig, extra?: Record<string, unknown>): string {
@@ -75,10 +80,9 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'opencode',
     name: 'OpenCode',
     description: 'opencode.jsonc',
-    icon: '⚡',
     configPath: 'opencode.jsonc',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg, { timeout: 6600000 }),
+      inner: buildInnerConfig('aek-mcp', cfg, { timeout: 6600000 }),
       full: buildFullConfig('aek-mcp', cfg, { timeout: 6600000 }),
     }),
   },
@@ -86,11 +90,10 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'claude-desktop',
     name: 'Claude Desktop',
     description: 'claude_desktop_config.json',
-    icon: '🤖',
     configPath: '~/Library/Application Support/Claude/claude_desktop_config.json',
     docUrl: 'https://docs.anthropic.com/en/docs/claude-desktop/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -98,11 +101,10 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'cursor',
     name: 'Cursor',
     description: '.cursor/mcp.json',
-    icon: '📝',
     configPath: '.cursor/mcp.json',
     docUrl: 'https://docs.cursor.com/context/model-context-protocol',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -110,10 +112,9 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'windsurf',
     name: 'Windsurf',
     description: '~/.codeium/windsurf/mcp_config.json',
-    icon: '🏄',
     configPath: '~/.codeium/windsurf/mcp_config.json',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -121,11 +122,10 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'vscode',
     name: 'VS Code (Copilot)',
     description: '.vscode/mcp.json',
-    icon: '💙',
     configPath: '.vscode/mcp.json',
     docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -133,10 +133,9 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'hermes',
     name: 'Hermes Agent',
     description: 'hermes_config.yaml',
-    icon: '🔮',
     configPath: '~/.hermes/profiles/default/hermes_config.yaml',
     buildConfig: (cfg) => ({
-      inner: `aek-mcp:\n  type: streamable-http\n  url: "${cfg.mcpURL}"\n  env:\n    AEK_MCP_KEY: "${cfg.key}"`,
+      inner: `"aek-mcp":\n  type: streamable-http\n  url: "${cfg.mcpURL}"\n  env:\n    AEK_MCP_KEY: "${cfg.key}"`,
       full: `mcp:\n  aek-mcp:\n    type: streamable-http\n    url: "${cfg.mcpURL}"\n    env:\n      AEK_MCP_KEY: "${cfg.key}"`,
     }),
   },
@@ -144,10 +143,9 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'cline',
     name: 'Cline',
     description: 'cline_mcp_settings.json',
-    icon: '🔧',
     configPath: '~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -155,10 +153,9 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'cherry-studio',
     name: 'Cherry Studio',
     description: 'MCP 服务器配置',
-    icon: '🍒',
     configPath: '设置 > MCP 服务器',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfigFlat(cfg),
+      inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
@@ -265,7 +262,6 @@ const TutorialPage: React.FC = () => {
 
       {config && !loading && (
         <>
-          {/* Agent tools */}
           <div className="space-y-3">
             {AGENT_TOOLS.map((tool) => {
               const { inner, full } = tool.buildConfig(config);
@@ -282,7 +278,6 @@ const TutorialPage: React.FC = () => {
                     }}
                     className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-[var(--hub-surface-hover)] transition-colors"
                   >
-                    <span className="text-lg">{tool.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-[14px] text-[var(--hub-ink)]">{tool.name}</div>
                       <div className="text-[12px] text-[var(--hub-ink-3)] font-mono">{tool.configPath}</div>
@@ -311,7 +306,7 @@ const TutorialPage: React.FC = () => {
 
                   {isExpanded && (
                     <div className="px-5 pb-5 space-y-4 border-t border-[var(--hub-line)]">
-                      {/* Full config (with "mcp": { wrapper) — read-only reference */}
+                      {/* Full config — read-only reference */}
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
@@ -323,7 +318,7 @@ const TutorialPage: React.FC = () => {
                         </pre>
                       </div>
 
-                      {/* Inner config (just "aek-mcp": { ) */}
+                      {/* Inner config — "aek-mcp": { ... } */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
@@ -331,7 +326,7 @@ const TutorialPage: React.FC = () => {
                           </span>
                           <CopyButton text={inner} label={t('tutorial.copyInner', 'Copy inner')} showToast={showToast} />
                         </div>
-                        <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre select-none">
+                        <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre">
                           {inner}
                         </pre>
                       </div>
