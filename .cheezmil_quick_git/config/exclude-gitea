@@ -1,5 +1,0 @@
-# start-every-project-complies-with-this-rule
-.cheezmil_task_manager/
-.cheezmil_quick_git/**
-!.cheezmil_quick_git/config/
-# end-every-project-complies-with-this-rule
