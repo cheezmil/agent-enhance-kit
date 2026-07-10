@@ -134,17 +134,10 @@ packages/aek-mcp/frontend/.next/
 .cheezmil_quick_git/*.mjs
 node_modules/
 # cqg-all-platforms-ignore-end
-<<<<<<< HEAD
 # cqg-github-all-project-ignore-head
 .cheezmil_task_manager/
 .cheezmil_quick_git/
 # cqg-github-all-project-ignore-end
 # cqg-github-this-project-ignore-head
 # cqg-github-this-project-ignore-end
-=======
-# cqg-gitea-all-project-ignore-head
-# cqg-gitea-all-project-ignore-end
-# cqg-gitea-this-project-ignore-head
-# cqg-gitea-this-project-ignore-end
->>>>>>> ddae48a (fix:)
 # cqg-end
