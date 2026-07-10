@@ -1,0 +1,15 @@
+
+# cqg-head
+# cqg-all-platforms-ignore-head
+.cheezmil_quick_git/logs/
+.cheezmil_quick_git/_worktrees/
+.cheezmil_quick_git/*.mjs
+node_modules/
+# cqg-all-platforms-ignore-end
+# cqg-github-all-project-ignore-head
+.cheezmil_task_manager/
+.cheezmil_quick_git/
+# cqg-github-all-project-ignore-end
+# cqg-github-this-project-ignore-head
+# cqg-github-this-project-ignore-end
+# cqg-end

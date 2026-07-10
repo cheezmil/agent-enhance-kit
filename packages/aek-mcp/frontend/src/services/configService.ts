@@ -1,0 +1,172 @@
+import { apiGet, fetchWithInterceptors } from '../utils/fetchInterceptor';
+import { getBasePath } from '../utils/runtime';
+
+export interface SystemConfig {
+  routing?: {
+    enableGlobalRoute?: boolean;
+    enableGroupNameRoute?: boolean;
+    enableBearerAuth?: boolean;
+    bearerAuthKey?: string;
+    bearerAuthHeaderName?: string;
+    jsonBodyLimit?: string;
+  };
+  install?: {
+    pythonIndexUrl?: string;
+    npmRegistry?: string;
+    baseUrl?: string;
+  };
+  smartRouting?: {
+    enabled?: boolean;
+    dbUrl?: string;
+    basePacingDelayMs?: number;
+    embeddingProvider?: 'openai' | 'azure_openai';
+    embeddingEncodingFormat?: 'auto' | 'base64' | 'float';
+    openaiApiBaseUrl?: string;
+    openaiApiKey?: string;
+    openaiApiEmbeddingModel?: string;
+    azureOpenaiEndpoint?: string;
+    azureOpenaiApiKey?: string;
+    azureOpenaiApiVersion?: string;
+    azureOpenaiEmbeddingDeployment?: string;
+    embeddingMaxTokens?: number;
+  };
+  toolResultCompression?: {
+    enabled?: boolean;
+    minTokens?: number;
+    maxOutputTokens?: number;
+    strategy?: 'auto' | 'json' | 'log' | 'search' | 'diff' | 'text';
+  };
+  nameSeparator?: string;
+  auth?: {
+    betterAuth?: {
+      enabled?: boolean;
+      basePath?: string;
+      trustedOrigins?: string[];
+      providers?: {
+        google?: {
+          enabled?: boolean;
+        };
+        github?: {
+          enabled?: boolean;
+        };
+        oidc?: {
+          enabled?: boolean;
+          providerId?: string;
+          discoveryUrl?: string;
+          scopes?: string[];
+          pkce?: boolean;
+          prompt?: string;
+        };
+      };
+    };
+  };
+}
+
+interface BetterAuthConfig {
+  enabled?: boolean;
+  basePath?: string;
+  trustedOrigins?: string[];
+  providers?: {
+    google?: {
+      enabled?: boolean;
+    };
+    github?: {
+      enabled?: boolean;
+    };
+    oidc?: {
+      enabled?: boolean;
+      providerId?: string;
+      discoveryUrl?: string;
+      scopes?: string[];
+      pkce?: boolean;
+      prompt?: string;
+    };
+  };
+}
+
+export interface PublicConfigResponse {
+  success: boolean;
+  data?: {
+    autoLogin?: boolean;
+        showLoginHint?: boolean;
+        permissions?: any;
+    betterAuth?: BetterAuthConfig;
+  };
+  message?: string;
+}
+
+export interface SystemConfigResponse {
+  success: boolean;
+  data?: {
+    systemConfig?: SystemConfig;
+  };
+  message?: string;
+}
+
+/**
+ * Get public configuration (autoLogin setting) without authentication
+ */
+export const getPublicConfig = async (): Promise<{
+  autoLogin: boolean;
+  showLoginHint: boolean;
+  permissions?: any;
+  betterAuth?: BetterAuthConfig;
+}> => {
+  try {
+    const basePath = getBasePath();
+    const response = await fetchWithInterceptors(`${basePath}/public-config`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data: PublicConfigResponse = await response.json();
+      return {
+        autoLogin: data.data?.autoLogin === true,
+        showLoginHint: data.data?.showLoginHint !== false,
+        permissions: data.data?.permissions || {},
+        betterAuth: data.data?.betterAuth,
+      };
+    }
+
+    return { autoLogin: false, showLoginHint: true };
+      } catch (error) {
+        console.debug('Failed to get public config:', error);
+        return { autoLogin: false, showLoginHint: true };
+      }
+};
+
+/**
+ * Get system configuration without authentication
+ * This function tries to get the system configuration first without auth,
+ * and if that fails (likely due to auth requirements), it returns null
+ */
+export const getSystemConfigPublic = async (): Promise<SystemConfig | null> => {
+  try {
+    const response = await apiGet<SystemConfigResponse>('/settings');
+
+    if (response.success) {
+      return response.data?.systemConfig || null;
+    }
+
+    return null;
+  } catch (error) {
+    console.debug('Failed to get system config without auth:', error);
+    return null;
+  }
+};
+
+/**
+ * Check if dashboard login should be skipped based on system configuration
+ */
+export const shouldAutoLogin = async (): Promise<boolean> => {
+  try {
+    const config = await getPublicConfig();
+    return config.autoLogin;
+  } catch (error) {
+    console.debug('Failed to check autoLogin setting:', error);
+    return false;
+  }
+};

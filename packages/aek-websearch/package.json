@@ -1,0 +1,16 @@
+{
+  "name": "aek-websearch",
+  "version": "0.1.1",
+  "description": "AEK — Agent Enhance Kit (Web Search module)",
+  "bin": {
+    "aek": "./bin/aek"
+  },
+  "scripts": {
+    "build": "go build -o bin/aek ./cmd/aek/",
+    "test": "go test ./...",
+    "start": "./bin/aek serve",
+    "postinstall": "node scripts/postinstall.mjs"
+  },
+  "keywords": ["ai", "agent", "search"],
+  "license": "MIT"
+}

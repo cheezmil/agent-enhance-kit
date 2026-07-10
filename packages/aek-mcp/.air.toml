@@ -1,0 +1,27 @@
+# Air 配置 - aek-mcp Go 后端热重载
+# Air config - aek-mcp Go backend hot reload
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # Go 入口文件
+  cmd = "go build -o ./tmp/main ./cmd/aek-mcp/"
+  # 编译后二进制路径
+  bin = "./tmp/main"
+  # 监听的文件后缀
+  include_ext = ["go", "toml", "yaml"]
+  # 排除目录（前端代码、node_modules、编译产物）
+  exclude_dir = ["frontend", "tmp", "bin", "node_modules", ".git"]
+  # 排除文件
+  exclude_regex = ["_test\\.go$"]
+  # 延迟多少毫秒再编译（防止频繁触发）
+  delay = 1000
+
+[log]
+  # 日志文件
+  time = false
+
+[misc]
+  # 退出时删除 tmp 目录
+  clean_on_exit = true
