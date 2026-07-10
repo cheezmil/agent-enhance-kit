@@ -1,0 +1,17 @@
+# 当 FORCE_OVERWRITE=true 时，使用 true_force_overwrite键，其中列出的文件不会被强行覆盖，一般不用这个。
+# 当 FORCE_OVERWRITE=false 时，使用 false_force_overwrite键，其中列出的文件被强行覆盖。
+FORCE_OVERWRITE: false
+delete_files_or_folder:
+
+false_force_overwrite:
+
+true_force_overwrite:
+
+rule_folders_need_to_be_merged:
+  - ".cheezmil_task_manager/ctm_built_in_rules"
+  - ".cheezmil_task_manager/custom_rules"
+folders_to_be_reset_to_original_state:
+  - ".cheezmil_task_manager/ctm_built_in_rules"
+  - ".cheezmil_task_manager/ctm_scripts"
+script_to_run_after_init: ""
+merge_rules_after_init: true

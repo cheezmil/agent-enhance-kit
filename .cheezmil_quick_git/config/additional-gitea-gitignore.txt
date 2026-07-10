@@ -1,0 +1,13 @@
+# cqg-gitea-all-project-ignore-head
+# cqg-gitea-ignore-head
+
+# cqg-gitea-ignore-end
+
+# cqg-gitea-project-ignore-head
+.cheezmil_task_manager/do_not_view_without_permission/
+# cqg-gitea-project-ignore-end
+# cqg-gitea-all-project-ignore-end
+
+# cqg-gitea-this-project-ignore-head
+
+# cqg-gitea-this-project-ignore-end
