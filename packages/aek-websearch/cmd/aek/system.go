@@ -2,17 +2,50 @@ package main
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"agent-enhance-kit/internal/api"
 	"agent-enhance-kit/internal/config"
 	"agent-enhance-kit/internal/mcp"
+	"agent-enhance-kit/internal/update"
+
 	"github.com/spf13/cobra"
 )
+
+var (
+	updateCheckOnce sync.Once
+)
+
+// checkForUpdateInBackground checks for updates silently in background
+func checkForUpdateInBackground(currentVersion string) {
+	go func() {
+		// Wait a moment before checking to not slow down startup
+		time.Sleep(2 * time.Second)
+
+		info, err := update.CheckForUpdate(currentVersion)
+		if err != nil {
+			// Silently ignore errors during background check
+			return
+		}
+
+		if info.NeedsUpdate {
+			update.PrintUpdateMessage(info)
+		}
+	}()
+}
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start REST API server (gin)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		_ = config.Load()
+
+		// Check for updates in background (once per process)
+		updateCheckOnce.Do(func() {
+			checkForUpdateInBackground(version)
+		})
+
 		return api.Run()
 	},
 }
@@ -36,6 +69,12 @@ Examples:
 		endpoint, _ := cmd.Flags().GetString("endpoint")
 
 		_ = config.Load()
+
+		// Check for updates in background (once per process)
+		updateCheckOnce.Do(func() {
+			checkForUpdateInBackground(version)
+		})
+
 		srv := mcp.NewServer()
 
 		if stdio {
