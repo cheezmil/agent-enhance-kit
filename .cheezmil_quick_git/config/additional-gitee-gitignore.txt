@@ -1,7 +1,0 @@
-# cqg-gitee-ignore-head
-
-# cqg-gitee-ignore-end
-
-# cqg-gitee-project-ignore-head
-
-# cqg-gitee-project-ignore-end

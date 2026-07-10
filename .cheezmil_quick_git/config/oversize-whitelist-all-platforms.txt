@@ -1,7 +1,0 @@
-# 超限文件白名单
-# 每行一个文件的相对路径（相对于项目根目录）
-# 白名单中的文件即使超过 1 MB 也不会被拦截
-# 示例：
-# mt-microservices/flan-retouch-be-auto-mtxx-pro/md_assets/README/image-7.png
-.cheezmil_task_manager/do_not_view_without_permission/deprecated_but_potentially_useful/aek-mcp/bin/aek-mcp
-.cheezmil_task_manager/do_not_view_without_permission/deprecated_but_potentially_useful/aek-mcp/bin/one-mcp
