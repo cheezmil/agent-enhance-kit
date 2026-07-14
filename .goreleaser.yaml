@@ -2,11 +2,12 @@ project_name: aek
 
 before:
   hooks:
-    - go mod tidy
+    - cd packages/aek-websearch && go mod tidy
 
 builds:
   - id: aek
     binary: aek
+    dir: packages/aek-websearch
     env:
       - CGO_ENABLED=0
     goos:
@@ -30,7 +31,7 @@ archives:
     files:
       - LICENSE*
       - README*
-      - VERSION
+      - packages/aek-websearch/VERSION
 
 checksum:
   name_template: "checksums.txt"

@@ -1,0 +1,5 @@
+# cqg acp finally scripts
+# These scripts run after successful push in cqg acp
+# Format: one script path per line (relative to repo root)
+
+
