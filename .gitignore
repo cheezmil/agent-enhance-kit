@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # Python
 __pycache__/
 *.py[cod]
@@ -71,6 +69,7 @@ packages/aek/bin/
 packages/aek/platforms/
 packages/aek-websearch/bin/
 packages/aek-websearch/platforms/
+packages/aek-websearch/aek
 packages/aek-mcp/bin/
 packages/aek-mcp/aek-mcp
 packages/aek-mcp/tmp/
@@ -89,22 +88,6 @@ packages/aek-mcp/tmp/
 
 # Dependency directories
 vendor/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Environment
-.env
-.env.local
-.env.*.local
 
 # Logs
 *.log
@@ -125,7 +108,6 @@ build/
 packages/aek-mcp/frontend/dist/
 packages/aek-mcp/frontend/node_modules/
 packages/aek-mcp/frontend/.next/
->>>>>>> ddae48a (fix:)
 
 # cqg-head
 # cqg-all-platforms-ignore-head
@@ -134,10 +116,8 @@ packages/aek-mcp/frontend/.next/
 .cheezmil_quick_git/*.mjs
 node_modules/
 # cqg-all-platforms-ignore-end
-# cqg-github-all-project-ignore-head
-.cheezmil_task_manager/
-.cheezmil_quick_git/
-# cqg-github-all-project-ignore-end
-# cqg-github-this-project-ignore-head
-# cqg-github-this-project-ignore-end
+# cqg-gitea-all-project-ignore-head
+# cqg-gitea-all-project-ignore-end
+# cqg-gitea-this-project-ignore-head
+# cqg-gitea-this-project-ignore-end
 # cqg-end
