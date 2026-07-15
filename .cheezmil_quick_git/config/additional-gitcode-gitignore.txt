@@ -1,7 +1,0 @@
-# cqg-gitcode-all-project-ignore-head
-
-# cqg-gitcode-all-project-ignore-end
-
-# cqg-gitcode-this-project-ignore-head
-
-# cqg-gitcode-this-project-ignore-end

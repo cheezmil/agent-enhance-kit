@@ -56,9 +56,6 @@ docs/042826_plan.md
 .mcpregistry_*
 .sweep-notes.md
 .cheezmil_quick_git/**
-!.cheezmil_quick_git/
-!.cheezmil_quick_git/config/
-!.cheezmil_quick_git/config/**
 
 # Monorepo
 node_modules/
