@@ -9,7 +9,6 @@ import {
   Wrench,
   MessageSquare,
   FileText,
-  MoreHorizontal,
   X,
   Edit3,
   Trash2,
@@ -153,15 +152,12 @@ const ServerCard = ({
   const [isToggling, setIsToggling] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [reloadPhase, setReloadPhase] = useState<'idle' | 'detecting' | 'connected' | 'failed'>('idle');
-  const [showMenu, setShowMenu] = useState(false);
   const [showErrorPopover, setShowErrorPopover] = useState(false);
   const [copiedError, setCopiedError] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const errorPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setShowMenu(false);
       if (errorPopoverRef.current && !errorPopoverRef.current.contains(event.target as Node))
         setShowErrorPopover(false);
     };
@@ -191,7 +187,6 @@ const ServerCard = ({
 
   const handleReload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowMenu(false);
     if (!canManage || isReloading || !onReload) return;
     setIsReloading(true);
     setReloadPhase('detecting');
@@ -269,7 +264,6 @@ const ServerCard = ({
 
   const handleCopyConfig = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowMenu(false);
     if (!canManage) return;
     try {
       const result = await exportMCPSettings(server.name);
@@ -463,21 +457,6 @@ const ServerCard = ({
                 flexShrink: 0,
               }}
             />
-            {onToggleFavorite && (
-              <button
-                className="flex-shrink-0 p-0.5"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite();
-                }}
-                aria-label={isFavorite ? "Unfavorite" : "Favorite"}
-              >
-                <Star
-                  size={14}
-                  className={isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}
-                />
-              </button>
-            )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span
@@ -575,8 +554,9 @@ const ServerCard = ({
             </div>
           </div>
 
-          {/* Status */}
-          <div className="min-w-0">
+          {/* Right side: Status + Switch + Actions */}
+          <div className="flex items-center gap-2">
+            {/* Status */}
             <ServerStatusDot
               status={reloadPhase === 'detecting' ? 'connecting' : server.status}
               enabled={server.enabled}
@@ -584,152 +564,112 @@ const ServerCard = ({
               className="hub-server-card-status"
               label={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : undefined}
             />
-          </div>
 
-          {/* Transport */}
-          <div className="min-w-0">
-            {server.config?.type ? (
+            {/* Transport */}
+            {server.config?.type && (
               <span
                 className="hub-tag hub-server-card-transport-tag"
                 title={transportLabel(t, server.config.type) ?? undefined}
               >
                 {transportLabel(t, server.config.type)}
               </span>
-            ) : null}
-          </div>
+            )}
 
-          {/* Tools / Prompts / Resources counts */}
-          {capabilitySummaries.map(({ key, icon: Icon, total, enabled: enabledCount, label }) => {
-            const isEmpty = total === 0;
-            return (
-              <span
-                key={key}
-                className={`hub-server-capability-stat hub-mono hub-num ${isEmpty ? 'is-empty' : ''}`}
-                title={`${label}: ${enabledCount}/${total}`}
+            {/* Toggle switch */}
+            <div onClick={(e) => e.stopPropagation()}>
+              <LoadingControl
+                isLoading={isToggling}
+                className="h-[18px] w-[30px]"
+                overlayStyle={{
+                  borderRadius: 999,
+                  background: 'var(--hub-bg-2)',
+                }}
+                spinnerSize={10}
               >
-                <span className="text-[var(--hub-ink-3)]">
-                  <CapabilityIcon icon={Icon} />
-                </span>
-                <span className="hub-server-capability-value">
-                  {isEmpty ? '0' : `${enabledCount}/${total}`}
-                </span>
-              </span>
-            );
-          })}
+                <Switch
+                  checked={enabled}
+                  onCheckedChange={handleToggle}
+                  disabled={isToggling || !canManage}
+                  size="compact"
+                  aria-label={`${t(enabled ? 'server.disable' : 'server.enable')} ${server.name}`}
+                />
+              </LoadingControl>
+            </div>
 
-          {/* Context Footprint stat */}
-          {tokenInput ? (
-            <span
-              className="hub-server-capability-stat hub-mono hub-num"
-              title={`${t('tokenInput.exposed')} ${tokenInput?.exposed ?? 0} / ${t('tokenInput.gross')} ${tokenInput?.gross ?? 0}`}
-            >
-              <span className="text-[var(--hub-ink-3)]">Σ</span>
-              <span className="hub-server-capability-value">
-                {formatTokens(tokenInput?.exposed)}/{formatTokens(tokenInput?.gross)}
-              </span>
-            </span>
-          ) : null}
+            {/* Divider */}
+            <div style={{ width: 1, height: 18, background: 'var(--hub-line-2)' }} />
 
-          {/* Toggle switch */}
-          <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <LoadingControl
-              isLoading={isToggling}
-              className="h-[18px] w-[30px]"
-              overlayStyle={{
-                borderRadius: 999,
-                background: 'var(--hub-bg-2)',
-              }}
-              spinnerSize={10}
-            >
-              <Switch
-                checked={enabled}
-                onCheckedChange={handleToggle}
-                disabled={isToggling || !canManage}
-                size="compact"
-                aria-label={`${t(enabled ? 'server.disable' : 'server.enable')} ${server.name}`}
-              />
-            </LoadingControl>
-          </div>
-
-          {/* Reload */}
-          {onReload && (
-            <button
-              className="hub-icon-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleReload(e);
-              }}
-              disabled={isReloading || isToggling || !enabled}
-              aria-label={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
-              title={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
-            >
-              <RefreshCw size={13} className={isReloading ? 'animate-spin' : ''} style={
-                reloadPhase === 'connected' ? { color: '#22c55e' } :
-                reloadPhase === 'failed' ? { color: '#ef4444' } : {}
-              } />
-            </button>
-          )}
-          {/* Menu */}
-          <div className="relative" ref={menuRef}>
-            {canManage && (
+            {/* Action buttons */}
+            {onReload && (
               <button
                 className="hub-icon-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowMenu((v) => !v);
+                  handleReload(e);
                 }}
-                aria-label="More"
+                disabled={isReloading || isToggling || !enabled}
+                aria-label={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
+                title={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
               >
-                <MoreHorizontal size={14} />
+                <RefreshCw size={13} className={isReloading ? 'animate-spin' : ''} style={
+                  reloadPhase === 'connected' ? { color: '#22c55e' } :
+                  reloadPhase === 'failed' ? { color: '#ef4444' } : {}
+                } />
               </button>
             )}
-            {canManage && showMenu && (
-              <div
-                className="absolute right-0 top-full mt-1 z-20 hub-card"
-                style={{ minWidth: 160, padding: 4 }}
-                onClick={(e) => e.stopPropagation()}
+            {onToggleFavorite && (
+              <button
+                className="hub-icon-btn sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite();
+                }}
+                aria-label={isFavorite ? "Unfavorite" : "Favorite"}
+                title={isFavorite ? "Unfavorite" : "Favorite"}
               >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    onEdit(server);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Edit3 size={13} /> {t('server.edit')}
-                </button>
-                <button
-                  onClick={handleCopyConfig}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-ink)' }}
-                >
-                  <Copy size={13} /> {t('server.copy')}
-                </button>
-                {onReload && (
-                  <button
-                    onClick={handleReload}
-                    disabled={isReloading || isToggling || !enabled}
-                    className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ color: 'var(--hub-ink)' }}
-                  >
-                    <RefreshCw size={13} /> {t('server.reload')}
-                  </button>
-                )}
-                <div style={{ height: 1, background: 'var(--hub-line-2)', margin: '4px 0' }} />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                    setShowDeleteDialog(true);
-                  }}
-                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[13px] rounded-md hover:bg-[var(--hub-surface-hover)] text-left"
-                  style={{ color: 'var(--hub-err)' }}
-                >
-                  <Trash2 size={13} /> {t('server.delete')}
-                </button>
-              </div>
+                <Star
+                  size={13}
+                  className={isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}
+                />
+              </button>
+            )}
+            {canManage && (
+              <button
+                className="hub-icon-btn sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(server);
+                }}
+                aria-label={t('server.edit')}
+                title={t('server.edit')}
+              >
+                <Edit3 size={13} />
+              </button>
+            )}
+            <button
+              className="hub-icon-btn sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyConfig(e);
+              }}
+              aria-label={t('server.copy')}
+              title={t('server.copy')}
+            >
+              <Copy size={13} />
+            </button>
+            {canManage && (
+              <button
+                className="hub-icon-btn sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteDialog(true);
+                }}
+                aria-label={t('server.delete')}
+                title={t('server.delete')}
+                style={{ color: 'var(--hub-err)' }}
+              >
+                <Trash2 size={13} />
+              </button>
             )}
           </div>
         </div>
