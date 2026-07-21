@@ -109,10 +109,20 @@ export const ServerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const applyServerResponse = useCallback((serverData: ServerListResponse | Server[]) => {
+    // Handle standard format: { success: true, data: [...] }
     if (serverData && !Array.isArray(serverData) && serverData.success && Array.isArray(serverData.data)) {
       setServers(serverData.data);
       setAllServers(Array.isArray(serverData.allServers) ? serverData.allServers : serverData.data);
       setPagination(serverData.pagination ?? null);
+      return;
+    }
+
+    // Handle alternative format: { data: [...] } (without success field)
+    if (serverData && !Array.isArray(serverData) && Array.isArray((serverData as any).data)) {
+      const data = (serverData as any).data;
+      setServers(data);
+      setAllServers(data);
+      setPagination((serverData as any).pagination ?? null);
       return;
     }
 
@@ -346,16 +356,41 @@ export const ServerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           name: string;
           status: string;
           tools: any[];
+          prompts: any[];
+          resources: any[];
           config: Record<string, any>;
+          type?: string;
+          url?: string;
+          command?: string;
+          args?: string[];
+          env?: Record<string, string>;
+          owner?: string;
+          enabled?: boolean;
         }> = await apiGet(`/servers/${encodedServerName}`);
 
         if (serverData && serverData.success && serverData.data) {
-          return {
-            name: serverData.data.name,
-            status: serverData.data.status,
-            tools: serverData.data.tools || [],
-            config: serverData.data.config,
+          const data = serverData.data;
+          // Build full config from top-level fields and config object
+          const fullConfig: Record<string, any> = {
+            ...(data.config || {}),
+            // Include top-level fields that are part of the config
+            ...(data.type ? { type: data.type } : {}),
+            ...(data.url ? { url: data.url } : {}),
+            ...(data.command ? { command: data.command } : {}),
+            ...(data.args ? { args: data.args } : {}),
+            ...(data.env ? { env: data.env } : {}),
           };
+          
+          return {
+            name: data.name,
+            status: data.status,
+            tools: data.tools || [],
+            prompts: data.prompts || [],
+            resources: data.resources || [],
+            config: fullConfig,
+            owner: data.owner,
+            enabled: data.enabled,
+          } as Server;
         } else {
           console.error('Failed to get server config', { serverName: server.name, serverData });
           setError(t('server.invalidConfig', { serverName: server.name }));
