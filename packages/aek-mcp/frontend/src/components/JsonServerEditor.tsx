@@ -95,10 +95,19 @@ const JsonServerEditor = ({ server, onEdit, onCancel }: JsonServerEditorProps) =
             // Extract the server block
             const serverBlock = config[server.name];
             if (serverBlock) {
-              // Display the server block exactly as it is in the config
+              // Build display block with server name as key, then remove outer braces
               const displayBlock: Record<string, any> = {};
               displayBlock[server.name] = serverBlock;
-              setJsonContent(JSON.stringify(displayBlock, null, 2));
+              const fullJson = JSON.stringify(displayBlock, null, 2);
+              // Remove outermost { and } and strip leading 2-space indent
+              const lines = fullJson.split('\n');
+              if (lines.length >= 3) {
+                // Remove first line ({) and last line (}), strip 2-space indent from each line
+                const inner = lines.slice(1, -1).map(line => line.startsWith('  ') ? line.slice(2) : line).join('\n');
+                setJsonContent(inner);
+              } else {
+                setJsonContent(fullJson);
+              }
             } else {
               setError(`Server "${server.name}" not found in config`);
             }
@@ -122,10 +131,12 @@ const JsonServerEditor = ({ server, onEdit, onCancel }: JsonServerEditorProps) =
       setError(null);
       setSaving(true);
 
-      // Parse the edited JSON
+      // Parse the edited JSON - need to wrap in outer braces first since display removes them
       let editedBlock;
       try {
-        editedBlock = JSON.parse(jsonContent);
+        // The display content doesn't have outer braces, so add them back
+        const wrappedJson = '{' + jsonContent + '}';
+        editedBlock = JSON.parse(wrappedJson);
       } catch (e) {
         setError(`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`);
         setSaving(false);
@@ -151,8 +162,8 @@ const JsonServerEditor = ({ server, onEdit, onCancel }: JsonServerEditorProps) =
         return;
       }
 
-      // Update the server block
-      config[server.name] = editedBlock[server.name];
+      // Update the server block - editedBlock is the config without server name wrapper
+      config[server.name] = editedBlock;
 
       // Save the updated config
       const saveResult: any = await apiPut('/mcp-settings/raw', {
