@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Save } from 'lucide-react';
 import { Server } from '@/types';
-import { apiPut, apiPost } from '../utils/fetchInterceptor';
+import { apiGet, apiPut, apiPost } from '../utils/fetchInterceptor';
 
 interface JsonServerEditorProps {
   server: Server;
@@ -12,99 +12,176 @@ interface JsonServerEditorProps {
 
 const JsonServerEditor = ({ server, onEdit, onCancel }: JsonServerEditorProps) => {
   const { t } = useTranslation();
-  
-  // Build the full server config block
-  const buildInitialJson = () => {
-    const serverConfig: Record<string, any> = {};
-    
-    // Add config fields (command, args, env, url, type, etc.)
-    if (server.config) {
-      if (server.config.command) serverConfig.command = server.config.command;
-      if (server.config.args) serverConfig.args = server.config.args;
-      if (server.config.env) serverConfig.env = server.config.env;
-      if (server.config.url) serverConfig.url = server.config.url;
-      if (server.config.type) serverConfig.type = server.config.type;
-      if (server.config.description) serverConfig.description = server.config.description;
-      if (server.config.headers) serverConfig.headers = server.config.headers;
-      if (server.config.options) serverConfig.options = serverConfig.options;
-      if (server.config.proxy) serverConfig.proxy = serverConfig.proxy;
-      if (server.config.oauth) serverConfig.oauth = serverConfig.oauth;
-      if (server.config.openapi) serverConfig.openapi = serverConfig.openapi;
-      if (server.config.enableKeepAlive !== undefined) serverConfig.enableKeepAlive = serverConfig.enableKeepAlive;
-      if (server.config.keepAliveInterval) serverConfig.keepAliveInterval = serverConfig.keepAliveInterval;
-    }
-    
-    // Build the full block with server name as key
-    const fullBlock: Record<string, any> = {};
-    fullBlock[server.name] = serverConfig;
-    fullBlock.enabled = server.enabled !== false;
-    fullBlock.owner = server.owner || 'admin';
-    
-    return JSON.stringify(fullBlock, null, 2);
-  };
-
-  const [jsonContent, setJsonContent] = useState(buildInitialJson);
+  const [jsonContent, setJsonContent] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Strip JSONC comments
+  const stripJsoncComments = (s: string): string => {
+    let result = '';
+    let inString = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+    let prev = '';
+
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+
+      if (inLineComment) {
+        if (ch === '\n') {
+          inLineComment = false;
+          result += ch;
+        }
+        continue;
+      }
+
+      if (inBlockComment) {
+        if (prev === '*' && ch === '/') {
+          inBlockComment = false;
+        }
+        prev = ch;
+        continue;
+      }
+
+      if (inString) {
+        result += ch;
+        if (ch === '"' && prev !== '\\') {
+          inString = false;
+        }
+        prev = ch;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        result += ch;
+        prev = ch;
+        continue;
+      }
+
+      if (ch === '/' && i + 1 < s.length) {
+        if (s[i + 1] === '/') {
+          inLineComment = true;
+          prev = ch;
+          continue;
+        }
+        if (s[i + 1] === '*') {
+          inBlockComment = true;
+          prev = ch;
+          continue;
+        }
+      }
+
+      result += ch;
+      prev = ch;
+    }
+    return result;
+  };
+
+  // Load the raw config file
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const result: any = await apiGet('/mcp-settings/raw');
+        if (result.success && result.data) {
+          let raw = result.data.content || '';
+          
+          // Strip comments
+          const cleaned = stripJsoncComments(raw);
+          try {
+            const config = JSON.parse(cleaned);
+            
+            // Extract the server block
+            const serverBlock = config[server.name];
+            if (serverBlock) {
+              // Display the server block exactly as it is in the config
+              const displayBlock: Record<string, any> = {};
+              displayBlock[server.name] = serverBlock;
+              setJsonContent(JSON.stringify(displayBlock, null, 2));
+            } else {
+              setError(`Server "${server.name}" not found in config`);
+            }
+          } catch (e) {
+            console.error('Parse error:', e);
+            setError(`Failed to parse config: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+      } catch (err) {
+        setError(`Failed to load config: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadConfig();
+  }, [server.name]);
 
   const handleSave = async () => {
     try {
       setError(null);
       setSaving(true);
 
-      // Parse and validate JSON
-      let config;
+      // Parse the edited JSON
+      let editedBlock;
       try {
-        config = JSON.parse(jsonContent);
+        editedBlock = JSON.parse(jsonContent);
       } catch (e) {
         setError(`Invalid JSON: ${e instanceof Error ? e.message : String(e)}`);
         setSaving(false);
         return;
       }
 
-      // Extract server config from the block
-      const serverConfig = config[server.name];
-      if (!serverConfig) {
-        setError(`Missing server config for "${server.name}"`);
+      // Load the current config file
+      const configResult: any = await apiGet('/mcp-settings/raw');
+      if (!configResult.success || !configResult.data) {
+        setError('Failed to load config file');
         setSaving(false);
         return;
       }
 
-      const encodedServerName = encodeURIComponent(server.name);
-      
-      // Build the config object with all fields
-      const fullConfig: Record<string, any> = {
-        ...serverConfig,
-        enabled: config.enabled !== false,
-        owner: config.owner || server.owner || 'admin',
-      };
+      // Parse the current config
+      let config;
+      try {
+        const cleaned = stripJsoncComments(configResult.data.content);
+        config = JSON.parse(cleaned);
+      } catch (e) {
+        setError(`Failed to parse config: ${e instanceof Error ? e.message : String(e)}`);
+        setSaving(false);
+        return;
+      }
 
-      // Update server config
-      const result = await apiPut(`/servers/${encodedServerName}`, {
-        config: fullConfig,
+      // Update the server block
+      config[server.name] = editedBlock[server.name];
+
+      // Save the updated config
+      const saveResult: any = await apiPut('/mcp-settings/raw', {
+        content: JSON.stringify(config, null, 2)
       });
 
-      if (!result.success) {
-        setError(result.message || t('server.updateError', { serverName: server.name }));
+      if (!saveResult.success) {
+        setError(saveResult.message || 'Failed to save config');
         setSaving(false);
         return;
-      }
-
-      // Auto reload after successful save
-      try {
-        await apiPost(`/servers/${encodedServerName}/reload`, {});
-      } catch (reloadErr) {
-        // Ignore reload errors, server might be down
-        console.warn('Reload failed after save:', reloadErr);
       }
 
       onEdit();
     } catch (err) {
-      console.error('Error updating server:', err);
+      console.error('Error saving config:', err);
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="hub-card p-6 w-full max-w-4xl">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
