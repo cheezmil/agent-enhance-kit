@@ -56,18 +56,27 @@ func LoadMcpSettings() {
 	}
 
 	loaded := 0
+	updated := 0
 	for name, entry := range entries {
 		server := parseMcpSettingsEntry(name, entry)
 		if server == nil {
 			continue
 		}
-		// Only import if not already in data.json
-		if existing := Store.GetServer(name); existing == nil {
+		// Update if already exists, create if not
+		if existing := Store.GetServer(name); existing != nil {
+			// Update existing server config
+			server.Tools = existing.Tools
+			server.Prompts = existing.Prompts
+			server.Resources = existing.Resources
+			server.Status = existing.Status
+			Store.UpdateServer(name, server)
+			updated++
+		} else {
 			Store.CreateServer(server)
 			loaded++
 		}
 	}
-	fmt.Printf("[aek-mcp] Loaded %d MCP servers from mcp-settings.jsonc\n", loaded)
+	fmt.Printf("[aek-mcp] Loaded %d new servers, updated %d servers from mcp-settings.jsonc\n", loaded, updated)
 }
 
 func parseMcpSettingsEntry(name string, entry McpSettingsEntry) *models.ServerConfig {
@@ -164,7 +173,6 @@ func stripJsoncComments(s string) string {
 
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
-
 		if inLineComment {
 			if ch == '\n' {
 				inLineComment = false
@@ -187,7 +195,6 @@ func stripJsoncComments(s string) string {
 			prev = ch
 			continue
 		}
-
 		if ch == '"' {
 			inString = true
 			result.WriteByte(ch)
