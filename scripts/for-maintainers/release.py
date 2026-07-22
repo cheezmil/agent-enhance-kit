@@ -21,7 +21,7 @@ from pathlib import Path
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent.parent  # up to scripts, then to root
-VERSION_FILE = ROOT_DIR / "packages" / "aek-websearch" / "VERSION"
+VERSION_FILE = ROOT_DIR / "VERSION"
 
 # Colors
 class Colors:
