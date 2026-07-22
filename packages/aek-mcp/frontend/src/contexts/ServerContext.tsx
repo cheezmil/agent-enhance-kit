@@ -373,8 +373,7 @@ export const ServerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           // Build full config from top-level fields and config object
           const fullConfig: Record<string, any> = {
             ...(data.config || {}),
-            // Include top-level fields that are part of the config
-            ...(data.type ? { type: data.type } : {}),
+            // Include top-level fields that are part of the config (NO type field)
             ...(data.url ? { url: data.url } : {}),
             ...(data.command ? { command: data.command } : {}),
             ...(data.args ? { args: data.args } : {}),
