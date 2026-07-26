@@ -48,7 +48,7 @@ func LoadMcpSettings() {
 	var entries map[string]McpSettingsEntry
 	if err := json.Unmarshal(data, &entries); err != nil {
 		// Try stripping JSONC comments (// and /* */) before parsing
-		cleaned := stripJsoncComments(string(data))
+		cleaned := StripJsoncComments(string(data))
 		if err2 := json.Unmarshal([]byte(cleaned), &entries); err2 != nil {
 			fmt.Printf("[aek-mcp] Failed to parse mcp-settings.jsonc: %v\n", err2)
 			return
@@ -164,7 +164,8 @@ func parseMcpSettingsEntry(name string, entry McpSettingsEntry) *models.ServerCo
 	return server
 }
 
-func stripJsoncComments(s string) string {
+// StripJsoncComments removes JSONC comments from a string
+func StripJsoncComments(s string) string {
 	var result strings.Builder
 	inString := false
 	inLineComment := false

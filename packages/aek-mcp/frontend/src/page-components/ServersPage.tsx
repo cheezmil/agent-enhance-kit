@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, AlertCircle, X, Pencil, Save, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Search, AlertCircle, X, Pencil, Save, ArrowLeft, RefreshCw, Copy, Check } from 'lucide-react';
 import { Server } from '@/types';
 import ServerCard from '@/components/ServerCard';
 import EditServerForm from '@/components/EditServerForm';
@@ -54,6 +54,8 @@ const ServersPage: React.FC = () => {
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorSuccess, setEditorSuccess] = useState(false);
+  const [editorFilePath, setEditorFilePath] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const toggleFavorite = (name: string) => {
     setFavorites((prev) => {
@@ -84,7 +86,8 @@ const ServersPage: React.FC = () => {
     try {
       const res = await apiGet<any>('/mcp-settings/raw');
       if (res.success && res.data) {
-        setEditorContent(res.data.content || '');
+              setEditorContent(res.data.content || '');
+              setEditorFilePath(res.data.path || '');
       } else {
         setEditorError(res.message || 'Failed to load settings');
       }
@@ -94,6 +97,14 @@ const ServersPage: React.FC = () => {
       setEditorLoading(false);
     }
   }, []);
+
+  const copyPath = async () => {
+    try {
+      await navigator.clipboard.writeText(editorFilePath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback ignored */ }
+  };
 
   const openEditor = () => {
     setIsEditing(true);
@@ -136,9 +147,14 @@ const ServersPage: React.FC = () => {
             <h1 className="hub-h1" style={{ marginBottom: 0 }}>
               {t('pages.servers.settingsEditor', 'MCP Settings Editor')}
             </h1>
-            <p className="hub-sub" style={{ marginTop: 4 }}>
-              ~/.aek/mcp/mcp-settings.jsonc
-            </p>
+            <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
+              <p className="hub-sub" style={{ margin: 0 }}>
+                {editorFilePath || '~/.aek/mcp/db/user-custom-configuration/aekmcp/mcp-settings.jsonc'}
+              </p>
+              <button className="hub-icon-btn sm" onClick={copyPath} title="Copy path">
+                {copied ? <Check size={11} style={{ color: 'var(--hub-ok)' }} /> : <Copy size={11} />}
+              </button>
+            </div>
           </div>
         </div>
 

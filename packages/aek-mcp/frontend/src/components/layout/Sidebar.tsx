@@ -7,10 +7,7 @@ import { usePathname } from 'next/navigation';
 import {
   Server as ServerIcon,
   Users as UsersIcon,
-  Route as RouteIcon,
   Settings as SettingsIcon,
-  FileText,
-  MessageSquare,
   Activity,
   ScrollText,
   Key,
@@ -18,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServerContext } from '@/contexts/ServerContext';
-import { useGroupData } from '@/hooks/useGroupData';
 import { canViewSystemLogs } from '@/utils/navigationPermissions';
 import { usePermissionCheck } from '../PermissionChecker';
 import UserProfileMenu from '@/components/ui/UserProfileMenu';
@@ -40,10 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const { t } = useTranslation();
   const { auth } = useAuth();
   const { allServers } = useServerContext();
-  const { groups } = useGroupData();
   const [activityAvailable, setActivityAvailable] = useState(false);
-
-  const appVersion = (process.env.NEXT_PUBLIC_PACKAGE_VERSION as string) || 'dev';
 
   useEffect(() => {
     checkActivityAvailable()
@@ -60,14 +53,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       icon: <ServerIcon className="h-4 w-4" />,
       badge: allServers.length || undefined,
     },
-    {
-      path: '/groups',
-      label: t('nav.groups'),
-      icon: <RouteIcon className="h-4 w-4" />,
-      badge: groups.length || undefined,
-    },
-    { path: '/prompts', label: t('nav.prompts'), icon: <MessageSquare className="h-4 w-4" /> },
-    { path: '/resources', label: t('nav.resources'), icon: <FileText className="h-4 w-4" /> },
     { path: '/keys', label: t('nav.keys', 'Keys'), icon: <Key className="h-4 w-4" /> },
     { path: '/tutorial', label: t('nav.tutorial', 'Tutorial'), icon: <BookOpen className="h-4 w-4" /> },
   ];
@@ -157,15 +142,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         </div>
         {!collapsed && (
           <div className="flex items-baseline gap-1.5 min-w-0">
-            <span className="font-semibold tracking-tight text-[var(--hub-ink)] truncate">
-              {t('app.title')}
-            </span>
-            {appVersion && (
-              <span className="hub-mono text-[10.5px] text-[var(--hub-ink-3)] flex-shrink-0">
-                {appVersion === 'dev' ? appVersion : `v${appVersion}`}
-              </span>
-            )}
-          </div>
+                      <span className="font-semibold tracking-tight text-[var(--hub-ink)] truncate">
+                        {t('app.title')}
+                      </span>
+                    </div>
         )}
       </div>
 
@@ -182,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
       </div>
 
       <div className="p-2.5 border-t border-[var(--hub-line)]">
-        <UserProfileMenu collapsed={collapsed} version={appVersion} />
+        <UserProfileMenu collapsed={collapsed} version="" />
       </div>
     </aside>
   );

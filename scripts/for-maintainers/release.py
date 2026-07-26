@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
 
-"""
-Release script for agent-enhance-kit
-
-This script:
-1. Reads version from packages/aek-websearch/VERSION
-2. Checks if tag already exists
-3. Creates git tag
-4. Pushes tag to GitHub
-
-Used as a "finally" script in cqg acp configuration.
-Config path: .cheezmil_quick_git/config/which_script_run_when_quick_add_commit_push_execute_finally.txt
-"""
-
 import os
 import sys
 import subprocess
