@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -256,17 +258,20 @@ func ToggleServer(c *gin.Context) {
 	server.Enabled = req.Enabled
 	services.Store.UpdateServer(name, server)
 
+	// Sync to config file
+	syncEnabledToConfigFile(name, req.Enabled)
+
 	// Connect or disconnect MCP client
 	if req.Enabled {
-		go func() {
-			if err := services.ConnectServerByName(c.Request.Context(), name); err != nil {
-				services.Store.AddLogEntry(&models.LogEntry{
-					Type:    "error",
-					Source:  "server",
-					Message: "Failed to connect " + name + ": " + err.Error(),
-				})
-			}
-		}()
+		// Wait for connection to complete
+		if err := services.ConnectServerByName(c.Request.Context(), name); err != nil {
+			services.Store.AddLogEntry(&models.LogEntry{
+				Type:    "error",
+				Source:  "server",
+				Message: "Failed to connect " + name + ": " + err.Error(),
+			})
+			// Still return success, just log the error
+		}
 	} else {
 		services.GlobalMCPClients.Disconnect(name)
 	}
@@ -1253,4 +1258,38 @@ func ImportConfigTemplate(c *gin.Context) {
 		Success: true,
 		Message: "Template imported successfully",
 	})
+}
+
+// syncEnabledToConfigFile updates the enabled field in the config file
+func syncEnabledToConfigFile(serverName string, enabled bool) {
+	path := services.GetMcpSettingsPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Printf("[aek-mcp] Failed to read config file for sync: %v\n", err)
+		return
+	}
+
+	// Parse JSONC
+	cleaned := services.StripJsoncComments(string(data))
+	var config map[string]interface{}
+	if err := json.Unmarshal([]byte(cleaned), &config); err != nil {
+		fmt.Printf("[aek-mcp] Failed to parse config file for sync: %v\n", err)
+		return
+	}
+
+	// Update the server's enabled field
+	if serverBlock, ok := config[serverName].(map[string]interface{}); ok {
+		serverBlock["enabled"] = enabled
+		config[serverName] = serverBlock
+
+		// Write back
+		newData, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			fmt.Printf("[aek-mcp] Failed to marshal config for sync: %v\n", err)
+			return
+		}
+		if err := os.WriteFile(path, newData, 0644); err != nil {
+			fmt.Printf("[aek-mcp] Failed to write config file for sync: %v\n", err)
+		}
+	}
 }
