@@ -43,9 +43,9 @@ func Load() *Config {
 	home := getHomeDir()
 	settingsPath := filepath.Join(home, ".aek", "mcp", "settings.jsonc")
 
-	port := "1351"
+	port := "1352"
 	host := "0.0.0.0"
-	basePath := ""
+	basePath := "/aek-mcp"
 	disableWeb := false
 	devProxy := ""
 	jwtSecret := "mcphub-default-secret"

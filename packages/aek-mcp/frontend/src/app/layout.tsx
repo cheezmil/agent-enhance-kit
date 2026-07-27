@@ -1,5 +1,7 @@
 import ClientProviders from '../components/ClientProviders';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'AEK-MCP',
   description: 'MCP Server Management Hub',
