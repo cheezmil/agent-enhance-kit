@@ -5,7 +5,7 @@ import type { RuntimeConfig } from '../types/runtime';
  */
 export const getRuntimeConfig = (): RuntimeConfig => {
   const fallbackBasePath = '/aek-mcp';
-  const cfg = window.__AEK_MCP_CONFIG__ || {
+  const cfg = (typeof window !== 'undefined' ? window.__AEK_MCP_CONFIG__ : undefined) || {
     basePath: fallbackBasePath,
     version: 'dev',
     name: 'aek-mcp',

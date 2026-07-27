@@ -119,6 +119,7 @@
     "status": "Status",
     "tools": "Tools",
     "prompts": "Prompts",
+    "resources": "Resources",
     "name": "Server Name",
     "description": "Server Note",
     "descriptionPlaceholder": "Optional note to describe this server",
@@ -412,6 +413,7 @@
     "servers": "Servers in Group",
     "remove": "Remove",
     "noGroups": "No groups available. Create a new group to get started.",
+    "defaultGroup": "Default — all tools exposed",
     "noServers": "No servers in this group.",
     "noServerOptions": "No servers available",
     "serverCount": "{{count}} Servers",
@@ -435,7 +437,16 @@
     "previewResources": "[resources: {{items}}]",
     "previewAllTools": "(all tools)",
     "previewAllPrompts": "(all prompts)",
-    "previewAllResources": "(all resources)"
+    "previewAllResources": "(all resources)",
+    "allowedTools": "Allowed Tools",
+    "allowedToolsDescription": "Select which tools are exposed when clients connect using this group. Leave empty to expose all tools. Format: server__toolName",
+    "allowedToolsHint": "When configured, only these tools appear in tools/list for this group; other tools are rejected with 403.",
+    "selectAllowedTools": "Select Allowed Tools",
+    "allToolsExposed": "All tools exposed",
+    "allowedToolCount": "{{count}} tool(s) allowed",
+    "searchTools": "Search tools...",
+    "noToolsFound": "No tools found",
+    "loadToolsError": "Failed to load tools list"
   },
   "market": {
     "title": "Local Installation",

@@ -16,14 +16,15 @@ FRONTEND_DIR = AEK_MCP_DIR / "frontend"
 def kill_old():
     if is_win():
         run_safe(["taskkill", "/F", "/IM", "aek-mcp.exe"])
-    else:
+    if not is_win():
         for name in ["aek-mcp", "one-mcp"]:
             r = run_safe(["pgrep", "-x", name])
-            if r is not None:
-                for pid in r.stdout.strip().split():
-                    if pid.strip():
-                        try: os.kill(int(pid.strip()), signal.SIGTERM)
-                        except Exception: pass
+            if r is None or r.stdout is None:
+                continue
+            for pid in r.stdout.strip().split():
+                if pid.strip():
+                    try: os.kill(int(pid.strip()), signal.SIGTERM)
+                    except Exception: pass
     kill_port(AEK_MCP_BACKEND_PORT)
     kill_port(AEK_MCP_FRONTEND_PORT)
     time.sleep(1)
@@ -86,13 +87,42 @@ def main():
     else:
         print(f"Warning: Nextjs did not become ready in time; continuing anyway")
 
+    print(f"\n[5/5] Starting gin backend on port {AEK_MCP_BACKEND_PORT}...")
+    cwd = AEK_MCP_DIR
+    if is_win():
+        gin_proc = subprocess.Popen(
+            ["bin\\aek-mcp.exe"], cwd=cwd,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    else:
+        gin_proc = subprocess.Popen(
+            [str(cwd / "bin" / "aek-mcp")], cwd=cwd,
+            start_new_session=True,
+        )
+
+    gin_ready = False
+    deadline = time.time() + 40
+    while time.time() < deadline:
+        try:
+            import urllib.request
+            resp = urllib.request.urlopen(
+                f"http://127.0.0.1:{AEK_MCP_BACKEND_PORT}/health", timeout=3)
+            if resp.status == 200:
+                gin_ready = True
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+
+    if gin_ready:
+        print(f"[aek-mcp] Gin backend ready on port {AEK_MCP_BACKEND_PORT} (pid {gin_proc.pid})")
+    else:
+        print(f"Warning: Gin did not become ready in time; continuing anyway")
+
     print(f"""
 === aek-mcp deployed (zero reverse proxy) ===
-    Main entry: http://127.0.0.1:{AEK_MCP_FRONTEND_PORT}/aek-mcp/
-    API backend: http://127.0.0.1:{AEK_MCP_BACKEND_PORT}/ (pure API/MCP, used by nextjs rewrites)
-
-    Start gin backend now:
-    python3 scripts/aek-mcp/start_aek-mcp.py
+    Main entry:  http://127.0.0.1:{AEK_MCP_FRONTEND_PORT}/aek-mcp/
+    Gin backend: http://127.0.0.1:{AEK_MCP_BACKEND_PORT}/ (pure API/MCP)
 """)
 
 

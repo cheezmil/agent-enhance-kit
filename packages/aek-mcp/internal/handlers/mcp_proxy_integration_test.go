@@ -15,8 +15,13 @@ import (
 
 	"github.com/cheezmil/aek-mcp/internal/config"
 	"github.com/cheezmil/aek-mcp/internal/handlers"
+	"github.com/cheezmil/aek-mcp/internal/models"
 	"github.com/cheezmil/aek-mcp/internal/services"
 )
+
+// Test user key used by the /mcp filter middleware to resolve the username.
+const integrationUserKey = "integration-test-key"
+const integrationUsername = "integration-user"
 
 // Integration test: gin backend endpoints directly (no reverse proxy, no basePath
 // stripping). Next.js (1351) is the only user-facing entry; it rewrites /aek-mcp/*
@@ -48,11 +53,27 @@ func TestMain(m *testing.M) {
 		Port: strconv.Itoa(port),
 	}
 	services.InitStore()
+	// Seed an integration-test user and its default group so the filter
+	// middleware can resolve ?key=integration-test-key.
+	if services.Store.GetUserByKey(integrationUserKey) == nil {
+		services.Store.CreateUser(&models.User{
+			Username: integrationUsername,
+			Key:      integrationUserKey,
+			Role:     "admin",
+		})
+		services.Store.CreateGroup(integrationUsername, &models.Group{
+			ID:           "default",
+			Name:         "default",
+			Description:  "Default group (all tools)",
+			Servers:      []string{},
+			AllowedTools: []string{},
+		})
+	}
 	handlers.InitMCPProxy()
 
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", handlers.GetMCPProxyHandler())
-	mux.Handle("/mcp/", handlers.GetMCPProxyHandler())
+	mux.Handle("/mcp", handlers.GroupToolFilterMiddleware(handlers.GetMCPProxyHandler()))
+	mux.Handle("/mcp/", handlers.GroupToolFilterMiddleware(handlers.GetMCPProxyHandler()))
 	mux.Handle("/", handlers.SetupRouter())
 	testBaseURL = fmt.Sprintf("http://127.0.0.1:%d", port)
 	testServer = &http.Server{Addr: ":" + strconv.Itoa(port), Handler: mux}
@@ -116,7 +137,7 @@ func TestIntegration_MCP_Initialize(t *testing.T) {
 			"clientInfo": map[string]interface{}{"name": "integration-test", "version": "1.0.0"},
 		},
 	}
-	status, header, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, header, body := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", initReq, nil)
 	if status != http.StatusOK {
 		t.Fatalf("MCP initialize: expected 200, got %d; body: %s", status, string(body))
 	}
@@ -142,6 +163,25 @@ func TestIntegration_MCP_Initialize(t *testing.T) {
 	t.Logf("session_id=%s server=%v", header.Get("Mcp-Session-Id"), serverInfo)
 }
 
+func TestIntegration_MCP_InitializeWithGroup(t *testing.T) {
+	initReq := map[string]interface{}{
+		"jsonrpc": "2.0", "id": 1, "method": "initialize",
+		"params": map[string]interface{}{
+			"protocolVersion": "2024-11-05",
+			"capabilities":    map[string]interface{}{},
+			"clientInfo": map[string]interface{}{"name": "integration-test-group", "version": "1.0.0"},
+		},
+	}
+	status, header, body := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", initReq, nil)
+	if status != http.StatusOK {
+		t.Fatalf("MCP initialize with group: expected 200, got %d; body: %s", status, string(body))
+	}
+	if header.Get("Mcp-Session-Id") == "" {
+		t.Error("missing Mcp-Session-Id header")
+	}
+	t.Logf("session_id=%s", header.Get("Mcp-Session-Id"))
+}
+
 func TestIntegration_MCP_ToolsList(t *testing.T) {
 	initReq := map[string]interface{}{
 		"jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -151,7 +191,7 @@ func TestIntegration_MCP_ToolsList(t *testing.T) {
 			"clientInfo": map[string]interface{}{"name": "test-tools", "version": "1.0.0"},
 		},
 	}
-	status, h, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, h, body := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", initReq, nil)
 	if status != http.StatusOK {
 		t.Fatalf("init failed: %d %s", status, string(body))
 	}
@@ -159,7 +199,7 @@ func TestIntegration_MCP_ToolsList(t *testing.T) {
 		t.Fatalf("no session id")
 	}
 	toolsReq := map[string]interface{}{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]interface{}{}}
-	status, _, body = doTestRequest("POST", "/mcp", toolsReq, map[string]string{"Mcp-Session-Id": h.Get("Mcp-Session-Id")})
+	status, _, body = doTestRequest("POST", "/mcp?group=default&key=integration-test-key", toolsReq, map[string]string{"Mcp-Session-Id": h.Get("Mcp-Session-Id")})
 	if status != http.StatusOK {
 		t.Fatalf("tools/list: %d %s", status, string(body))
 	}
@@ -173,8 +213,22 @@ func TestIntegration_MCP_ToolsList(t *testing.T) {
 	t.Logf("tools/list: %s", string(body))
 }
 
+func TestIntegration_MCP_NoGroup(t *testing.T) {
+	req, _ := http.NewRequest("POST", testBaseURL+"/mcp", bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 without group, got %d; body: %s", resp.StatusCode, string(b))
+	}
+}
+
 func TestIntegration_MCP_NoContentType(t *testing.T) {
-	req, _ := http.NewRequest("POST", testBaseURL+"/mcp", bytes.NewReader([]byte("{}")))
+	req, _ := http.NewRequest("POST", testBaseURL+"/mcp?group=default&key=integration-test-key", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "text/plain")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -188,7 +242,7 @@ func TestIntegration_MCP_NoContentType(t *testing.T) {
 }
 
 func TestIntegration_MCP_WrongMethod(t *testing.T) {
-	req, _ := http.NewRequest("PUT", testBaseURL+"/mcp", bytes.NewReader([]byte("{}")))
+	req, _ := http.NewRequest("PUT", testBaseURL+"/mcp?group=default&key=integration-test-key", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -199,7 +253,7 @@ func TestIntegration_MCP_WrongMethod(t *testing.T) {
 }
 
 func TestIntegration_MCP_InvalidJSON(t *testing.T) {
-	req, _ := http.NewRequest("POST", testBaseURL+"/mcp", bytes.NewReader([]byte("not json")))
+	req, _ := http.NewRequest("POST", testBaseURL+"/mcp?group=default&key=integration-test-key", bytes.NewReader([]byte("not json")))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -240,7 +294,7 @@ func TestIntegration_CORS(t *testing.T) {
 
 func TestIntegration_MCP_UnknownMethod(t *testing.T) {
 	initReq := map[string]interface{}{"jsonrpc": "2.0", "id": 1, "method": "nonexistent/method", "params": map[string]interface{}{}}
-	status, _, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, _, body := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", initReq, nil)
 	t.Logf("unknown method: %d %s", status, string(body))
 }
 
@@ -253,7 +307,7 @@ func TestIntegration_MCP_BatchInitListTools(t *testing.T) {
 			"clientInfo": map[string]interface{}{"name": "batch", "version": "1.0.0"},
 		},
 	}
-	status, initH, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, initH, body := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", initReq, nil)
 	if status != http.StatusOK {
 		t.Fatalf("init failed: %d %s", status, string(body))
 	}
@@ -263,10 +317,10 @@ func TestIntegration_MCP_BatchInitListTools(t *testing.T) {
 	}
 	headers := map[string]string{"Mcp-Session-Id": sessionID}
 	notify := map[string]interface{}{"jsonrpc": "2.0", "method": "notifications/initialized"}
-	s, _, _ := doTestRequest("POST", "/mcp", notify, headers)
+	s, _, _ := doTestRequest("POST", "/mcp?group=default&key=integration-test-key", notify, headers)
 	t.Logf("notify: %d", s)
 	tools := map[string]interface{}{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]interface{}{}}
-	status, _, body = doTestRequest("POST", "/mcp", tools, headers)
+	status, _, body = doTestRequest("POST", "/mcp?group=default&key=integration-test-key", tools, headers)
 	if status != http.StatusOK {
 		t.Fatalf("tools/list: %d %s", status, string(body))
 	}

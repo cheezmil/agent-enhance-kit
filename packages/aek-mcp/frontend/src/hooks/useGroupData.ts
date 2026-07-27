@@ -41,13 +41,12 @@ export const useGroupData = () => {
     name: string,
     description?: string,
     servers: string[] | IGroupServerConfig[] = [],
+    allowedTools?: string[],
   ): Promise<Group | null> => {
     try {
-      const data = await apiPost('/groups', {
-        name,
-        description,
-        servers,
-      });
+      const body: Record<string, any> = { name, description, servers };
+      if (allowedTools !== undefined) body.allowedTools = allowedTools;
+      const data = await apiPost('/groups', body);
       if (data.success) {
         await fetchGroups();
         return data.data;
@@ -65,11 +64,13 @@ export const useGroupData = () => {
     name: string,
     description?: string,
     servers?: string[] | IGroupServerConfig[],
+    allowedTools?: string[],
   ): Promise<boolean> => {
     try {
       const updateData: Record<string, any> = { name };
       if (description !== undefined) updateData.description = description;
       if (servers !== undefined) updateData.servers = servers;
+      if (allowedTools !== undefined) updateData.allowedTools = allowedTools;
 
       const data = await apiPut(`/groups/${groupId}`, updateData);
       if (data.success) {
