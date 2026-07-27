@@ -1,5 +1,11 @@
 'use client';
-import GroupsPage from '../../page-components/GroupsPage';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function Groups() {
-  return <GroupsPage />;
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/servers');
+  }, [router]);
+  return null;
 }

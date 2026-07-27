@@ -119,6 +119,7 @@
     "status": "状态",
     "tools": "工具",
     "prompts": "提示词",
+    "resources": "资源",
     "name": "服务器名称",
     "description": "服务器注释",
     "descriptionPlaceholder": "可选：记录这个服务器的用途说明",
@@ -437,7 +438,16 @@
     "previewResources": "[资源: {{items}}]",
     "previewAllTools": "（全部工具）",
     "previewAllPrompts": "（全部提示词）",
-    "previewAllResources": "（全部资源）"
+    "previewAllResources": "（全部资源）",
+    "allowedTools": "允许的工具",
+    "allowedToolsDescription": "选择使用此分组连接时对外暴露的工具。留空则暴露全部工具。格式：server__toolName",
+    "allowedToolsHint": "配置后，此分组的 tools/list 仅返回这些工具，其他工具调用将被拒绝（403）。",
+    "selectAllowedTools": "选择允许的工具",
+    "allToolsExposed": "暴露全部工具",
+    "allowedToolCount": "允许 {{count}} 个工具",
+    "searchTools": "搜索工具...",
+    "noToolsFound": "未找到工具",
+    "loadToolsError": "加载工具列表失败"
   },
   "market": {
     "title": "本地安装",

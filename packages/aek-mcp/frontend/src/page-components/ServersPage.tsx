@@ -1,16 +1,27 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, AlertCircle, X, Pencil, Save, ArrowLeft, RefreshCw, Copy, Check } from 'lucide-react';
-import { Server } from '@/types';
+import {
+  Search, AlertCircle, X, Pencil, Save, ArrowLeft, RefreshCw,
+  Copy, Check, Layers, Plus, Server as ServerIcon,
+} from 'lucide-react';
+import { Server, Group, IGroupServerConfig } from '@/types';
 import ServerCard from '@/components/ServerCard';
 import EditServerForm from '@/components/EditServerForm';
+import AddGroupForm from '@/components/AddGroupForm';
+import GroupCard from '@/components/GroupCard';
 import { useServerData } from '@/hooks/useServerData';
+import { useGroupData } from '@/hooks/useGroupData';
 import { useCostData } from '@/hooks/useCostData';
 import { filterServers, getServerFilterCounts, type ServerFilter } from '@/utils/serverFilters';
 import { apiGet, apiPut } from '@/utils/fetchInterceptor';
 
+type PageTab = 'servers' | 'groups';
+
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<PageTab>('servers');
+
+  // ---------- Servers ----------
   const {
     servers,
     allServers,
@@ -26,12 +37,22 @@ const ServersPage: React.FC = () => {
     triggerRefresh,
   } = useServerData({ refreshOnMount: true });
 
+  const {
+    groups,
+    loading: groupsLoading,
+    error: groupError,
+    deleteGroup,
+    updateGroup,
+    triggerRefresh: triggerGroupRefresh,
+  } = useGroupData();
   const { serverTokenInputs, refetch: refetchCost } = useCostData();
+  const { groupTokenInputs } = useCostData();
 
   useEffect(() => {
     refetchCost();
-  }, [servers, refetchCost]);
+  }, [servers, groups, refetchCost]);
 
+  // ---------- Servers state ----------
   const [editingServer, setEditingServer] = useState<Server | null>(null);
   const [filter, setFilter] = useState<ServerFilter>(() => {
     try {
@@ -47,7 +68,6 @@ const ServersPage: React.FC = () => {
     } catch { return new Set(); }
   });
 
-  // Editor state
   const [isEditing, setIsEditing] = useState(false);
   const [editorContent, setEditorContent] = useState('');
   const [editorLoading, setEditorLoading] = useState(false);
@@ -56,6 +76,8 @@ const ServersPage: React.FC = () => {
   const [editorSuccess, setEditorSuccess] = useState(false);
   const [editorFilePath, setEditorFilePath] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showAddGroup, setShowAddGroup] = useState(false);
+  const [groupDismissedError, setGroupDismissedError] = useState(false);
 
   const toggleFavorite = (name: string) => {
     setFavorites((prev) => {
@@ -132,6 +154,16 @@ const ServersPage: React.FC = () => {
       setEditorError(e.message || 'Failed to save');
     } finally {
       setEditorSaving(false);
+    }
+  };
+
+  // Editor view
+  const isProtectedGroup = (g: Group) => g.name === 'default';
+
+  const handleDeleteGroup = async (groupId: string) => {
+    const result = await deleteGroup(groupId);
+    if (!result) {
+      // error handled by hook (toast)
     }
   };
 
@@ -238,10 +270,15 @@ const ServersPage: React.FC = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="hub-h1">{t('pages.servers.title')}</h1>
+      {/* Header + tab switch */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <ServerIcon className="h-5 w-5" />
+            <h1 className="hub-h1" style={{ marginBottom: 0 }}>
+              {t('pages.servers.title')}
+            </h1>
+          </div>
         </div>
         <div className="flex gap-2">
           <button className="hub-btn" onClick={openEditor}>
@@ -250,6 +287,132 @@ const ServersPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Tab switch: Servers / Groups */}
+      <div
+        className="flex items-center gap-1 mb-5"
+        style={{
+          background: 'var(--hub-surface)',
+          borderRadius: 8,
+          padding: 3,
+        }}
+      >
+        <button
+          onClick={() => setActiveTab('servers')}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[13px] rounded-md transition-colors"
+          style={{
+            background: activeTab === 'servers' ? 'var(--hub-bg-2)' : 'transparent',
+            color: activeTab === 'servers' ? 'var(--hub-ink)' : 'var(--hub-ink-3)',
+            border: activeTab === 'servers' ? '1px solid var(--hub-line)' : '1px solid transparent',
+          }}
+        >
+          <ServerIcon className="h-4 w-4" />
+          {t('nav.servers', 'Servers')}
+          <span className="hub-mono hub-num" style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}>
+            {allServers.length}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('groups')}
+          className="inline-flex items-center gap-2 px-4 py-2 text-[13px] rounded-md transition-colors"
+          style={{
+            background: activeTab === 'groups' ? 'var(--hub-bg-2)' : 'transparent',
+            color: activeTab === 'groups' ? 'var(--hub-ink)' : 'var(--hub-ink-3)',
+            border: activeTab === 'groups' ? '1px solid var(--hub-line)' : '1px solid transparent',
+          }}
+        >
+          <Layers className="h-4 w-4" />
+          {t('nav.groups', 'Groups')}
+          <span className="hub-mono hub-num" style={{ fontSize: 11, color: 'var(--hub-ink-3)' }}>
+            {groups.length}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'servers' ? (
+        <ServersView
+          error={error}
+          setError={setError}
+          servers={servers}
+          isLoading={isLoading}
+          filter={filter}
+          setFilter={setFilter}
+          search={search}
+          setSearch={setSearch}
+          counts={counts}
+          filteredServers={filteredServers}
+          handleEditClick={handleEditClick}
+          editingServer={editingServer}
+          setEditingServer={setEditingServer}
+          handleServerRemove={handleServerRemove}
+          handleServerToggle={handleServerToggle}
+          handleServerReload={handleServerReload}
+          triggerRefresh={triggerRefresh}
+          serverTokenInputs={serverTokenInputs}
+          toggleFavorite={toggleFavorite}
+          favorites={favorites}
+        />
+      ) : (
+        <GroupsView
+          t={t}
+          groups={groups}
+          groupsLoading={groupsLoading}
+          groupError={groupError}
+          groupDismissedError={groupDismissedError}
+          setGroupDismissedError={setGroupDismissedError}
+          deleteGroup={handleDeleteGroup}
+          updateGroup={updateGroup}
+          triggerGroupRefresh={triggerGroupRefresh}
+          showAddGroup={showAddGroup}
+          setShowAddGroup={setShowAddGroup}
+          allServers={allServers}
+        />
+      )}
+
+      {editingServer && (
+        <EditServerForm
+          server={editingServer}
+          onEdit={() => {
+            setEditingServer(null);
+            triggerRefresh();
+          }}
+          onCancel={() => setEditingServer(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// ---------- Servers tab view ----------
+const ServersView: React.FC<{
+  error: string | null;
+  setError: (v: string | null) => void;
+  servers: Server[];
+  isLoading: boolean;
+  filter: ServerFilter;
+  setFilter: (v: ServerFilter) => void;
+  search: string;
+  setSearch: (v: string) => void;
+  counts: { all: number; favorites: number; online: number; issues: number; disabled: number };
+  filteredServers: Server[];
+  handleEditClick: (s: Server) => void;
+  editingServer: Server | null;
+  setEditingServer: (s: Server | null) => void;
+  handleServerRemove: (serverName: string) => Promise<boolean>;
+  handleServerToggle: (server: Server, enabled: boolean) => Promise<boolean>;
+  handleServerReload: (server: Server) => Promise<boolean>;
+  triggerRefresh: () => void;
+  serverTokenInputs: any[];
+  toggleFavorite: (n: string) => void;
+  favorites: Set<string>;
+}> = ({
+  error, setError, servers, isLoading, filter, setFilter, search, setSearch,
+  counts, filteredServers, handleEditClick, editingServer, setEditingServer,
+  handleServerRemove, handleServerToggle, handleServerReload, triggerRefresh,
+  serverTokenInputs, toggleFavorite, favorites,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div>
       {error && (
         <div
           className="hub-card flex items-center justify-between gap-3 mb-4"
@@ -264,17 +427,12 @@ const ServersPage: React.FC = () => {
             <AlertCircle size={14} className="flex-shrink-0" />
             <span className="truncate text-[13px]">{error}</span>
           </div>
-          <button
-            className="hub-icon-btn sm"
-            onClick={() => setError(null)}
-            aria-label={t('app.closeButton')}
-          >
+          <button className="hub-icon-btn sm" onClick={() => setError(null)}>
             <X size={13} />
           </button>
         </div>
       )}
 
-      {/* Toolbar */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div
           className="hub-card flex items-center"
@@ -333,7 +491,6 @@ const ServersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* List */}
       {isLoading && servers.length === 0 ? (
         <div className="hub-card p-6 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
@@ -363,15 +520,98 @@ const ServersPage: React.FC = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
 
-      {editingServer && (
-        <EditServerForm
-          server={editingServer}
-          onEdit={() => {
-            setEditingServer(null);
-            triggerRefresh();
+// ---------- Groups tab view ----------
+const GroupsView: React.FC<{
+  t: ReturnType<typeof useTranslation>[0];
+  groups: Group[];
+  groupsLoading: boolean;
+  groupError: string | null;
+  groupDismissedError: boolean;
+  setGroupDismissedError: (v: boolean) => void;
+  deleteGroup: (id: string) => Promise<any>;
+  updateGroup: (
+    groupId: string,
+    name: string,
+    description?: string,
+    servers?: string[] | IGroupServerConfig[],
+    allowedTools?: string[],
+  ) => Promise<boolean>;
+  triggerGroupRefresh: () => void;
+  showAddGroup: boolean;
+  setShowAddGroup: (v: boolean) => void;
+  allServers: Server[];
+}> = ({
+  t, groups, groupsLoading, groupError, groupDismissedError, setGroupDismissedError,
+  deleteGroup, updateGroup, triggerGroupRefresh,
+  showAddGroup, setShowAddGroup,
+  allServers,
+}) => {
+  return (
+    <div>
+      <div className="flex items-end justify-between gap-4 mb-6">
+        <div>
+          <h1 className="hub-h1">{t('pages.groups.title', 'Groups')}</h1>
+          <p className="hub-sub">
+            <span className="hub-num">{groups.length}</span> {t('nav.groups', 'Groups').toLowerCase()}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button className="hub-btn primary" onClick={() => setShowAddGroup(true)}>
+            <Plus size={13} /> {t('groups.add', 'Add Group')}
+          </button>
+        </div>
+      </div>
+
+      {groupError && !groupDismissedError && (
+        <div
+          className="hub-card flex items-center justify-between gap-3 mb-4"
+          style={{
+            padding: '10px 14px',
+            borderColor: 'oklch(0.85 0.1 25)',
+            background: 'oklch(0.97 0.03 25)',
+            color: 'oklch(0.4 0.18 25)',
           }}
-          onCancel={() => setEditingServer(null)}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle size={14} className="flex-shrink-0" />
+            <span className="truncate text-[13px]">{groupError}</span>
+          </div>
+          <button className="hub-icon-btn sm" onClick={() => setGroupDismissedError(true)}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
+      {groupsLoading ? (
+        <div className="hub-card p-6 text-center" style={{ color: 'var(--hub-ink-3)' }}>
+          {t('app.loading', 'Loading…')}
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="hub-card p-10 text-center" style={{ color: 'var(--hub-ink-3)' }}>
+          {t('groups.noGroups', 'No groups available.')}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          {groups.map((group) => (
+            <GroupCard
+              key={group.id}
+              group={group}
+              servers={allServers}
+              onDelete={deleteGroup}
+              onUpdate={updateGroup}
+            />
+          ))}
+        </div>
+      )}
+
+      {showAddGroup && (
+        <AddGroupForm
+          onAdd={() => { setShowAddGroup(false); triggerGroupRefresh(); }}
+          onCancel={() => setShowAddGroup(false)}
         />
       )}
     </div>

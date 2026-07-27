@@ -121,7 +121,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         (collapsed ? 'w-14' : 'w-[232px]')
       }
     >
-      {/* Brand */}
       <div className={'flex items-center gap-2.5 ' + (collapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3')}>
         <div
           className="relative grid h-7 w-7 place-items-center rounded-md text-white hub-mono text-[12px] font-semibold"
@@ -142,10 +141,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         </div>
         {!collapsed && (
           <div className="flex items-baseline gap-1.5 min-w-0">
-                      <span className="font-semibold tracking-tight text-[var(--hub-ink)] truncate">
-                        {t('app.title')}
-                      </span>
-                    </div>
+            <span className="font-semibold tracking-tight text-[var(--hub-ink)] truncate">
+              {t('app.title')}
+            </span>
+          </div>
         )}
       </div>
 

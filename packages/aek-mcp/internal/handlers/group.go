@@ -11,7 +11,8 @@ import (
 )
 
 func GetGroups(c *gin.Context) {
-	groups := services.Store.GetAllGroups()
+	username := c.GetString("username")
+	groups := services.Store.GetAllGroups(username)
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data:    groups,
@@ -19,8 +20,9 @@ func GetGroups(c *gin.Context) {
 }
 
 func GetGroup(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{
 			Success: false,
@@ -32,6 +34,7 @@ func GetGroup(c *gin.Context) {
 }
 
 func CreateGroup(c *gin.Context) {
+	username := c.GetString("username")
 	var group models.Group
 	if err := c.ShouldBindJSON(&group); err != nil {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Invalid request body"})
@@ -45,11 +48,12 @@ func CreateGroup(c *gin.Context) {
 	}
 	group.CreatedAt = time.Now()
 	group.UpdatedAt = time.Now()
-	services.Store.CreateGroup(&group)
+	services.Store.CreateGroup(username, &group)
 	c.JSON(http.StatusCreated, models.ApiResponse{Success: true, Data: group})
 }
 
 func BatchCreateGroups(c *gin.Context) {
+	username := c.GetString("username")
 	var groups []models.Group
 	if err := c.ShouldBindJSON(&groups); err != nil {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Invalid request body"})
@@ -64,14 +68,15 @@ func BatchCreateGroups(c *gin.Context) {
 		}
 		groups[i].CreatedAt = time.Now()
 		groups[i].UpdatedAt = time.Now()
-		services.Store.CreateGroup(&groups[i])
+		services.Store.CreateGroup(username, &groups[i])
 	}
 	c.JSON(http.StatusCreated, models.ApiResponse{Success: true, Data: groups})
 }
 
 func UpdateGroup(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	existing := services.Store.GetGroup(id)
+	existing := services.Store.GetGroup(username, id)
 	if existing == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
@@ -87,23 +92,28 @@ func UpdateGroup(c *gin.Context) {
 	if group.Servers == nil {
 		group.Servers = []string{}
 	}
-	services.Store.UpdateGroup(id, &group)
+	services.Store.UpdateGroup(username, id, &group)
 	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: group})
 }
 
 func DeleteGroup(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	if services.Store.GetGroup(id) == nil {
+	if services.Store.GetGroup(username, id) == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
 	}
-	services.Store.DeleteGroup(id)
+	if err := services.Store.DeleteGroup(username, id); err != nil {
+		c.JSON(http.StatusForbidden, models.ApiResponse{Success: false, Message: *err})
+		return
+	}
 	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Message: "Group deleted"})
 }
 
 func AddServerToGroup(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
@@ -123,14 +133,15 @@ func AddServerToGroup(c *gin.Context) {
 	}
 	group.Servers = append(group.Servers, req.ServerName)
 	group.UpdatedAt = time.Now()
-	services.Store.UpdateGroup(id, group)
+	services.Store.UpdateGroup(username, id, group)
 	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: group})
 }
 
 func RemoveServerFromGroup(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
 	serverName := c.Param("serverName")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
@@ -142,13 +153,14 @@ func RemoveServerFromGroup(c *gin.Context) {
 		}
 	}
 	group.UpdatedAt = time.Now()
-	services.Store.UpdateGroup(id, group)
+	services.Store.UpdateGroup(username, id, group)
 	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: group})
 }
 
 func GetGroupServers(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
@@ -163,8 +175,9 @@ func GetGroupServers(c *gin.Context) {
 }
 
 func UpdateGroupServersBatch(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
@@ -178,13 +191,14 @@ func UpdateGroupServersBatch(c *gin.Context) {
 	}
 	group.Servers = req.Servers
 	group.UpdatedAt = time.Now()
-	services.Store.UpdateGroup(id, group)
+	services.Store.UpdateGroup(username, id, group)
 	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: group})
 }
 
 func GetGroupServerConfigs(c *gin.Context) {
+	username := c.GetString("username")
 	id := c.Param("groupId")
-	group := services.Store.GetGroup(id)
+	group := services.Store.GetGroup(username, id)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return

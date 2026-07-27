@@ -22,6 +22,10 @@ func main() {
 	ginRouter := handlers.SetupRouter()
 	mcpHandler := handlers.GetMCPProxyHandler()
 
+	// Wrap the MCP handler with the group tool whitelist filter.
+	// Every MCP request must include ?group=<name>.
+	mcpHandler = handlers.GroupToolFilterMiddleware(mcpHandler)
+
 	// gin is the pure API backend — no static files, no reverse proxy, no base path
 	// stripping. Next.js (1351) proxies /aek-mcp/api/*, /aek-mcp/mcp/* etc. here
 	// via rewrites.

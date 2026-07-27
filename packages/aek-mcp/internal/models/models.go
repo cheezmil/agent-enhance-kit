@@ -73,6 +73,11 @@ type Group struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
 	Servers     []string `json:"servers"`
+	// AllowedTools is the tool whitelist for this group.
+	// Entries use the proxy name format "serverName__toolName".
+	// Empty means all tools from member servers are exposed;
+	// non-empty means only listed tools are visible and callable.
+	AllowedTools []string `json:"allowedTools,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }

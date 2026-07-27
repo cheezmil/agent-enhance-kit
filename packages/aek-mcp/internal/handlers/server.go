@@ -699,7 +699,7 @@ func ResetResourceDescription(c *gin.Context) {
 
 func GetAllSettings(c *gin.Context) {
 	servers := services.Store.GetAllServers()
-	groups := services.Store.GetAllGroups()
+	groups := services.Store.GetAllGroups(c.GetString("username"))
 	users := services.Store.GetAllUsers()
 	bearerKeys := services.Store.GetAllBearerKeys()
 	sysConfig := services.Store.GetSystemConfig()
@@ -1201,8 +1201,9 @@ func HealthCheck(c *gin.Context) {
 
 // Template handlers
 func ExportConfigTemplate(c *gin.Context) {
+	username := c.GetString("username")
 	servers := services.Store.GetAllServers()
-	groups := services.Store.GetAllGroups()
+	groups := services.Store.GetAllGroups(username)
 
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
@@ -1215,8 +1216,9 @@ func ExportConfigTemplate(c *gin.Context) {
 }
 
 func ExportGroupAsTemplate(c *gin.Context) {
+	username := c.GetString("username")
 	groupId := c.Param("groupId")
-	group := services.Store.GetGroup(groupId)
+	group := services.Store.GetGroup(username, groupId)
 	if group == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{
 			Success: false,
@@ -1232,6 +1234,7 @@ func ExportGroupAsTemplate(c *gin.Context) {
 }
 
 func ImportConfigTemplate(c *gin.Context) {
+	username := c.GetString("username")
 	var req struct {
 		Servers []models.ServerConfig `json:"servers"`
 		Groups  []models.Group        `json:"groups"`
@@ -1251,7 +1254,7 @@ func ImportConfigTemplate(c *gin.Context) {
 		if req.Groups[i].ID == "" {
 			req.Groups[i].ID = uuid.New().String()
 		}
-		services.Store.CreateGroup(&req.Groups[i])
+		services.Store.CreateGroup(username, &req.Groups[i])
 	}
 
 	c.JSON(http.StatusOK, models.ApiResponse{
