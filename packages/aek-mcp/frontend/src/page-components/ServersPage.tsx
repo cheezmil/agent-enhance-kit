@@ -102,6 +102,22 @@ const ServersPage: React.FC = () => {
     if (fullServerData) setEditingServer(fullServerData);
   };
 
+  // Turn an absolute path like "/home/xdx/.aek/.../username/file.jsonc"
+  // into the user-friendly "~/.aek/.../username/file.jsonc".
+  const getMcpSettingsDisplayPath = (p: string) => {
+    if (!p) return '~/.aek/mcp/db/user-custom-configuration/mcp-settings.jsonc';
+    // Normalize backslashes on Windows to forward slashes for display
+    const fwd = p.replace(/\\/g, '/');
+    // Strip the "/home/<user>" / "C:/Users/<user>" prefix
+    const homeRegex = /^(\/home\/[^/]+)|([A-Za-z]:\/Users\/[^/]+)/;
+    const m = fwd.match(homeRegex);
+    if (m) {
+      return '~' + fwd.slice(m[0].length);
+    }
+    // Windows path not under C:/Users — show as-is but forward-slash
+    return fwd;
+  };
+
   const loadSettings = useCallback(async () => {
     setEditorLoading(true);
     setEditorError(null);
@@ -181,7 +197,7 @@ const ServersPage: React.FC = () => {
             </h1>
             <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
               <p className="hub-sub" style={{ margin: 0 }}>
-                {editorFilePath || '~/.aek/mcp/db/user-custom-configuration/mcp-settings.jsonc'}
+                {getMcpSettingsDisplayPath(editorFilePath)}
               </p>
               <button className="hub-icon-btn sm" onClick={copyPath} title="Copy path">
                 {copied ? <Check size={11} style={{ color: 'var(--hub-ok)' }} /> : <Copy size={11} />}
