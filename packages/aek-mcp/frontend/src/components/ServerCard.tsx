@@ -562,7 +562,7 @@ const ServerCard = ({
               enabled={server.enabled}
               onAuthClick={handleOAuth}
               className="hub-server-card-status"
-              label={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : undefined}
+              label={reloadPhase === 'detecting' ? (t('server.detecting') || 'Detecting') : undefined}
             />
 
             {/* Transport */}
@@ -608,8 +608,8 @@ const ServerCard = ({
                   handleReload(e);
                 }}
                 disabled={isReloading || isToggling || !enabled}
-                aria-label={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
-                title={reloadPhase === 'detecting' ? (t('server.detecting') || '检测中') : t('server.reload')}
+                aria-label={reloadPhase === 'detecting' ? (t('server.detecting') || 'Detecting') : t('server.reload')}
+                title={reloadPhase === 'detecting' ? (t('server.detecting') || 'Detecting') : t('server.reload')}
               >
                 <RefreshCw size={13} className={isReloading ? 'animate-spin' : ''} style={
                   reloadPhase === 'connected' ? { color: '#22c55e' } :

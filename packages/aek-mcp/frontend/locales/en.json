@@ -1179,6 +1179,8 @@
     "fullConfig": "Example of complete fields on this platform",
     "innerConfig": "Inner Config",
     "copyInner": "Copy inner",
-    "docs": "Documentation"
+    "docs": "Documentation",
+    "search": "Search tools...",
+    "noResults": "No tools match your search"
   }
 }
