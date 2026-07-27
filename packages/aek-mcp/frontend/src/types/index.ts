@@ -328,6 +328,7 @@ export interface Group {
   name: string;
   description?: string;
   servers: string[] | IGroupServerConfig[]; // Supports both old and new format
+  allowedTools?: string[]; // Tool whitelist: ['serverName__toolName']. Empty/undefined = all tools exposed.
 }
 
 // Environment variable types
@@ -403,6 +404,7 @@ export interface GroupFormData {
   name: string;
   description: string;
   servers: string[] | IGroupServerConfig[]; // Updated to support new format
+  allowedTools?: string[]; // Tool whitelist: ['serverName__toolName']. Empty/undefined = all tools.
 }
 
 // API response types

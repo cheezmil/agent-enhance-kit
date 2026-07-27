@@ -46,8 +46,9 @@ export const authInterceptor: FetchInterceptor = {
       // Token might be expired or invalid, remove it
       removeToken();
 
-      // You could also trigger a redirect to login page here
-      // window.location.href = '/login';
+      // Let the calling code handle the redirect itself.
+      // Avoid window.location.replace here: in SSR-hydration scenarios it can
+      // trigger an infinite redirect loop (page → 401 → /login → 401 → /login).
     }
 
     return response;

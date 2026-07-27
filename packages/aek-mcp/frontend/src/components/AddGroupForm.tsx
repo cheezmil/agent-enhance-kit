@@ -5,6 +5,7 @@ import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { GroupFormData, Server, IGroupServerConfig } from '@/types';
 import { ServerToolConfig } from './ServerToolConfig';
+import AllowedToolsSelector from './AllowedToolsSelector';
 
 interface AddGroupFormProps {
   onAdd: () => void;
@@ -27,7 +28,6 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
   });
 
   useEffect(() => {
-    // Filter available servers (enabled only)
     setAvailableServers(allServers.filter((server) => server.enabled !== false));
   }, [allServers]);
 
@@ -51,7 +51,12 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
         return;
       }
 
-      const result = await createGroup(formData.name, formData.description, formData.servers);
+      const result = await createGroup(
+        formData.name,
+        formData.description,
+        formData.servers,
+        formData.allowedTools?.length ? formData.allowedTools : undefined,
+      );
       if (!result) {
         setError(t('groups.createError'));
         setIsSubmitting(false);
@@ -107,6 +112,16 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
                   onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
                   serverTokenInputs={serverTokenInputs}
+                />
+              </div>
+
+              <div>
+                <AllowedToolsSelector
+                  servers={availableServers}
+                  value={formData.allowedTools}
+                  onChange={(allowedTools) =>
+                    setFormData((prev) => ({ ...prev, allowedTools }))
+                  }
                 />
               </div>
             </div>

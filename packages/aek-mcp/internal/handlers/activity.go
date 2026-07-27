@@ -396,7 +396,7 @@ func GetBetterAuthUser(c *gin.Context) {
 
 func GetMcpSettingsJson(c *gin.Context) {
 	servers := services.Store.GetAllServers()
-	groups := services.Store.GetAllGroups()
+	groups := services.Store.GetAllGroups(c.GetString("username"))
 	c.JSON(http.StatusOK, models.ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
