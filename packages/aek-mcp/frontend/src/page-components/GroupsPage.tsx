@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Download, Upload, AlertCircle, X } from 'lucide-react';
-import { Group } from '@/types';
+import { Group, IGroupServerConfig } from '@/types';
 import { useGroupData } from '@/hooks/useGroupData';
 import { useServerData } from '@/hooks/useServerData';
 import AddGroupForm from '@/components/AddGroupForm';
@@ -19,6 +19,7 @@ const GroupsPage: React.FC = () => {
     loading: groupsLoading,
     error: groupError,
     deleteGroup,
+    updateGroup,
     triggerRefresh,
   } = useGroupData();
   const { allServers } = useServerData({ refreshOnMount: true });
@@ -104,9 +105,8 @@ const GroupsPage: React.FC = () => {
               key={group.id}
               group={group}
               servers={allServers}
-              onEdit={setEditingGroup}
               onDelete={handleDeleteGroup}
-              tokenInput={groupTokenInputs.find((c) => c.id === group.id)}
+              onUpdate={updateGroup}
             />
           ))}
           <button

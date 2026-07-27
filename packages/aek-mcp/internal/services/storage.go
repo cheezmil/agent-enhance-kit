@@ -27,7 +27,7 @@ type Storage struct {
 	mu          sync.RWMutex
 	users       map[string]*models.User
 	servers     map[string]*models.ServerConfig
-	groups      map[string]*models.Group
+	groups      map[string]map[string]*models.Group // username -> {id -> *Group}
 	activities  []*models.Activity
 	logs        []*models.LogEntry
 	bearerKeys  map[string]*models.BearerKey
@@ -58,7 +58,7 @@ func InitStore() {
 	Store = &Storage{
 		users:        make(map[string]*models.User),
 		servers:      make(map[string]*models.ServerConfig),
-		groups:       make(map[string]*models.Group),
+		groups:       make(map[string]map[string]*models.Group),
 		activities:   make([]*models.Activity, 0),
 		logs:         make([]*models.LogEntry, 0),
 		bearerKeys:   make(map[string]*models.BearerKey),
@@ -69,6 +69,7 @@ func InitStore() {
 
 	Store.loadFromFile()
 	Store.loadUsersFromFile()
+	Store.initAllUserGroups()
 }
 
 func (s *Storage) loadFromFile() {
@@ -86,9 +87,7 @@ func (s *Storage) loadFromFile() {
 	if df.Servers != nil {
 		s.servers = df.Servers
 	}
-	if df.Groups != nil {
-		s.groups = df.Groups
-	}
+	// Groups no longer live in data.json; loaded per-user by initAllUserGroups.
 	if df.SystemCfg != nil {
 		s.systemConfig = df.SystemCfg
 	}
@@ -103,7 +102,6 @@ func (s *Storage) saveToFile() {
 
 	df := DataFile{
 		Servers:     s.servers,
-		Groups:      s.groups,
 		SystemCfg:   s.systemConfig,
 		BearerKeys:  s.bearerKeys,
 		OAuthTokens: []interface{}{},
@@ -301,18 +299,101 @@ func (s *Storage) DeleteServer(name string) {
 	s.saveToFile()
 }
 
-// Group operations
-func (s *Storage) GetGroup(id string) *models.Group {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.groups[id]
+// GroupFile represents a single user's per-user groups file.
+type GroupFile struct {
+	Groups map[string]*models.Group `json:"groups"`
 }
 
-func (s *Storage) GetAllGroups() []*models.Group {
+// Group operations (per-user, stored in ~/.aek/mcp/db/user-custom-configuration/<username>/groups.jsonc)
+func userCustomConfigDir(username string) string {
+	h, _ := os.UserHomeDir()
+	return filepath.Join(h, ".aek", "mcp", "db", "user-custom-configuration", username)
+}
+
+func userGroupsFilePath(username string) string {
+	return filepath.Join(userCustomConfigDir(username), "groups.jsonc")
+}
+
+// loadUserGroups loads one user's groups from disk into memory.
+// If the user has no file yet, initialises a default-only set.
+func (s *Storage) loadUserGroups(username string) {
+	if s.groups == nil {
+		s.groups = make(map[string]map[string]*models.Group)
+	}
+	if _, ok := s.groups[username]; !ok {
+		s.groups[username] = make(map[string]*models.Group)
+	}
+	uGroups := s.groups[username]
+
+	data, err := os.ReadFile(userGroupsFilePath(username))
+	if err == nil {
+		var gf GroupFile
+		if unmarshalErr := json.Unmarshal(data, &gf); unmarshalErr != nil {
+			cleaned := StripJsoncComments(string(data))
+			if unmarshalErr2 := json.Unmarshal([]byte(cleaned), &gf); unmarshalErr2 != nil {
+				fmt.Printf("[aek-mcp] Failed to parse groups file for %s: %v\n", username, err)
+			}
+		}
+		for id, g := range gf.Groups {
+			if g.Servers == nil {
+				g.Servers = []string{}
+			}
+			uGroups[id] = g
+		}
+	}
+	// Ensure default group exists per user; populate a sensible default if first load.
+	if s.groups[username] == nil {
+		s.groups[username] = make(map[string]*models.Group)
+	}
+	if _, ok := s.groups[username]["default"]; !ok {
+		s.groups[username]["default"] = &models.Group{
+			ID:          "default",
+			Name:        "default",
+			Description: "Default group (all tools)",
+			Servers:     []string{},
+			AllowedTools: []string{},
+		}
+	}
+}
+
+func (s *Storage) saveUserGroups(username string) {
+	if s.groups == nil || s.groups[username] == nil {
+		return
+	}
+	dir := userCustomConfigDir(username)
+	os.MkdirAll(dir, 0755)
+
+	gf := GroupFile{Groups: s.groups[username]}
+	data, err := json.MarshalIndent(gf, "", "  ")
+	if err != nil {
+		fmt.Printf("[aek-mcp] Failed to marshal groups for %s: %v\n", username, err)
+		return
+	}
+	if err := os.WriteFile(userGroupsFilePath(username), data, 0644); err != nil {
+		fmt.Printf("[aek-mcp] Failed to write groups for %s: %v\n", username, err)
+	}
+}
+
+// initAllUserGroups loads groups for every known user on startup.
+func (s *Storage) initAllUserGroups() {
+	for _, u := range s.users {
+		s.loadUserGroups(u.Username)
+	}
+	fmt.Printf("[aek-mcp] Loaded groups for %d user(s)\n", len(s.users))
+}
+
+func (s *Storage) GetGroup(username, id string) *models.Group {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	groups := make([]*models.Group, 0, len(s.groups))
-	for _, g := range s.groups {
+	return s.groups[username][id]
+}
+
+func (s *Storage) GetAllGroups(username string) []*models.Group {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	uGroups := s.groups[username]
+	groups := make([]*models.Group, 0, len(uGroups))
+	for _, g := range uGroups {
 		if g.Servers == nil {
 			g.Servers = []string{}
 		}
@@ -321,28 +402,48 @@ func (s *Storage) GetAllGroups() []*models.Group {
 	return groups
 }
 
-func (s *Storage) CreateGroup(group *models.Group) {
-	if group.Servers == nil {
-		group.Servers = []string{}
+func (s *Storage) GetGroupByName(username, name string) *models.Group {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, g := range s.groups[username] {
+		if g.Name == name {
+			return g
+		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.groups[group.ID] = group
-	s.saveToFile()
+	return nil
 }
 
-func (s *Storage) UpdateGroup(id string, group *models.Group) {
+func (s *Storage) CreateGroup(username string, group *models.Group) {
+	group.Servers = []string{}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.groups[id] = group
-	s.saveToFile()
+	if s.groups[username] == nil {
+		s.groups[username] = make(map[string]*models.Group)
+	}
+	s.groups[username][group.ID] = group
+	s.saveUserGroups(username)
 }
 
-func (s *Storage) DeleteGroup(id string) {
+func (s *Storage) UpdateGroup(username, id string, group *models.Group) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.groups, id)
-	s.saveToFile()
+	s.groups[username][id] = group
+	s.saveUserGroups(username)
+}
+
+// DeleteGroup returns nil on success, or a non-nil error message string if
+// the group is protected from deletion (e.g. the built-in "default" group).
+func (s *Storage) DeleteGroup(username, id string) *string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	g := s.groups[username][id]
+	if g != nil && g.Name == "default" {
+		msg := "default group cannot be deleted"
+		return &msg
+	}
+	delete(s.groups[username], id)
+	s.saveUserGroups(username)
+	return nil
 }
 
 // Activity operations
