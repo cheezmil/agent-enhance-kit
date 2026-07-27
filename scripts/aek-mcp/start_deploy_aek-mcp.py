@@ -1,59 +1,99 @@
 #!/usr/bin/env python3
-# Deploy aek-mcp: stop old → build be+fe / 部署 aek-mcp：停旧实例 → 编译
-
-import os
-import signal
-import subprocess
-import sys
-import time
+# Deploy aek-mcp: stop old → build → start nextjs (1351) + gin (1352)
+# 无反向代理：nextjs 1351 是主入口，gin 1352 是纯 API/MCP 后端，
+# nextjs 通过 rewrites 规则把 /aek-mcp/api/* 等请求转发到 gin。
+import os, shutil, signal, subprocess, sys, time
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from start_scripts_shared_logic import run, run_safe, kill_port, is_win
 
 AEK_MCP_DIR = Path(__file__).parent.parent.parent / "packages" / "aek-mcp"
-AEK_MCP_PORT = 1351
+AEK_MCP_BACKEND_PORT = 1352  # gin
+AEK_MCP_FRONTEND_PORT = 1351  # nextjs (main entry)
+FRONTEND_DIR = AEK_MCP_DIR / "frontend"
 
 
-def kill_old_instance():
-    """Kill running aek-mcp process / 终结旧实例"""
+def kill_old():
     if is_win():
         run_safe(["taskkill", "/F", "/IM", "aek-mcp.exe"])
     else:
         for name in ["aek-mcp", "one-mcp"]:
-            try:
-                result = subprocess.run(["pgrep", "-x", name], capture_output=True, text=True)
-                if result.returncode == 0:
-                    for pid in result.stdout.strip().split("\n"):
-                        if pid.strip():
-                            os.kill(int(pid.strip()), signal.SIGTERM)
-                            print(f"[aek-mcp] Killed PID {pid.strip()}")
-            except (subprocess.SubprocessError, ValueError):
-                pass
+            r = run_safe(["pgrep", "-x", name])
+            if r is not None:
+                for pid in r.stdout.strip().split():
+                    if pid.strip():
+                        try: os.kill(int(pid.strip()), signal.SIGTERM)
+                        except Exception: pass
+    kill_port(AEK_MCP_BACKEND_PORT)
+    kill_port(AEK_MCP_FRONTEND_PORT)
     time.sleep(1)
     print("[aek-mcp] Old instances killed")
 
 
 def main():
-    print("=== Deploying aek-mcp ===\n")
+    print("=== Deploying aek-mcp (no reverse proxy) ===\n")
 
-    # 1. Stop old instance
-    print("[1/3] Stopping old instances...")
-    kill_port(AEK_MCP_PORT)
-    kill_old_instance()
+    print("[1/4] Stopping old instances...")
+    kill_port(AEK_MCP_BACKEND_PORT)
+    kill_port(AEK_MCP_FRONTEND_PORT)
+    kill_old()
 
-    # 2. Build backend
-    print("\n[2/3] Building backend...")
+    print("\n[2/4] Building frontend...")
+    run(["pnpm", "install"], cwd=AEK_MCP_DIR)
+    for cache_dir in [FRONTEND_DIR / ".next", FRONTEND_DIR / ".turbopack"]:
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            print(f"[aek-mcp] Cleared {cache_dir}")
+    run(["pnpm", "run", "build"], cwd=FRONTEND_DIR)
+    print("[aek-mcp] Frontend built")
+
+    print("\n[3/4] Building backend...")
     run(["go", "build", "-a", "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
     print("[aek-mcp] Built to bin/aek-mcp")
 
-    # 3. Build frontend
-    print("\n[3/3] Building frontend...")
-    run(["pnpm", "install"], cwd=AEK_MCP_DIR)
-    run(["pnpm", "frontend:build"], cwd=AEK_MCP_DIR)
-    print("[aek-mcp] Frontend built to frontend/dist/")
+    print(f"\n[4/4] Starting nextjs on port {AEK_MCP_FRONTEND_PORT} (main entry)...")
+    # Start nextjs; detach so it survives script exit.
+    cwd = FRONTEND_DIR
+    env = os.environ.copy()
+    env["NODE_ENV"] = "production"
+    if is_win():
+        proc = subprocess.Popen(
+            ["pnpm", "run", "start"], cwd=cwd, env=env,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    else:
+        proc = subprocess.Popen(
+            ["pnpm", "run", "start"], cwd=cwd, env=env,
+            start_new_session=True,
+        )
 
-    print("\n=== aek-mcp deployed ===")
+    ready = False
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        try:
+            import urllib.request
+            resp = urllib.request.urlopen(
+                f"http://127.0.0.1:{AEK_MCP_FRONTEND_PORT}/", timeout=3)
+            if resp.status == 200:
+                ready = True
+                break
+        except Exception:
+            pass
+        time.sleep(1)
+
+    if ready:
+        print(f"[aek-mcp] Nextjs ready on port {AEK_MCP_FRONTEND_PORT} (pid {proc.pid})")
+    else:
+        print(f"Warning: Nextjs did not become ready in time; continuing anyway")
+
+    print(f"""
+=== aek-mcp deployed (zero reverse proxy) ===
+    Main entry: http://127.0.0.1:{AEK_MCP_FRONTEND_PORT}/aek-mcp/
+    API backend: http://127.0.0.1:{AEK_MCP_BACKEND_PORT}/ (pure API/MCP, used by nextjs rewrites)
+
+    Start gin backend now:
+    python3 scripts/aek-mcp/start_aek-mcp.py
+""")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,5 @@
 //go:build integration
-
 package handlers_test
-
 import (
 	"bytes"
 	"context"
@@ -20,9 +18,13 @@ import (
 	"github.com/cheezmil/aek-mcp/internal/services"
 )
 
+// Integration test: gin backend endpoints directly (no reverse proxy, no basePath
+// stripping). Next.js (1351) is the only user-facing entry; it rewrites /aek-mcp/*
+// here via next.config.ts rules. Tests exercise gin's raw routes to confirm
+// backend logic is correct regardless of how nextjs forwards the request.
 var (
-	testBaseURL string
 	testServer  *http.Server
+	testBaseURL string
 )
 
 func findFreePort() (int, error) {
@@ -41,36 +43,22 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "cannot find free port: %v\n", err)
 		os.Exit(1)
 	}
-
 	config.AppConfig = &config.Config{
-		Host:       "127.0.0.1",
-		Port:       strconv.Itoa(port),
-		DisableWeb: true,
+		Host: "127.0.0.1",
+		Port: strconv.Itoa(port),
 	}
-
 	services.InitStore()
 	handlers.InitMCPProxy()
 
-	ginRouter := handlers.SetupRouter()
-
 	mux := http.NewServeMux()
-	mcpHandler := handlers.GetMCPProxyHandler()
-	mux.Handle("/mcp", mcpHandler)
-	mux.Handle("/mcp/", mcpHandler)
-	mux.Handle("/", ginRouter)
-
+	mux.Handle("/mcp", handlers.GetMCPProxyHandler())
+	mux.Handle("/mcp/", handlers.GetMCPProxyHandler())
+	mux.Handle("/", handlers.SetupRouter())
 	testBaseURL = fmt.Sprintf("http://127.0.0.1:%d", port)
-	testServer = &http.Server{
-		Addr:    ":" + strconv.Itoa(port),
-		Handler: mux,
-	}
-
+	testServer = &http.Server{Addr: ":" + strconv.Itoa(port), Handler: mux}
 	go func() {
-		if err := testServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "test server error: %v\n", err)
-		}
+		_ = testServer.ListenAndServe()
 	}()
-
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(testBaseURL + "/health")
@@ -82,9 +70,7 @@ func TestMain(m *testing.M) {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-
 	code := m.Run()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	testServer.Shutdown(ctx)
@@ -97,7 +83,6 @@ func doTestRequest(method, path string, body interface{}, headers map[string]str
 		b, _ := json.Marshal(body)
 		bodyReader = bytes.NewReader(b)
 	}
-
 	req, err := http.NewRequest(method, testBaseURL+path, bodyReader)
 	if err != nil {
 		return 0, nil, nil
@@ -106,7 +91,6 @@ func doTestRequest(method, path string, body interface{}, headers map[string]str
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, nil, nil
@@ -119,253 +103,179 @@ func doTestRequest(method, path string, body interface{}, headers map[string]str
 func TestIntegration_HealthCheck(t *testing.T) {
 	status, _, body := doTestRequest("GET", "/health", nil, nil)
 	if status != http.StatusOK {
-		t.Errorf("health check: expected 200, got %d; body: %s", status, string(body))
+		t.Errorf("health: expected 200, got %d; body: %s", status, string(body))
 	}
 }
 
 func TestIntegration_MCP_Initialize(t *testing.T) {
 	initReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "initialize",
+		"jsonrpc": "2.0", "id": 1, "method": "initialize",
 		"params": map[string]interface{}{
 			"protocolVersion": "2024-11-05",
-			"capabilities":   map[string]interface{}{},
-			"clientInfo": map[string]interface{}{
-				"name":    "integration-test",
-				"version": "1.0.0",
-			},
+			"capabilities":    map[string]interface{}{},
+			"clientInfo": map[string]interface{}{"name": "integration-test", "version": "1.0.0"},
 		},
 	}
-
 	status, header, body := doTestRequest("POST", "/mcp", initReq, nil)
 	if status != http.StatusOK {
 		t.Fatalf("MCP initialize: expected 200, got %d; body: %s", status, string(body))
 	}
-
-	sessionID := header.Get("Mcp-Session-Id")
-	if sessionID == "" {
-		t.Error("missing Mcp-Session-Id header in response")
+	if header.Get("Mcp-Session-Id") == "" {
+		t.Error("missing Mcp-Session-Id header")
 	}
-
 	var resp map[string]interface{}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
+		t.Fatalf("parse: %v", err)
 	}
-
 	result, ok := resp["result"].(map[string]interface{})
 	if !ok {
-		t.Fatalf("response missing result field: %s", string(body))
+		t.Fatalf("missing result: %s", string(body))
 	}
-
 	serverInfo := result["serverInfo"].(map[string]interface{})
 	if serverInfo["name"] != "aek-mcp" {
 		t.Errorf("server name = %q, want %q", serverInfo["name"], "aek-mcp")
 	}
-
 	caps := result["capabilities"].(map[string]interface{})
 	if caps["tools"] == nil {
 		t.Error("capabilities.tools is nil")
 	}
-
-	t.Logf("session_id=%s, server=%v", sessionID, serverInfo)
+	t.Logf("session_id=%s server=%v", header.Get("Mcp-Session-Id"), serverInfo)
 }
 
 func TestIntegration_MCP_ToolsList(t *testing.T) {
 	initReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "initialize",
+		"jsonrpc": "2.0", "id": 1, "method": "initialize",
 		"params": map[string]interface{}{
 			"protocolVersion": "2024-11-05",
-			"capabilities":   map[string]interface{}{},
-			"clientInfo": map[string]interface{}{
-				"name":    "integration-test-tools",
-				"version": "1.0.0",
-			},
+			"capabilities":    map[string]interface{}{},
+			"clientInfo": map[string]interface{}{"name": "test-tools", "version": "1.0.0"},
 		},
 	}
-
-	status, initHeader, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, h, body := doTestRequest("POST", "/mcp", initReq, nil)
 	if status != http.StatusOK {
-		t.Fatalf("initialize failed: %d %s", status, string(body))
+		t.Fatalf("init failed: %d %s", status, string(body))
 	}
-
-	sessionID := initHeader.Get("Mcp-Session-Id")
-	if sessionID == "" {
-		t.Fatalf("initialize did not return session ID")
+	if h.Get("Mcp-Session-Id") == "" {
+		t.Fatalf("no session id")
 	}
-
-	toolsListReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      2,
-		"method":  "tools/list",
-		"params":  map[string]interface{}{},
-	}
-
-	status, _, body = doTestRequest("POST", "/mcp", toolsListReq, map[string]string{
-		"Mcp-Session-Id": sessionID,
-	})
+	toolsReq := map[string]interface{}{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]interface{}{}}
+	status, _, body = doTestRequest("POST", "/mcp", toolsReq, map[string]string{"Mcp-Session-Id": h.Get("Mcp-Session-Id")})
 	if status != http.StatusOK {
-		t.Fatalf("tools/list: expected 200, got %d; body: %s", status, string(body))
+		t.Fatalf("tools/list: %d %s", status, string(body))
 	}
-
 	var resp map[string]interface{}
 	if err := json.Unmarshal(body, &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
+		t.Fatalf("parse: %v", err)
 	}
-
 	if resp["error"] != nil {
-		t.Fatalf("tools/list returned error: %s", string(body))
+		t.Fatalf("error in response: %s", string(body))
 	}
-
-	t.Logf("tools/list response: %s", string(body))
+	t.Logf("tools/list: %s", string(body))
 }
 
 func TestIntegration_MCP_NoContentType(t *testing.T) {
 	req, _ := http.NewRequest("POST", testBaseURL+"/mcp", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "text/plain")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode == http.StatusOK {
-		t.Error("expected non-200 for wrong content-type, got 200")
+		t.Error("expected non-200, got 200")
 	}
-
-	t.Logf("wrong content-type: status=%d", resp.StatusCode)
+	t.Logf("wrong content-type: %d", resp.StatusCode)
 }
 
 func TestIntegration_MCP_WrongMethod(t *testing.T) {
 	req, _ := http.NewRequest("PUT", testBaseURL+"/mcp", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
-
-	t.Logf("PUT /mcp: status=%d", resp.StatusCode)
+	t.Logf("PUT /mcp: %d", resp.StatusCode)
 }
 
 func TestIntegration_MCP_InvalidJSON(t *testing.T) {
 	req, _ := http.NewRequest("POST", testBaseURL+"/mcp", bytes.NewReader([]byte("not json")))
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode == http.StatusOK {
-		t.Error("expected error for invalid JSON, got 200")
+		t.Error("expected non-200, got 200")
 	}
-
-	t.Logf("invalid JSON: status=%d", resp.StatusCode)
+	t.Logf("invalid JSON: %d", resp.StatusCode)
 }
 
 func TestIntegration_RESTAPI_Servers(t *testing.T) {
 	status, _, body := doTestRequest("GET", "/api/servers", nil, nil)
 	if status == http.StatusUnauthorized {
-		t.Log("auth required (expected), servers endpoint works behind auth")
+		t.Log("auth required (expected)")
 		return
 	}
 	if status != http.StatusOK {
-		t.Errorf("GET /api/servers: expected 200 or 401, got %d; body: %s", status, string(body))
+		t.Errorf("expected 200 or 401, got %d; body: %s", status, string(body))
 	}
 }
 
 func TestIntegration_CORS(t *testing.T) {
 	req, _ := http.NewRequest("OPTIONS", testBaseURL+"/api/servers", nil)
-	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Origin", "http://localhost:1351")
 	req.Header.Set("Access-Control-Request-Method", "GET")
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	defer resp.Body.Close()
-
 	if resp.Header.Get("Access-Control-Allow-Origin") == "" {
-		t.Error("missing Access-Control-Allow-Origin header")
+		t.Error("missing CORS header")
 	}
-
-	t.Logf("CORS: status=%d, allow-origin=%s", resp.StatusCode, resp.Header.Get("Access-Control-Allow-Origin"))
+	t.Logf("CORS: %d", resp.StatusCode)
 }
 
 func TestIntegration_MCP_UnknownMethod(t *testing.T) {
-	initReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "nonexistent/method",
-		"params":  map[string]interface{}{},
-	}
-
+	initReq := map[string]interface{}{"jsonrpc": "2.0", "id": 1, "method": "nonexistent/method", "params": map[string]interface{}{}}
 	status, _, body := doTestRequest("POST", "/mcp", initReq, nil)
-	t.Logf("unknown method: status=%d, body=%s", status, string(body))
+	t.Logf("unknown method: %d %s", status, string(body))
 }
 
 func TestIntegration_MCP_BatchInitListTools(t *testing.T) {
 	initReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "initialize",
+		"jsonrpc": "2.0", "id": 1, "method": "initialize",
 		"params": map[string]interface{}{
 			"protocolVersion": "2024-11-05",
-			"capabilities":   map[string]interface{}{},
-			"clientInfo": map[string]interface{}{
-				"name":    "batch-test-client",
-				"version": "1.0.0",
-			},
+			"capabilities":    map[string]interface{}{},
+			"clientInfo": map[string]interface{}{"name": "batch", "version": "1.0.0"},
 		},
 	}
-
-	status, initHeader, body := doTestRequest("POST", "/mcp", initReq, nil)
+	status, initH, body := doTestRequest("POST", "/mcp", initReq, nil)
 	if status != http.StatusOK {
-		t.Fatalf("initialize failed: %d %s", status, string(body))
+		t.Fatalf("init failed: %d %s", status, string(body))
 	}
-
-	sessionID := initHeader.Get("Mcp-Session-Id")
+	sessionID := initH.Get("Mcp-Session-Id")
 	if sessionID == "" {
-		t.Fatalf("initialize did not return session ID")
+		t.Fatalf("no session id")
 	}
-
-	sessionHeaders := map[string]string{
-		"Mcp-Session-Id": sessionID,
-	}
-
-	notificationsInit := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "notifications/initialized",
-	}
-	status, _, _ = doTestRequest("POST", "/mcp", notificationsInit, sessionHeaders)
-	t.Logf("notifications/initialized: status=%d", status)
-
-	toolsListReq := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      2,
-		"method":  "tools/list",
-		"params":  map[string]interface{}{},
-	}
-
-	status, _, body = doTestRequest("POST", "/mcp", toolsListReq, sessionHeaders)
+	headers := map[string]string{"Mcp-Session-Id": sessionID}
+	notify := map[string]interface{}{"jsonrpc": "2.0", "method": "notifications/initialized"}
+	s, _, _ := doTestRequest("POST", "/mcp", notify, headers)
+	t.Logf("notify: %d", s)
+	tools := map[string]interface{}{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]interface{}{}}
+	status, _, body = doTestRequest("POST", "/mcp", tools, headers)
 	if status != http.StatusOK {
-		t.Fatalf("tools/list: expected 200, got %d; body: %s", status, string(body))
+		t.Fatalf("tools/list: %d %s", status, string(body))
 	}
-
 	var resp map[string]interface{}
 	json.Unmarshal(body, &resp)
-
 	if resp["error"] != nil {
-		t.Fatalf("tools/list returned error: %s", string(body))
+		t.Fatalf("error: %s", string(body))
 	}
-
 	result := resp["result"].(map[string]interface{})
-	tools := result["tools"].([]interface{})
-	t.Logf("batch test: found %d tools", len(tools))
+	toolsList := result["tools"].([]interface{})
+	t.Logf("batch test: %d tools", len(toolsList))
 }

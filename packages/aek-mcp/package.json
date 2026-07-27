@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "frontend:dev": "cd frontend && next dev -p 1352",
-    "frontend:build": "cd frontend && EXPORT=true next build",
-    "frontend:preview": "cd frontend && next start"
+    "frontend:build": "cd frontend && next build",
+    "frontend:preview": "cd frontend && next start -p 1352"
   },
   "devDependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

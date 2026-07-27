@@ -4,13 +4,18 @@ import type { RuntimeConfig } from '../types/runtime';
  * Get runtime configuration from window object
  */
 export const getRuntimeConfig = (): RuntimeConfig => {
-  return (
-    window.__AEK_MCP_CONFIG__ || {
-      basePath: '',
-      version: 'dev',
-      name: 'aek-mcp',
-    }
-  );
+  const fallbackBasePath = '/aek-mcp';
+  const cfg = window.__AEK_MCP_CONFIG__ || {
+    basePath: fallbackBasePath,
+    version: 'dev',
+    name: 'aek-mcp',
+  };
+  // Prefer the server-returned basePath; fall back to build-time default.
+  return {
+    basePath: cfg.basePath || fallbackBasePath,
+    version: cfg.version || 'dev',
+    name: cfg.name || 'aek-mcp',
+  };
 };
 
 /**
