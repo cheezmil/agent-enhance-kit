@@ -20,8 +20,9 @@ PROJECT_ROOT = SCRIPTS_DIR.parent
 # aek-mcp package dir / aek-mcp 包目录
 AEK_MCP_DIR = PROJECT_ROOT / "packages" / "aek-mcp"
 
-# aek-mcp backend port / aek-mcp 后端端口（从settings.jsonc读取，fallback 1351）
-AEK_MCP_PORT = 1351
+# aek-mcp backend port / aek-mcp 后端（gin）端口 1352
+# 零反向代理：nextjs 1351（主入口）通过 rewrites 转发到 gin 1352
+AEK_MCP_BACKEND_PORT = 1352
 
 # Required Go version / 需要的 Go 版本
 REQUIRED_GO_VERSION = ""
@@ -141,3 +142,53 @@ def wait_health(port: int, timeout_s: float = 15.0) -> bool:
                 pass
         time.sleep(0.3)
     return False
+
+
+# Frontend (Next.js) production port
+# aek-mcp frontend port / aek-mcp 前端（nextjs）端口，主入口 1351
+AEK_MCP_FRONTEND_PORT = 1351
+
+def start_nextjs(cwd: Path, port: int = AEK_MCP_FRONTEND_PORT) -> subprocess.Popen:
+    """Start nextjs production server as a subprocess. Returns Popen handle."""
+    if is_win():
+        # PowerShell: run pnpm frontend:preview in cwd
+        import shutil
+        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        return subprocess.Popen(
+            [pwsh, "-c", f"pnpm run frontend:preview"],
+            cwd=str(cwd),
+        )
+    else:
+        return subprocess.Popen(
+            ["pnpm", "run", "frontend:preview"],
+            cwd=str(cwd),
+        )
+
+
+def wait_nextjs_ready(port: int = AEK_MCP_FRONTEND_PORT, timeout_s: float = 30.0) -> bool:
+    """Wait for nextjs to start serving (GET / on port)"""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        for host in ["127.0.0.1", "[::1]"]:
+            try:
+                req = urllib.request.Request(f"http://{host}:{port}/")
+                with urllib.request.urlopen(req, timeout=1.5) as resp:
+                    if resp.status in (200, 404):  # Next.js returns 200 or 404 on /
+                        return True
+            except Exception:
+                pass
+        time.sleep(0.5)
+    return False
+
+
+def stop_process(proc: subprocess.Popen):
+    """Stop a subprocess gracefully, then kill."""
+    try:
+        proc.terminate()
+        proc.wait(timeout=5)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
