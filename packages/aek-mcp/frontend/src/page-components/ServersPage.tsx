@@ -181,7 +181,7 @@ const ServersPage: React.FC = () => {
             </h1>
             <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
               <p className="hub-sub" style={{ margin: 0 }}>
-                {editorFilePath || '~/.aek/mcp/db/user-custom-configuration/aekmcp/mcp-settings.jsonc'}
+                {editorFilePath || '~/.aek/mcp/db/user-custom-configuration/mcp-settings.jsonc'}
               </p>
               <button className="hub-icon-btn sm" onClick={copyPath} title="Copy path">
                 {copied ? <Check size={11} style={{ color: 'var(--hub-ok)' }} /> : <Copy size={11} />}
