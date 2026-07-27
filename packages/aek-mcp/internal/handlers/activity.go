@@ -465,12 +465,16 @@ func GetMarketplaceWellKnown(c *gin.Context) {
 	c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Marketplace not enabled"})
 }
 
-func getMcpSettingsFilePath() string {
+func getMcpSettingsFilePath(c *gin.Context) string {
+	username := c.GetString("username")
+	if username != "" {
+		return services.GetMcpSettingsPathForUser(username)
+	}
 	return services.GetMcpSettingsPath()
 }
 
 func GetMcpSettingsRaw(c *gin.Context) {
-	path := getMcpSettingsFilePath()
+	path := getMcpSettingsFilePath(c)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		c.JSON(http.StatusOK, models.ApiResponse{
@@ -494,7 +498,7 @@ func SaveMcpSettingsRaw(c *gin.Context) {
 		return
 	}
 
-	path := getMcpSettingsFilePath()
+	path := getMcpSettingsFilePath(c)
 	if err := os.WriteFile(path, []byte(req.Content), 0644); err != nil {
 		c.JSON(http.StatusInternalServerError, models.ApiResponse{Success: false, Message: "Failed to write file: " + err.Error()})
 		return
