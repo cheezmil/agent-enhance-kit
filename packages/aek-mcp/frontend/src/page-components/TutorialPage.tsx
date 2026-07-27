@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Check, BookOpen, RefreshCw, ExternalLink } from 'lucide-react';
+import { Copy, Check, BookOpen, RefreshCw, ExternalLink, Search, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { getApiUrl } from '@/utils/runtime';
 
@@ -19,7 +19,8 @@ interface AgentTool {
   id: string;
   name: string;
   description: string;
-  configPath: string;
+  /** Absolute path template keyed by OS — selected client-side. */
+  configPath: { win: string; mac: string; linux: string };
   docUrl?: string;
   buildConfig: (cfg: TutorialConfig) => { inner: string; full: string };
 }
@@ -47,11 +48,14 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
   }
 };
 
+function mcpUrl(cfg: TutorialConfig): string {
+  return cfg.mcpURL + '?key=' + cfg.key;
+}
+
 function buildInnerConfig(name: string, cfg: TutorialConfig, extra?: Record<string, unknown>): string {
   const obj: Record<string, unknown> = {
     type: 'streamable-http',
-    url: cfg.mcpURL,
-    env: { AEK_MCP_KEY: cfg.key },
+    url: mcpUrl(cfg),
     enabled: true,
     ...extra,
   };
@@ -67,8 +71,7 @@ function buildInnerConfig(name: string, cfg: TutorialConfig, extra?: Record<stri
 function buildFullConfig(name: string, cfg: TutorialConfig, extra?: Record<string, unknown>): string {
   const obj: Record<string, unknown> = {
     type: 'streamable-http',
-    url: cfg.mcpURL,
-    env: { AEK_MCP_KEY: cfg.key },
+    url: mcpUrl(cfg),
     enabled: true,
     ...extra,
   };
@@ -77,21 +80,55 @@ function buildFullConfig(name: string, cfg: TutorialConfig, extra?: Record<strin
 
 const AGENT_TOOLS: AgentTool[] = [
   {
-    id: 'opencode',
-    name: 'OpenCode',
-    description: 'opencode.jsonc',
-    configPath: 'opencode.jsonc',
+    id: 'claude-code',
+    name: 'Claude Code',
+    description: '~/.claude.json / .mcp.json',
+    configPath: { win: '%USERPROFILE%\\.claude.json', mac: '~/.claude.json', linux: '~/.claude.json' },
+    docUrl: 'https://docs.anthropic.com/en/docs/claude-code/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg, { timeout: 6600000 }),
-      full: buildFullConfig('aek-mcp', cfg, { timeout: 6600000 }),
+      inner: buildInnerConfig('aek-mcp', cfg),
+      full: buildFullConfig('aek-mcp', cfg),
     }),
   },
   {
     id: 'claude-desktop',
     name: 'Claude Desktop',
     description: 'claude_desktop_config.json',
-    configPath: '~/Library/Application Support/Claude/claude_desktop_config.json',
+    configPath: { win: '%APPDATA%\\Claude\\claude_desktop_config.json', mac: '~/Library/Application Support/Claude/claude_desktop_config.json', linux: '~/.config/Claude/claude_desktop_config.json' },
     docUrl: 'https://docs.anthropic.com/en/docs/claude-desktop/mcp',
+    buildConfig: (cfg) => ({
+      inner: buildInnerConfig('aek-mcp', cfg),
+      full: buildFullConfig('aek-mcp', cfg),
+    }),
+  },
+  {
+    id: 'cherry-studio',
+    name: 'Cherry Studio',
+    description: 'Settings > MCP Servers (GUI)',
+    configPath: { win: 'Settings > MCP Servers', mac: 'Settings > MCP Servers', linux: 'Settings > MCP Servers' },
+    docUrl: 'https://docs.cherry-ai.com/docs/en-us/advanced-basic/mcp/config',
+    buildConfig: (cfg) => ({
+      inner: buildInnerConfig('aek-mcp', cfg),
+      full: buildFullConfig('aek-mcp', cfg),
+    }),
+  },
+  {
+    id: 'cline',
+    name: 'Cline',
+    description: 'cline_mcp_settings.json',
+    configPath: { win: '%APPDATA%\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\cline_mcp_settings.json', mac: '~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json', linux: '~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json' },
+    docUrl: 'https://docs.cline.bot/mcp/mcp-overview',
+    buildConfig: (cfg) => ({
+      inner: buildInnerConfig('aek-mcp', cfg),
+      full: buildFullConfig('aek-mcp', cfg),
+    }),
+  },
+  {
+    id: 'continue',
+    name: 'Continue',
+    description: '.continue/mcpServers/mcp.json',
+    configPath: { win: '%USERPROFILE%\\.continue\\mcpServers\\mcp.json', mac: '~/.continue/mcpServers/mcp.json', linux: '~/.continue/mcpServers/mcp.json' },
+    docUrl: 'https://docs.continue.dev/customize/deep-dives/mcp',
     buildConfig: (cfg) => ({
       inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
@@ -100,30 +137,9 @@ const AGENT_TOOLS: AgentTool[] = [
   {
     id: 'cursor',
     name: 'Cursor',
-    description: '.cursor/mcp.json',
-    configPath: '.cursor/mcp.json',
+    description: '.cursor/mcp.json / ~/.cursor/mcp.json',
+    configPath: { win: '%USERPROFILE%\\.cursor\\mcp.json', mac: '~/.cursor/mcp.json', linux: '~/.cursor/mcp.json' },
     docUrl: 'https://docs.cursor.com/context/model-context-protocol',
-    buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
-    }),
-  },
-  {
-    id: 'windsurf',
-    name: 'Windsurf',
-    description: '~/.codeium/windsurf/mcp_config.json',
-    configPath: '~/.codeium/windsurf/mcp_config.json',
-    buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
-    }),
-  },
-  {
-    id: 'vscode',
-    name: 'VS Code (Copilot)',
-    description: '.vscode/mcp.json',
-    configPath: '.vscode/mcp.json',
-    docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
     buildConfig: (cfg) => ({
       inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
@@ -133,33 +149,72 @@ const AGENT_TOOLS: AgentTool[] = [
     id: 'hermes',
     name: 'Hermes Agent',
     description: 'hermes_config.yaml',
-    configPath: '~/.hermes/profiles/default/hermes_config.yaml',
+    configPath: { win: '%USERPROFILE%\\.hermes\\profiles\\default\\hermes_config.yaml', mac: '~/.hermes/profiles/default/hermes_config.yaml', linux: '~/.hermes/profiles/default/hermes_config.yaml' },
     buildConfig: (cfg) => ({
-      inner: `"aek-mcp":\n  type: streamable-http\n  url: "${cfg.mcpURL}"\n  env:\n    AEK_MCP_KEY: "${cfg.key}"`,
-      full: `mcp:\n  aek-mcp:\n    type: streamable-http\n    url: "${cfg.mcpURL}"\n    env:\n      AEK_MCP_KEY: "${cfg.key}"`,
+      inner: `aek-mcp:\n  type: streamable-http\n  url: "${mcpUrl(cfg)}"\n  enabled: true`,
+      full: `mcp:\n  aek-mcp:\n    type: streamable-http\n    url: "${mcpUrl(cfg)}"\n    enabled: true`,
     }),
   },
   {
-    id: 'cline',
-    name: 'Cline',
-    description: 'cline_mcp_settings.json',
-    configPath: '~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json',
+    id: 'opencode',
+    name: 'OpenCode',
+    description: 'opencode.json',
+    configPath: { win: '%USERPROFILE%\\.config\\opencode\\opencode.json', mac: '~/.config/opencode/opencode.json', linux: '~/.config/opencode/opencode.json' },
+    docUrl: 'https://opencode.ai/docs/config',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek-mcp', cfg, { timeout: 6600000 }),
+      full: buildFullConfig('aek-mcp', cfg, { timeout: 6600000 }),
     }),
   },
   {
-    id: 'cherry-studio',
-    name: 'Cherry Studio',
-    description: 'MCP 服务器配置',
-    configPath: '设置 > MCP 服务器',
+    id: 'vscode',
+    name: 'VS Code (Copilot)',
+    description: '.vscode/mcp.json / user profile',
+    configPath: { win: '<project>\\.vscode\\mcp.json', mac: '<project>/.vscode/mcp.json', linux: '<project>/.vscode/mcp.json' },
+    docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
+    buildConfig: (cfg) => ({
+      inner: `"aek-mcp":\n  type: "http"\n  url: "${mcpUrl(cfg)}"`,
+      full: `{\n  "servers": {\n    "aek-mcp": {\n      "type": "http",\n      "url": "${mcpUrl(cfg)}"\n    }\n  }\n}`,
+    }),
+  },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    description: '~/.codeium/windsurf/mcp_config.json',
+    configPath: { win: '%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json', mac: '~/.codeium/windsurf/mcp_config.json', linux: '~/.codeium/windsurf/mcp_config.json' },
+    docUrl: 'https://docs.windsurf.com/plugins/cascade/mcp',
     buildConfig: (cfg) => ({
       inner: buildInnerConfig('aek-mcp', cfg),
       full: buildFullConfig('aek-mcp', cfg),
     }),
   },
 ];
+
+// Tools whose config is accessed through a GUI dialog rather than an editable file.
+const GUI_ONLY_IDS = new Set(['cherry-studio', 'cline']);
+
+const CopyPathButton: React.FC<{ path: string; showToast: (msg: string, type: 'success' | 'error') => void }> = ({ path, showToast }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    const ok = await copyToClipboard(path);
+    if (!ok) {
+      showToast('Copy failed', 'error');
+      return;
+    }
+    setCopied(true);
+    showToast('Copied to clipboard', 'success');
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+      className="p-1 rounded hover:bg-[var(--hub-surface-hover)] transition-colors"
+      title="Copy path"
+    >
+      {copied ? <Check size={12} className="text-[var(--hub-ok)]" /> : <Copy size={12} />}
+    </button>
+  );
+};
 
 const CopyButton: React.FC<{ text: string; label: string; showToast: (msg: string, type: 'success' | 'error') => void }> = ({
   text,
@@ -199,7 +254,23 @@ const TutorialPage: React.FC = () => {
   const [config, setConfig] = useState<TutorialConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /** Detect platform and pick the matching absolute path string. */
+  const platformPath = useMemo(() => {
+    const plat = ((navigator as unknown) as { userAgentData?: { platform: string } })?.userAgentData?.platform ?? navigator.platform ?? '';
+    if (/win/i.test(plat)) return 'win';
+    if (/mac/i.test(plat)) return 'mac';
+    return 'linux';
+  }, []);
+
+  const filteredTools = AGENT_TOOLS.filter(
+    (tool) => {
+      const pathStr = `${tool.configPath.win} ${tool.configPath.mac} ${tool.configPath.linux}`.toLowerCase();
+      return tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pathStr.includes(searchQuery.toLowerCase());
+    },
+  );
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
@@ -211,7 +282,6 @@ const TutorialPage: React.FC = () => {
       const data = await res.json();
       if (data.success && data.data) {
         setConfig(data.data);
-        setExpandedTools(new Set(AGENT_TOOLS.map((t) => t.id)));
       } else {
         setError(data.message || 'Failed to load config');
       }
@@ -248,6 +318,30 @@ const TutorialPage: React.FC = () => {
         </button>
       </div>
 
+      {/* Search bar */}
+      {!loading && !error && config && (
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--hub-ink-3)]" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('tutorial.search', 'Search tools...')}
+            className="w-full pl-10 pr-8 py-2 text-[14px] rounded-lg border border-[var(--hub-line)]
+              bg-[var(--hub-surface)] text-[var(--hub-ink)] placeholder:text-[var(--hub-ink-3)]
+              focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent)]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--hub-ink-3)] hover:text-[var(--hub-ink)]"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
       {loading && (
         <div className="hub-card p-8 text-center text-[var(--hub-ink-3)]">
           {t('app.loading')}
@@ -263,75 +357,65 @@ const TutorialPage: React.FC = () => {
       {config && !loading && (
         <>
           <div className="space-y-3">
-            {AGENT_TOOLS.map((tool) => {
-              const { inner, full } = tool.buildConfig(config);
-              const isExpanded = expandedTools.has(tool.id);
+            {filteredTools.length === 0 && (
+              <div className="hub-card p-8 text-center text-[var(--hub-ink-3)]">
+                {t('tutorial.noResults', 'No tools match your search')}
+              </div>
+            )}
+            {filteredTools.map((tool) => {
+                const { inner, full } = tool.buildConfig(config);
 
               return (
                 <div key={tool.id} className="hub-card overflow-hidden">
-                  <button
-                    onClick={() => {
-                      const next = new Set(expandedTools);
-                      if (next.has(tool.id)) next.delete(tool.id);
-                      else next.add(tool.id);
-                      setExpandedTools(next);
-                    }}
-                    className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-[var(--hub-surface-hover)] transition-colors"
-                  >
+                  <div className="flex items-center gap-3 px-5 py-3.5">
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-[14px] text-[var(--hub-ink)]">{tool.name}</div>
-                      <div className="text-[12px] text-[var(--hub-ink-3)] font-mono">{tool.configPath}</div>
+                      <div className="flex items-center gap-1 text-[12px] text-[var(--hub-ink-3)] font-mono">
+                        <span>{tool.configPath[platformPath]}</span>
+                        {!GUI_ONLY_IDS.has(tool.id) && (
+                          <CopyPathButton path={tool.configPath[platformPath]} showToast={showToast} />
+                        )}
+                      </div>
                     </div>
                     {tool.docUrl && (
                       <a
                         href={tool.docUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[var(--hub-ink-3)] hover:text-[var(--hub-ink)] transition-colors"
+                        className="p-1.5 rounded hover:bg-[var(--hub-surface-hover)] transition-colors text-[var(--hub-ink-3)] hover:text-[var(--hub-ink)]"
                         title={t('tutorial.docs', 'Documentation')}
                       >
                         <ExternalLink size={14} />
                       </a>
                     )}
-                    <svg
-                      className={`w-4 h-4 text-[var(--hub-ink-3)] transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                  </div>
 
-                  {isExpanded && (
-                    <div className="px-5 pb-5 space-y-4 border-t border-[var(--hub-line)]">
-                      {/* Full config — read-only reference */}
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
-                            {t('tutorial.fullConfig', 'Example of complete fields on this platform')}
-                          </span>
-                        </div>
-                        <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre select-none">
-                          {full}
-                        </pre>
+                  <div className="px-5 pb-5 space-y-4 border-t border-[var(--hub-line)]">
+                    {/* Full config — read-only reference */}
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
+                          {t('tutorial.fullConfig', 'Example of complete fields on this platform')}
+                        </span>
                       </div>
-
-                      {/* Inner config — "aek-mcp": { ... } */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
-                            {t('tutorial.innerConfig', 'Inner Config')}
-                          </span>
-                          <CopyButton text={inner} label={t('tutorial.copyInner', 'Copy inner')} showToast={showToast} />
-                        </div>
-                        <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre">
-                          {inner}
-                        </pre>
-                      </div>
+                      <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre select-none">
+                        {full}
+                      </pre>
                     </div>
-                  )}
+
+                    {/* Inner config — "aek-mcp": { ... } */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
+                          {t('tutorial.innerConfig', 'Inner Config')}
+                        </span>
+                        <CopyButton text={inner} label={t('tutorial.copyInner', 'Copy inner')} showToast={showToast} />
+                      </div>
+                      <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre">
+                        {inner}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               );
             })}
