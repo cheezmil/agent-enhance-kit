@@ -125,18 +125,18 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: 'Settings > MCP', mac: 'Settings > MCP', linux: 'Settings > MCP' },
     docUrl: 'https://chatboxai.app/?c=guide&section=work-mode&article=configuration',
     buildConfig: (cfg) => {
-      // Chatbox imports MCP servers via a JSON object pasted into clipboard:
-      //   { "<server-name>": { "transport": "http" | "sse" | "stdio", "url": "...", ... } }
-      const chatboxObj = {
-        'aek-mcp': {
-          transport: 'http',
-          url: mcpUrl(cfg),
-          description: 'AEK-MCP',
-        },
+      // Chatbox "JSON 从剪贴板导入" uses parseServerFromJson():
+      // The JSON is validated against serverConfigSchema which auto-detects transport
+      // from presence of `url` (→ http) or `command` (→ stdio). NO `transport` field.
+      //   { "url": "...", "name": "..." }                    // single paste
+      //   { "mcpServers": { "<name>": { "url": "..." } } }   // bulk import (multiple)
+      const single = {
+        url: mcpUrl(cfg),
+        name: 'AEK-MCP',
       };
       return {
-        inner: JSON.stringify(chatboxObj, null, 2),
-        full: JSON.stringify(chatboxObj, null, 2),
+        inner: JSON.stringify(single, null, 2),
+        full: JSON.stringify({ mcpServers: { 'AEK-MCP': single } }, null, 2),
       };
     },
   },
