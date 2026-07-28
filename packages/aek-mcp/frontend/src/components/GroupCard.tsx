@@ -129,6 +129,12 @@ const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
   }
 
   // ---------- non-default group: editable, deletable ----------
+  const groupServers = servers.filter((s) => s.groups?.includes(group.name));
+  const grpTotalServers = groupServers.length;
+  const grpTotalTools = groupServers.reduce((acc, s) => acc + (s.tools?.length || 0), 0);
+  const grpTotalPrompts = groupServers.reduce((acc, s) => acc + (s.prompts?.length || 0), 0);
+  const grpTotalResources = groupServers.reduce((acc, s) => acc + (s.resources?.length || 0), 0);
+
   return (
     <div className="hub-card overflow-hidden">
       <div
@@ -215,6 +221,32 @@ const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
           >
             <Trash2 size={13} />
           </button>
+        </div>
+      </div>
+
+      <div
+        className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 py-3"
+        style={{
+          background: 'var(--hub-bg-2)',
+          fontSize: 12,
+          color: 'var(--hub-ink-2)',
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="hub-mono hub-num" style={{ color: 'var(--hub-ink)', fontWeight: 600 }}>{grpTotalServers}</span>
+          <span style={{ color: 'var(--hub-ink-3)' }}>{t('nav.servers').toLowerCase()}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hub-mono hub-num" style={{ color: 'var(--hub-ink)', fontWeight: 600 }}>{grpTotalTools}</span>
+          <span style={{ color: 'var(--hub-ink-3)' }}>{t('server.tools').toLowerCase()}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hub-mono hub-num" style={{ color: 'var(--hub-ink)', fontWeight: 600 }}>{grpTotalPrompts}</span>
+          <span style={{ color: 'var(--hub-ink-3)' }}>{t('server.prompts').toLowerCase()}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hub-mono hub-num" style={{ color: 'var(--hub-ink)', fontWeight: 600 }}>{grpTotalResources}</span>
+          <span style={{ color: 'var(--hub-ink-3)' }}>{t('server.resources').toLowerCase()}</span>
         </div>
       </div>
 
