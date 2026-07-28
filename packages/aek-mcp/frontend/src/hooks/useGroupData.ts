@@ -42,19 +42,19 @@ export const useGroupData = () => {
     description?: string,
     servers: string[] | IGroupServerConfig[] = [],
     allowedTools?: string[],
-  ): Promise<Group | null> => {
+  ): Promise<{ ok: boolean; data?: Group; message?: string }> => {
     try {
       const body: Record<string, any> = { name, description, servers };
       if (allowedTools !== undefined) body.allowedTools = allowedTools;
       const data = await apiPost('/groups', body);
       if (data.success) {
         await fetchGroups();
-        return data.data;
+        return { ok: true, data: data.data, message: undefined };
       }
-      return null;
+      return { ok: false, message: data.message || t('groups.createError') };
     } catch (err) {
       console.error('Error creating group:', err);
-      return null;
+      return { ok: false, message: t('groups.createError') };
     }
   };
 

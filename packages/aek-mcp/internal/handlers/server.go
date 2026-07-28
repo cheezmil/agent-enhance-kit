@@ -52,9 +52,34 @@ func GetAllServers(c *gin.Context) {
 	servers, total := services.Store.GetServersPaginated(page, limit)
 	totalPages := (total + limit - 1) / limit
 
+	username := c.GetString("username")
+	groups := services.Store.GetAllGroups(username)
+	serverToGroups := map[string][]string{}
+	for _, group := range groups {
+		for _, serverName := range group.Servers {
+			serverToGroups[serverName] = append(serverToGroups[serverName], group.Name)
+		}
+	}
+
+	serversWithGroups := make([]gin.H, 0, len(servers))
+	for _, server := range servers {
+		s, _ := json.Marshal(server)
+		var item map[string]interface{}
+		json.Unmarshal(s, &item)
+		if item == nil {
+			item = map[string]interface{}{}
+		}
+		if serverToGroups[server.Name] == nil {
+			item["groups"] = []string{}
+		} else {
+			item["groups"] = serverToGroups[server.Name]
+		}
+		serversWithGroups = append(serversWithGroups, item)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    servers,
+		"data":    serversWithGroups,
 		"pagination": gin.H{
 			"page":       page,
 			"limit":      limit,
@@ -1163,6 +1188,22 @@ func GetTutorialConfig(c *gin.Context) {
 	user := services.Store.GetUser(username.(string))
 	if user == nil {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "User not found"})
+		return
+	}
+
+	// Support ?server=xxx&server=yyy for tutorial config — returns only those servers.
+	serverNames := c.QueryArray("server")
+	if len(serverNames) > 0 {
+		result := make([]*models.ServerConfig, 0, len(serverNames))
+		for _, name := range serverNames {
+			if srv := services.Store.GetServer(name); srv != nil {
+				result = append(result, srv)
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    result,
+		})
 		return
 	}
 

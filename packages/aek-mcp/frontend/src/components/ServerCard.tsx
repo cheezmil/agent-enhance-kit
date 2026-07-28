@@ -13,6 +13,7 @@ import {
   Edit3,
   Trash2,
   Star,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { Server, ServerTokenInput } from '@/types';
@@ -549,6 +550,29 @@ const ServerCard = ({
                   title={server.config.description}
                 >
                   {server.config.description}
+                </div>
+              )}
+              {server.groups && server.groups.length > 0 && (
+                <div
+                  className="flex flex-wrap items-center gap-1 mt-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {server.groups
+                    .filter((group) => group !== 'default')
+                    .map((group) => (
+                      <span
+                        key={group}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] hub-mono"
+                        style={{
+                          color: 'var(--hub-ink-3)',
+                          border: '1px solid var(--hub-line)',
+                          background: 'var(--hub-bg-2)',
+                        }}
+                      >
+                        <Layers size={11} style={{ flexShrink: 0 }} />
+                        <span className="truncate">{group}</span>
+                      </span>
+                    ))}
                 </div>
               )}
             </div>

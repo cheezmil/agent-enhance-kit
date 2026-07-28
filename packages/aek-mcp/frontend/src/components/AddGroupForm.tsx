@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Search } from 'lucide-react';
 import { useGroupData } from '@/hooks/useGroupData';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { GroupFormData, Server, IGroupServerConfig } from '@/types';
 import { ServerToolConfig } from './ServerToolConfig';
-import AllowedToolsSelector from './AllowedToolsSelector';
 
 interface AddGroupFormProps {
   onAdd: () => void;
@@ -20,6 +20,7 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
   const [availableServers, setAvailableServers] = useState<Server[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toolSearch, setToolSearch] = useState('');
 
   const [formData, setFormData] = useState<GroupFormData>({
     name: '',
@@ -30,6 +31,16 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
   useEffect(() => {
     setAvailableServers(allServers.filter((server) => server.enabled !== false));
   }, [allServers]);
+
+  const filteredServers = useMemo(() => {
+    if (!toolSearch.trim()) {
+      return availableServers;
+    }
+    const query = toolSearch.trim().toLowerCase();
+    return availableServers.filter((server) =>
+      (server.tools ?? []).some((tool) => tool.enabled !== false && tool.name.toLowerCase().includes(query)),
+    );
+  }, [availableServers, toolSearch]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -55,10 +66,9 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
         formData.name,
         formData.description,
         formData.servers,
-        formData.allowedTools?.length ? formData.allowedTools : undefined,
       );
-      if (!result) {
-        setError(t('groups.createError'));
+      if (!result.ok) {
+        setError(result.message || t('groups.createError'));
         setIsSubmitting(false);
         return;
       }
@@ -106,22 +116,31 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   {t('groups.configureCapabilities')}
                 </label>
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--hub-ink-3)]" />
+                  <input
+                    type="text"
+                    value={toolSearch}
+                    onChange={(e) => setToolSearch(e.target.value)}
+                    placeholder={t('groups.searchTools', 'Search tools')}
+                    className="w-full border border-gray-300 rounded-md pl-9 pr-8 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {toolSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setToolSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <span className="text-sm font-medium">×</span>
+                    </button>
+                  )}
+                </div>
                 <ServerToolConfig
-                  servers={availableServers}
+                  servers={filteredServers}
                   value={formData.servers as IGroupServerConfig[]}
                   onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
                   serverTokenInputs={serverTokenInputs}
-                />
-              </div>
-
-              <div>
-                <AllowedToolsSelector
-                  servers={availableServers}
-                  value={formData.allowedTools}
-                  onChange={(allowedTools) =>
-                    setFormData((prev) => ({ ...prev, allowedTools }))
-                  }
                 />
               </div>
             </div>
