@@ -131,7 +131,7 @@ const AGENT_TOOLS: AgentTool[] = [
       // NO `transport` field.
       const chatboxJson = {
         mcpServers: {
-          'AEK-MCP': {
+          'aek-mcp': {
             url: mcpUrl(cfg),
           },
         },
@@ -454,19 +454,21 @@ const TutorialPage: React.FC = () => {
                   </div>
 
                   <div className="px-5 pb-5 space-y-4 border-t border-[var(--hub-line)]">
-                    {/* Full config — read-only reference */}
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
-                          {t('tutorial.fullConfig', 'Example of complete fields on this platform')}
-                        </span>
+                    {/* Full config — hidden for chatbox which only needs Inner */}
+                    {tool.id !== 'chatbox' && (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
+                            {t('tutorial.fullConfig', 'Example of complete fields on this platform')}
+                          </span>
+                        </div>
+                        <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre select-none">
+                          {full}
+                        </pre>
                       </div>
-                      <pre className="p-3 bg-gray-900 text-gray-100 rounded text-[12px] font-mono overflow-x-auto whitespace-pre select-none">
-                        {full}
-                      </pre>
-                    </div>
+                    )}
 
-                    {/* Inner config — "aek-mcp": { ... } */}
+                    {/* Inner config */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[12px] font-medium text-[var(--hub-ink-2)]">
@@ -478,6 +480,13 @@ const TutorialPage: React.FC = () => {
                         {inner}
                       </pre>
                     </div>
+
+                    {/* Chatbox-specific instructions */}
+                    {tool.id === 'chatbox' && (
+                      <div className="text-[12px] text-[var(--hub-ink-2)]">
+                        {t('tutorial.chatboxPaste', '在 Chatbox 中点击「从剪贴板中的 JSON 导入」即可导入。')}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
