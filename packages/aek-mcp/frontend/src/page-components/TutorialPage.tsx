@@ -119,6 +119,17 @@ const AGENT_TOOLS: AgentTool[] = [
     }),
   },
   {
+    id: 'chatbox',
+    name: 'Chatbox',
+    description: 'Settings > MCP > Remote (http/sse)',
+    configPath: { win: 'Settings > MCP', mac: 'Settings > MCP', linux: 'Settings > MCP' },
+    docUrl: 'https://chatboxai.app/?c=guide&section=work-mode&article=configuration',
+    buildConfig: (cfg) => ({
+      inner: buildInnerConfig('aek-mcp', cfg),
+      full: buildFullConfig('aek-mcp', cfg),
+    }),
+  },
+  {
     id: 'cline',
     name: 'Cline',
     description: 'cline_mcp_settings.json',
@@ -280,10 +291,10 @@ const TutorialPage: React.FC = () => {
     },
   );
 
-  // When groups load, ensure selectedGroup is valid; default to first group.
+  // When groups load, ensure selectedGroup is valid; default to first group (by name).
   useEffect(() => {
-    if (groups.length > 0 && !groups.some((g) => g.id === selectedGroup)) {
-      setSelectedGroup(groups[0].id);
+    if (groups.length > 0 && !groups.some((g) => g.name === selectedGroup)) {
+      setSelectedGroup(groups[0].name);
     }
   }, [groups, selectedGroup]);
 
@@ -350,7 +361,7 @@ const TutorialPage: React.FC = () => {
             focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent)]"
         >
           {groups.map((g) => (
-            <option key={g.id} value={g.id}>
+            <option key={g.name} value={g.name}>
               {g.name}
             </option>
           ))}
