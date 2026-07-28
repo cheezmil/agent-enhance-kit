@@ -1192,6 +1192,7 @@
     "copyInner": "Copy inner",
     "docs": "Documentation",
     "search": "Search tools...",
-    "noResults": "No tools match your search"
+    "noResults": "No tools match your search",
+    "chatboxPaste": "Click 'Import from JSON in clipboard' in Chatbox to import"
   }
 }
