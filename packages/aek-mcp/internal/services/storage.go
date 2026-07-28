@@ -414,7 +414,9 @@ func (s *Storage) GetGroupByName(username, name string) *models.Group {
 }
 
 func (s *Storage) CreateGroup(username string, group *models.Group) {
-	group.Servers = []string{}
+	if group.Servers == nil {
+		group.Servers = []string{}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.groups[username] == nil {

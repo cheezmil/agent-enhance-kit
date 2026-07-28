@@ -306,6 +306,7 @@ export interface Server {
   tools?: Tool[];
   prompts?: Prompt[];
   resources?: Resource[];
+  groups?: string[];
   config?: ServerConfig;
   enabled?: boolean;
   oauth?: {

@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Check, BookOpen, RefreshCw, ExternalLink, Search, X } from 'lucide-react';
+import { Copy, Check, BookOpen, RefreshCw, ExternalLink, Search, X, Layers } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { useGroupData } from '@/hooks/useGroupData';
 import { getApiUrl } from '@/utils/runtime';
 
 interface TutorialConfig {
@@ -13,6 +14,7 @@ interface TutorialConfig {
   host: string;
   port: string;
   basePath: string;
+  group?: string;
 }
 
 interface AgentTool {
@@ -49,7 +51,11 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 };
 
 function mcpUrl(cfg: TutorialConfig): string {
-  return cfg.mcpURL + '?key=' + cfg.key;
+  const base = cfg.mcpURL;
+  if (cfg.group) {
+    return base + '?group=' + cfg.group + '&key=' + cfg.key;
+  }
+  return base + '?key=' + cfg.key;
 }
 
 function buildInnerConfig(name: string, cfg: TutorialConfig, extra?: Record<string, unknown>): string {
@@ -251,10 +257,12 @@ const CopyButton: React.FC<{ text: string; label: string; showToast: (msg: strin
 const TutorialPage: React.FC = () => {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const { groups } = useGroupData();
   const [config, setConfig] = useState<TutorialConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('default');
 
   /** Detect platform and pick the matching absolute path string. */
   const platformPath = useMemo(() => {
@@ -272,16 +280,24 @@ const TutorialPage: React.FC = () => {
     },
   );
 
+  // When groups load, ensure selectedGroup is valid; default to first group.
+  useEffect(() => {
+    if (groups.length > 0 && !groups.some((g) => g.id === selectedGroup)) {
+      setSelectedGroup(groups[0].id);
+    }
+  }, [groups, selectedGroup]);
+
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(getApiUrl('/tutorial/config'), {
+      const res = await fetch(getApiUrl(`/tutorial/config?group=${encodeURIComponent(selectedGroup)}`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('aek-mcp_token') || ''}` },
       });
       const data = await res.json();
       if (data.success && data.data) {
-        setConfig(data.data);
+        const cfg = { ...data.data, group: selectedGroup };
+        setConfig(cfg);
       } else {
         setError(data.message || 'Failed to load config');
       }
@@ -290,7 +306,7 @@ const TutorialPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedGroup]);
 
   useEffect(() => {
     fetchConfig();
@@ -316,6 +332,29 @@ const TutorialPage: React.FC = () => {
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
+      </div>
+
+      {/* Group selector */}
+      <div className="mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <label className="block text-[12px] font-medium text-[var(--hub-ink-2)]">
+            <Layers size={14} className="inline mr-1 vertical-align-middle" />
+            {t('tutorial.group', 'Group')}
+          </label>
+        </div>
+        <select
+          value={selectedGroup}
+          onChange={(e) => setSelectedGroup(e.target.value)}
+          className="w-full px-3 py-2 text-[14px] rounded-lg border border-[var(--hub-line)]
+            bg-[var(--hub-surface)] text-[var(--hub-ink)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--hub-accent)]"
+        >
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Search bar */}

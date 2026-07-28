@@ -40,11 +40,19 @@ func CreateGroup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Invalid request body"})
 		return
 	}
+	if group.Name == "" {
+		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Group name is required"})
+		return
+	}
 	if group.ID == "" {
 		group.ID = uuid.New().String()
 	}
 	if group.Servers == nil {
 		group.Servers = []string{}
+	}
+	if existing := services.Store.GetGroupByName(username, group.Name); existing != nil {
+		c.JSON(http.StatusConflict, models.ApiResponse{Success: false, Message: "Group name already exists"})
+		return
 	}
 	group.CreatedAt = time.Now()
 	group.UpdatedAt = time.Now()
