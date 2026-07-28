@@ -376,7 +376,6 @@ const ServersPage: React.FC = () => {
           groupDismissedError={groupDismissedError}
           setGroupDismissedError={setGroupDismissedError}
           deleteGroup={handleDeleteGroup}
-          updateGroup={updateGroup}
           triggerGroupRefresh={triggerGroupRefresh}
           showAddGroup={showAddGroup}
           setShowAddGroup={setShowAddGroup}
@@ -549,20 +548,13 @@ const GroupsView: React.FC<{
   groupDismissedError: boolean;
   setGroupDismissedError: (v: boolean) => void;
   deleteGroup: (id: string) => Promise<any>;
-  updateGroup: (
-    groupId: string,
-    name: string,
-    description?: string,
-    servers?: string[] | IGroupServerConfig[],
-    allowedTools?: string[],
-  ) => Promise<boolean>;
   triggerGroupRefresh: () => void;
   showAddGroup: boolean;
   setShowAddGroup: (v: boolean) => void;
   allServers: Server[];
 }> = ({
   t, groups, groupsLoading, groupError, groupDismissedError, setGroupDismissedError,
-  deleteGroup, updateGroup, triggerGroupRefresh,
+  deleteGroup, triggerGroupRefresh,
   showAddGroup, setShowAddGroup,
   allServers,
 }) => {
@@ -618,7 +610,6 @@ const GroupsView: React.FC<{
               group={group}
               servers={allServers}
               onDelete={deleteGroup}
-              onUpdate={updateGroup}
             />
           ))}
         </div>

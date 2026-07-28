@@ -106,7 +106,6 @@ const GroupsPage: React.FC = () => {
               group={group}
               servers={allServers}
               onDelete={handleDeleteGroup}
-              onUpdate={updateGroup}
             />
           ))}
           <button
