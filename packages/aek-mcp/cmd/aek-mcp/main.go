@@ -34,6 +34,13 @@ func main() {
 	mux.Handle("/mcp/", mcpHandler)
 	mux.Handle("/", ginRouter)
 
+	// If BasePath is configured, also register MCP under the base path so
+	// URLs returned by GetTutorialConfig (e.g. /aek-mcp/mcp) work directly.
+	if config.AppConfig.BasePath != "" {
+		mux.Handle(config.AppConfig.BasePath+"/mcp", mcpHandler)
+		mux.Handle(config.AppConfig.BasePath+"/mcp/", mcpHandler)
+	}
+
 	addr := config.AppConfig.Host + ":" + config.AppConfig.Port
 	fmt.Printf("Server is running on %s\n", addr)
 	fmt.Printf("API endpoints: /api/*, /mcp, /health, /config\n")
