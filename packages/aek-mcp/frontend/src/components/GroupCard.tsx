@@ -1,22 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Edit3, Trash2, Save, X } from 'lucide-react';
-import { Group, Server, IGroupServerConfig } from '@/types';
+import { Trash2 } from 'lucide-react';
+import { Group, Server } from '@/types';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import { useToast } from '@/contexts/ToastContext';
-import AllowedToolsSelector from '@/components/AllowedToolsSelector';
 
 interface GroupCardProps {
   group: Group;
   servers: Server[];
   onDelete: (groupId: string) => void;
-  onUpdate: (
-    groupId: string,
-    name: string,
-    description?: string,
-    servers?: string[] | IGroupServerConfig[],
-    allowedTools?: string[],
-  ) => Promise<boolean>;
 }
 
 const copyText = async (value: string): Promise<boolean> => {
@@ -44,18 +36,12 @@ const copyText = async (value: string): Promise<boolean> => {
   }
 };
 
-const GroupCard = ({ group, servers, onDelete, onUpdate }: GroupCardProps) => {
+const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
-
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(group.name);
-  const [editDescription, setEditDescription] = useState(group.description || '');
-  const [editAllowedTools, setEditAllowedTools] = useState<string[]>(group.allowedTools || []);
-  const [isSaving, setIsSaving] = useState(false);
   const isDefault = group.name === 'default';
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +67,7 @@ const GroupCard = ({ group, servers, onDelete, onUpdate }: GroupCardProps) => {
     }
   };
 
-  // ---------- default group: read-only, show all tools ----------
+  // ---------- default group: read-only, show summary ----------
   if (isDefault) {
     const totalServers = servers.length;
     const totalTools = servers.reduce((acc, s) => acc + (s.tools?.length || 0), 0);
@@ -142,85 +128,7 @@ const GroupCard = ({ group, servers, onDelete, onUpdate }: GroupCardProps) => {
     );
   }
 
-  // ---------- non-default group ----------
-  const handleSave = async () => {
-    if (!editName.trim()) {
-      showToast(t('groups.nameRequired') || 'Name is required', 'error');
-      return;
-    }
-    setIsSaving(true);
-    const ok = await onUpdate(
-      group.id,
-      editName,
-      editDescription,
-      group.servers,
-      editAllowedTools.length > 0 ? editAllowedTools : undefined,
-    );
-    setIsSaving(false);
-    if (ok) {
-      showToast(t('common.save') || 'Saved', 'success');
-      setIsEditing(false);
-    } else {
-      showToast(t('groups.updateError') || 'Failed to save', 'error');
-    }
-  };
-
-  // Inline edit panel (expanded in place)
-  if (isEditing) {
-    return (
-      <div className="hub-card overflow-hidden">
-        <div
-          className="flex items-start justify-between gap-3 px-4 py-3"
-          style={{ borderBottom: '1px solid var(--hub-line-2)' }}
-        >
-          <div className="flex-1 min-w-0">
-            <input
-              className="w-full bg-transparent text-[15px] font-semibold outline-none border-b border-dashed border-[var(--hub-line-2)] pb-1"
-              style={{ letterSpacing: '-0.015em', color: 'var(--hub-ink)' }}
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder={t('groups.namePlaceholder') || 'Group name'}
-            />
-            <textarea
-              className="w-full bg-transparent text-[12.5px] outline-none mt-1.5 resize-none"
-              style={{ color: 'var(--hub-ink-3)', lineHeight: 1.4 }}
-              rows={1}
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder={t('common.description') || 'Description'}
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              className="hub-btn primary sm"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                t('common.submitting') || 'Saving…'
-              ) : (
-                <>
-                  <Save size={13} /> {t('common.save') || 'Save'}
-                </>
-              )}
-            </button>
-            <button className="hub-btn sm" onClick={() => setIsEditing(false)}>
-              <X size={13} />
-            </button>
-          </div>
-        </div>
-
-        <div className="px-4 py-3" style={{ background: 'var(--hub-bg-2)' }}>
-          <AllowedToolsSelector
-            servers={servers}
-            value={editAllowedTools}
-            onChange={setEditAllowedTools}
-          />
-        </div>
-      </div>
-    );
-  }
-
+  // ---------- non-default group: editable, deletable ----------
   return (
     <div className="hub-card overflow-hidden">
       <div
@@ -300,13 +208,6 @@ const GroupCard = ({ group, servers, onDelete, onUpdate }: GroupCardProps) => {
             )}
           </div>
           <button
-            onClick={() => setIsEditing(true)}
-            className="hub-icon-btn sm"
-            title={t('groups.edit') || 'Configure tools'}
-          >
-            <Edit3 size={13} />
-          </button>
-          <button
             onClick={() => setShowDeleteDialog(true)}
             className="hub-icon-btn sm"
             title={t('groups.delete') || 'Delete'}
@@ -314,32 +215,6 @@ const GroupCard = ({ group, servers, onDelete, onUpdate }: GroupCardProps) => {
           >
             <Trash2 size={13} />
           </button>
-        </div>
-      </div>
-
-      {/* Summary footer */}
-      <div
-        className="px-4 py-2.5"
-        style={{
-          borderTop: '1px solid var(--hub-line-2)',
-          background: 'var(--hub-bg-2)',
-          fontSize: 12,
-          color: 'var(--hub-ink-2)',
-        }}
-      >
-        <div className="flex items-center gap-3 flex-wrap hub-mono">
-          <span>
-            <b style={{ color: 'var(--hub-ink)' }}>
-              {Array.isArray(group.servers) ? group.servers.length : 0}
-            </b>
-            <span style={{ color: 'var(--hub-ink-3)' }}> {t('nav.servers').toLowerCase()}</span>
-          </span>
-          <span>
-            <b style={{ color: 'var(--hub-ink)' }}>
-              {group.allowedTools ? group.allowedTools.length : '—'}
-            </b>
-            <span style={{ color: 'var(--hub-ink-3)' }}> {t('server.tools').toLowerCase()}</span>
-          </span>
         </div>
       </div>
 
