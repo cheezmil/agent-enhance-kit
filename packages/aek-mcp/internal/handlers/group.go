@@ -89,19 +89,38 @@ func UpdateGroup(c *gin.Context) {
 		c.JSON(http.StatusNotFound, models.ApiResponse{Success: false, Message: "Group not found"})
 		return
 	}
-	var group models.Group
-	if err := c.ShouldBindJSON(&group); err != nil {
+
+	// Use pointer fields to distinguish "sent as null/absent" from "sent as zero value".
+	var req struct {
+		Name        *string  `json:"name"`
+		Description *string  `json:"description"`
+		Servers     *[]string `json:"servers"`
+		// AllowedTools is read as *[]string so an absent field keeps the existing whitelist.
+		// A client sending "allowedTools": null or an empty array explicitly clears the filter.
+		AllowedTools *[]string `json:"allowedTools"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ApiResponse{Success: false, Message: "Invalid request body"})
 		return
 	}
-	group.ID = id
-	group.CreatedAt = existing.CreatedAt
-	group.UpdatedAt = time.Now()
-	if group.Servers == nil {
-		group.Servers = []string{}
+
+	// Patch semantics: only overwrite fields that were explicitly sent.
+	if req.Name != nil {
+		existing.Name = *req.Name
 	}
-	services.Store.UpdateGroup(username, id, &group)
-	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: group})
+	if req.Description != nil {
+		existing.Description = *req.Description
+	}
+	if req.Servers != nil {
+		existing.Servers = *req.Servers
+	}
+	if req.AllowedTools != nil {
+		existing.AllowedTools = *req.AllowedTools
+	}
+
+	existing.UpdatedAt = time.Now()
+	services.Store.UpdateGroup(username, id, existing)
+	c.JSON(http.StatusOK, models.ApiResponse{Success: true, Data: existing})
 }
 
 func DeleteGroup(c *gin.Context) {

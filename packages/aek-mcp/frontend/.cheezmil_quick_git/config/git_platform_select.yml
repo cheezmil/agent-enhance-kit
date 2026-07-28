@@ -1,0 +1,64 @@
+# Git 平台推送配置
+# 1 = 启用推送, 0 = 禁用推送
+
+platforms:
+  github:
+    enabled: 0
+    remote: "github"
+    additionalGitignoreFile: ".cheezmil_quick_git/config/additional-github-gitignore.txt"
+    pushRefspec: "main:main"
+    owner: "cheezmil"
+    tokenFilePath: '"D:\MyNotes\pw\github\cheezmil\pw-pat-classic-cheezimil.txt"'
+    remoteUrl: "https://github.com/{owner}/{current_working_directory_name}"
+
+  gitea:
+    enabled: 1
+    remote: "gitea"
+    additionalGitignoreFile: ".cheezmil_quick_git/config/additional-gitea-gitignore.txt"
+    pushRefspec: "main:main"
+    owner: "AlexanderDash"
+    tokenFilePath: 'D:\MyNotes\pw\gitea\pw_gitea.txt'
+    # gitea 默认由 settings.gitea_* 自动生成 remoteUrl
+    remoteUrl: ""
+
+  gitee:
+    enabled: 0
+    remote: "gitee"
+    additionalGitignoreFile: ".cheezmil_quick_git/config/additional-gitee-gitignore.txt"
+    pushRefspec: ""
+    owner: ""
+    tokenFilePath: ""
+    remoteUrl: ""
+
+  gitcode:
+    enabled: 0
+    remote: "gitcode"
+    additionalGitignoreFile: ".cheezmil_quick_git/config/additional-gitcode-gitignore.txt"
+    pushRefspec: ""
+    owner: "AlexanderDash"
+    tokenFilePath: 'D:\MyNotes\pw\gitcode\pw-t-AlexanderDash.txt'
+    remoteUrl: ""
+
+  atomgit:
+    enabled: 0
+    remote: "atomgit"
+    additionalGitignoreFile: ".cheezmil_quick_git/config/additional-atomgit-gitignore.txt"
+    pushRefspec: ""
+    owner: ""
+    tokenFilePath: ""
+    remoteUrl: ""
+
+settings:
+  # pushSequentially: 1=按平台顺序逐个推送（串行）；0=尽可能并行推送（若实现支持）
+  pushSequentially: 1
+  continueOnError: 0
+  showSummary: 1
+  defaultAdditionalGitignoreFile: ".cheezmil_quick_git/config/additional-gitea-gitignore.txt"
+  # gitea 远程协议设置：默认 HTTP:3000；可改为 ssh
+  gitea_remote_protocol: "http"
+  gitea_host: "127.0.0.1"
+  gitea_http_port: 3000
+  gitea_ssh_port: 3001
+  gitea_ssh_user: "git"
+  custom_other_version_path: ""
+  myOwnNames: ["AlexanderDash", "cheezmil"]

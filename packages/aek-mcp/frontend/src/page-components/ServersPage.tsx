@@ -8,6 +8,7 @@ import { Server, Group, IGroupServerConfig } from '@/types';
 import ServerCard from '@/components/ServerCard';
 import EditServerForm from '@/components/EditServerForm';
 import AddGroupForm from '@/components/AddGroupForm';
+import EditGroupForm from '@/components/EditGroupForm';
 import GroupCard from '@/components/GroupCard';
 import { useServerData } from '@/hooks/useServerData';
 import { useGroupData } from '@/hooks/useGroupData';
@@ -17,9 +18,27 @@ import { apiGet, apiPut } from '@/utils/fetchInterceptor';
 
 type PageTab = 'servers' | 'groups';
 
+const STORAGE_KEY = 'aek-mcp:servers-page:tab';
+
 const ServersPage: React.FC = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<PageTab>('servers');
+  const [activeTab, setActiveTab] = useState<PageTab>(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (stored === 'servers' || stored === 'groups') return stored;
+    } catch {
+      /* ignore */
+    }
+    return 'servers';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, activeTab);
+    } catch {
+      /* ignore */
+    }
+  }, [activeTab]);
 
   // ---------- Servers ----------
   const {
@@ -77,6 +96,7 @@ const ServersPage: React.FC = () => {
   const [editorFilePath, setEditorFilePath] = useState('');
   const [copied, setCopied] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [groupDismissedError, setGroupDismissedError] = useState(false);
 
   const toggleFavorite = (name: string) => {
@@ -376,6 +396,8 @@ const ServersPage: React.FC = () => {
           groupDismissedError={groupDismissedError}
           setGroupDismissedError={setGroupDismissedError}
           deleteGroup={handleDeleteGroup}
+          editingGroup={editingGroup}
+          setEditingGroup={setEditingGroup}
           triggerGroupRefresh={triggerGroupRefresh}
           showAddGroup={showAddGroup}
           setShowAddGroup={setShowAddGroup}
@@ -548,13 +570,15 @@ const GroupsView: React.FC<{
   groupDismissedError: boolean;
   setGroupDismissedError: (v: boolean) => void;
   deleteGroup: (id: string) => Promise<any>;
+  editingGroup: Group | null;
+  setEditingGroup: (g: Group | null) => void;
   triggerGroupRefresh: () => void;
   showAddGroup: boolean;
   setShowAddGroup: (v: boolean) => void;
   allServers: Server[];
 }> = ({
   t, groups, groupsLoading, groupError, groupDismissedError, setGroupDismissedError,
-  deleteGroup, triggerGroupRefresh,
+  deleteGroup, editingGroup, setEditingGroup, triggerGroupRefresh,
   showAddGroup, setShowAddGroup,
   allServers,
 }) => {
@@ -610,6 +634,7 @@ const GroupsView: React.FC<{
               group={group}
               servers={allServers}
               onDelete={deleteGroup}
+              onEdit={(g) => g.name !== 'default' && setEditingGroup(g)}
             />
           ))}
         </div>
@@ -619,6 +644,14 @@ const GroupsView: React.FC<{
         <AddGroupForm
           onAdd={() => { setShowAddGroup(false); triggerGroupRefresh(); }}
           onCancel={() => setShowAddGroup(false)}
+        />
+      )}
+
+      {editingGroup && (
+        <EditGroupForm
+          group={editingGroup}
+          onEdit={() => { setEditingGroup(null); triggerGroupRefresh(); }}
+          onCancel={() => setEditingGroup(null)}
         />
       )}
     </div>

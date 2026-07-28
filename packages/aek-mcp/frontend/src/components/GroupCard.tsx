@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Pencil } from 'lucide-react';
 import { Group, Server } from '@/types';
 import DeleteDialog from '@/components/ui/DeleteDialog';
 import { useToast } from '@/contexts/ToastContext';
@@ -9,6 +9,7 @@ interface GroupCardProps {
   group: Group;
   servers: Server[];
   onDelete: (groupId: string) => void;
+  onEdit?: (group: Group) => void;
 }
 
 const copyText = async (value: string): Promise<boolean> => {
@@ -36,7 +37,7 @@ const copyText = async (value: string): Promise<boolean> => {
   }
 };
 
-const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
+const GroupCard = ({ group, servers, onDelete, onEdit }: GroupCardProps) => {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -129,7 +130,12 @@ const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
   }
 
   // ---------- non-default group: editable, deletable ----------
-  const groupServers = servers.filter((s) => s.groups?.includes(group.name));
+  const groupServerNames = new Set(
+    (group.servers || [])
+      .map((s) => (typeof s === 'string' ? s : s.name))
+      .filter(Boolean),
+  );
+  const groupServers = servers.filter((s) => groupServerNames.has(s.name));
   const grpTotalServers = groupServers.length;
   const grpTotalTools = groupServers.reduce((acc, s) => acc + (s.tools?.length || 0), 0);
   const grpTotalPrompts = groupServers.reduce((acc, s) => acc + (s.prompts?.length || 0), 0);
@@ -158,18 +164,6 @@ const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
                 {t('groups.allowedToolsCount', { count: group.allowedTools.length }) || `${group.allowedTools.length} tools`}
               </span>
             )}
-            {!(group.allowedTools && group.allowedTools.length > 0) && (
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] hub-mono"
-                style={{
-                  background: 'var(--hub-bg-2)',
-                  color: 'var(--hub-ink-3)',
-                  border: '1px solid var(--hub-line-2)',
-                }}
-              >
-                {t('groups.allToolsExposed') || 'All tools exposed'}
-              </span>
-            )}
           </div>
           {group.description && (
             <div style={{ fontSize: 12.5, color: 'var(--hub-ink-3)', marginTop: 2 }}>
@@ -178,6 +172,15 @@ const GroupCard = ({ group, servers, onDelete }: GroupCardProps) => {
           )}
         </div>
         <div className="flex items-center gap-1" ref={dropdownRef}>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(group)}
+              className="hub-icon-btn sm"
+              title={t('groups.edit') || 'Edit'}
+            >
+              <Pencil size={13} />
+            </button>
+          )}
           <div className="relative">
             <button
               onClick={() => setShowCopyDropdown((v) => !v)}

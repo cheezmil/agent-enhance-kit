@@ -47,6 +47,7 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
   const { t } = useTranslation();
   const { nameSeparator } = useSettingsData();
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const [serverQuery, setServerQuery] = useState('');
 
   // Normalize current value to IGroupServerConfig[] format
   const normalizedValue: IGroupServerConfig[] = React.useMemo(() => {
@@ -68,6 +69,17 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
     servers.filter(server => server.enabled !== false),
     [servers]
   );
+
+  // Filter available servers by search query
+  const filteredServers = React.useMemo(() => {
+    const q = serverQuery.toLowerCase().trim();
+    if (!q) return availableServers;
+    return availableServers.filter(
+      server => server.name.toLowerCase().includes(q),
+    );
+  }, [availableServers, serverQuery]);
+
+  const isAllServersFilteredOut = filteredServers.length === 0 && serverQuery.trim() !== '';
 
   // Clean up expanded servers when servers are removed from configuration
   // But keep servers that were explicitly expanded even if they have no configuration
@@ -306,8 +318,15 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
 
   return (
     <div className={cn("space-y-4", className)}>
+      <input
+        type="text"
+        value={serverQuery}
+        onChange={(e) => setServerQuery(e.target.value)}
+        placeholder="Search servers..."
+        className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
       <div className="space-y-3">
-        {availableServers.map(server => {
+        {filteredServers.map(server => {
           const isSelected = isServerSelected(server.name);
           const isPartiallySelected = isServerPartiallySelected(server.name);
           const isExpanded = expandedServers.has(server.name);
@@ -479,6 +498,9 @@ export const ServerToolConfig: React.FC<ServerToolConfigProps> = ({
         })}
       </div>
 
+      {isAllServersFilteredOut && (
+        <p className="text-gray-400 text-sm">{t('groups.noServersFound')}</p>
+      )}
       {availableServers.length === 0 && (
         <p className="text-gray-500 text-sm">{t('groups.noServerOptions')}</p>
       )}
