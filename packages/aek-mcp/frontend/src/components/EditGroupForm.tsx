@@ -5,7 +5,6 @@ import { useGroupData } from '@/hooks/useGroupData';
 import { useServerData } from '@/hooks/useServerData';
 import { useCostData } from '@/hooks/useCostData';
 import { ServerToolConfig } from './ServerToolConfig';
-import AllowedToolsSelector from './AllowedToolsSelector';
 
 interface EditGroupFormProps {
   group: Group;
@@ -53,12 +52,14 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
         return;
       }
 
+      const serversList: string[] = (formData.servers as IGroupServerConfig[])
+        .map((s) => typeof s === 'string' ? s : s.name)
+        .filter(Boolean);
       const result = await updateGroup(
         group.id,
         formData.name,
         formData.description,
-        formData.servers,
-        formData.allowedTools?.length ? formData.allowedTools : undefined,
+        serversList,
       );
 
       if (!result) {
@@ -116,16 +117,6 @@ const EditGroupForm = ({ group, onEdit, onCancel }: EditGroupFormProps) => {
                   onChange={(servers) => setFormData((prev) => ({ ...prev, servers }))}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800"
                   serverTokenInputs={serverTokenInputs}
-                />
-              </div>
-
-              <div>
-                <AllowedToolsSelector
-                  servers={availableServers}
-                  value={formData.allowedTools}
-                  onChange={(allowedTools) =>
-                    setFormData((prev) => ({ ...prev, allowedTools }))
-                  }
                 />
               </div>
             </div>

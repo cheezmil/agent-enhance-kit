@@ -62,10 +62,13 @@ const AddGroupForm = ({ onAdd, onCancel }: AddGroupFormProps) => {
         return;
       }
 
+    const serversList: string[] = (formData.servers as IGroupServerConfig[]).map(
+      (s) => typeof s === 'string' ? s : s.name,
+    ).filter(Boolean);
       const result = await createGroup(
         formData.name,
         formData.description,
-        formData.servers,
+        serversList,
       );
       if (!result.ok) {
         setError(result.message || t('groups.createError'));
