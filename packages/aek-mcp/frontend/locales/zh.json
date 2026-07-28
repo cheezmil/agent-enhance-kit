@@ -1193,6 +1193,7 @@
     "copyInner": "复制内部",
     "docs": "文档",
     "search": "搜索工具...",
-    "noResults": "没有匹配的工具"
+    "noResults": "没有匹配的工具",
+    "chatboxPaste": "在 Chatbox 中点击「从剪贴板中的 JSON 导入」即可导入"
   }
 }
