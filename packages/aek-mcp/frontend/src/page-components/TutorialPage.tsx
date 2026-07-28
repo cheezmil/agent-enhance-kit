@@ -125,12 +125,16 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: 'Settings > MCP', mac: 'Settings > MCP', linux: 'Settings > MCP' },
     docUrl: 'https://chatboxai.app/?c=guide&section=work-mode&article=configuration',
     buildConfig: (cfg) => {
-      // Chatbox "JSON 从剪贴板导入" uses parseServerFromJson():
-      // Schema auto-detects transport from presence of `url` (→ http) or `command` (→ stdio).
-      // NO `transport` field, NO nesting — raw object only.
+      // Chatbox "JSON 从剪贴板导入" uses parseServersFromJson(),
+      // which expects { mcpServers: { "<name>": { url, name? } } }.
+      // Schema auto-detects transport from presence of `url` (→ http).
+      // NO `transport` field.
       const chatboxJson = {
-        url: mcpUrl(cfg),
-        name: 'AEK-MCP',
+        mcpServers: {
+          'AEK-MCP': {
+            url: mcpUrl(cfg),
+          },
+        },
       };
       return {
         inner: JSON.stringify(chatboxJson, null, 2),
