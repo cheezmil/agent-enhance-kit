@@ -121,13 +121,24 @@ const AGENT_TOOLS: AgentTool[] = [
   {
     id: 'chatbox',
     name: 'Chatbox',
-    description: 'Settings > MCP > Remote (http/sse)',
+    description: 'Settings > MCP > JSON 从剪贴板导入',
     configPath: { win: 'Settings > MCP', mac: 'Settings > MCP', linux: 'Settings > MCP' },
     docUrl: 'https://chatboxai.app/?c=guide&section=work-mode&article=configuration',
-    buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
-    }),
+    buildConfig: (cfg) => {
+      // Chatbox imports MCP servers via a JSON object pasted into clipboard:
+      //   { "<server-name>": { "transport": "http" | "sse" | "stdio", "url": "...", ... } }
+      const chatboxObj = {
+        'aek-mcp': {
+          transport: 'http',
+          url: mcpUrl(cfg),
+          description: 'AEK-MCP',
+        },
+      };
+      return {
+        inner: JSON.stringify(chatboxObj, null, 2),
+        full: JSON.stringify(chatboxObj, null, 2),
+      };
+    },
   },
   {
     id: 'cline',
