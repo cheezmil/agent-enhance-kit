@@ -47,7 +47,7 @@ const LoginPage: React.FC = () => {
   const [showDefaultPasswordWarning, setShowDefaultPasswordWarning] = useState(false);
   const [showLoginHint, setShowLoginHint] = useState(false);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
-  const { login, auth } = useAuth();
+  const { auth } = useAuth();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -123,10 +123,13 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     const errorCode = searchParams?.get('error');
-    if (errorCode) {
-      const i18nKey = `auth.error.${errorCode}`;
+    const defaultPassword = searchParams?.get('defaultPassword');
+    if (defaultPassword === 'true') {
+      setShowDefaultPasswordWarning(true);
+    } else if (errorCode) {
+      const i18nKey = `auth.${errorCode}`;
       const translated = t(i18nKey);
-      setSocialError(translated !== i18nKey ? translated : t('auth.socialLoginFailed'));
+      setError(translated !== i18nKey ? translated : t('auth.loginFailed'));
     }
   }, [searchParams, t]);
 
@@ -149,32 +152,24 @@ const LoginPage: React.FC = () => {
     loadAuthProviders();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Native form submission — backend handles auth, redirects back to /login.
+  // This keeps e.preventDefault() out of the picture so the browser sees a
+  // real form POST → 302 → page navigation and prompts to save the password.
+  // (We still keep the React handler attached but it becomes a no-op so the
+  // underlying <form> submits natively.)
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    // Reset visual errors for the form submission
     setError(null);
     setSocialError(null);
     setLoading(true);
-    try {
-      if (!username || !password) {
-        setError(t('auth.emptyFields'));
-        setLoading(false);
-        return;
-      }
-      const result = await login(username, password);
-      if (result.success) {
-        if (result.isUsingDefaultPassword) setShowDefaultPasswordWarning(true);
-        else redirectAfterLogin();
-      } else {
-        const message = result.message;
-        setError(isServerUnavailableError(message) ? t('auth.serverUnavailable') : t('auth.loginFailed'));
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : undefined;
-      setError(isServerUnavailableError(message) ? t('auth.serverUnavailable') : t('auth.loginError'));
-    } finally {
-      setLoading(false);
-    }
+    // Let the browser handle the actual POST natively.
   };
+
+  // Build the native form action URL. This path lives behind the Next.js
+  // frontend, which proxy-falls-through to the Go backend at :1352.
+  const loginAction = useMemo(() => {
+    return getBasePath() + '/api/auth/login';
+  }, []);
 
   const handleSocialLogin = async (provider: SocialProvider) => {
     setSocialError(null);
@@ -313,7 +308,12 @@ const LoginPage: React.FC = () => {
               boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
             }}
           >
-            <form className="space-y-3" onSubmit={handleSubmit}>
+            <form
+              className="space-y-3"
+              action={loginAction}
+              method="POST"
+              onSubmit={handleLoginSubmit}
+            >
               <div>
                 <label
                   htmlFor="username"
