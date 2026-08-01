@@ -95,23 +95,13 @@ func parseMcpSettingsEntry(name string, entry McpSettingsEntry) *models.ServerCo
 		server.Config = map[string]interface{}{"owner": v}
 	}
 
-	// The MCP config is nested under the same key name
-	mcpConfigRaw, ok := entry[name]
-	if !ok {
-		// Fallback: look for any nested object that has command/url/type
-		for k, v := range entry {
-			if k == "enabled" || k == "owner" {
-				continue
-			}
-			if nested, isMap := v.(map[string]interface{}); isMap {
-				mcpConfigRaw = nested
-				break
-			}
-		}
-	}
+	// The MCP config may be nested under the same key name, or buried deeper
+	// (e.g. due to user editing the raw JSON and accidentally adding extra layers).
+	// Walk the entry recursively, skip well-known entry-level keys, and return
+	// the first nested object that carries MCP fields (command/url/type/args).
+	mcpConfig := findMcpConfig(entry)
 
-	mcpConfig, ok := mcpConfigRaw.(map[string]interface{})
-	if !ok {
+	if mcpConfig == nil {
 		return nil
 	}
 
@@ -218,4 +208,45 @@ func StripJsoncComments(s string) string {
 		prev = ch
 	}
 	return result.String()
+}
+
+// findMcpConfig walks a server entry recursively (DFS) and returns the first
+// nested object that carries at least one real MCP field
+// (command, url, type, or args). It skips the given meta-key names
+// (e.g. "enabled", "owner") which live at the entry level and should not be
+// mistaken for MCP config. This makes parsing resilient against accidental
+// extra nesting layers introduced via the raw JSON editor.
+func findMcpConfig(m map[string]interface{}) map[string]interface{} {
+	// Check current object first (best candidate is the shallowest valid one).
+	if hasMcpField(m) {
+		return m
+	}
+	// Otherwise recurse into nested maps (depth-first). Well-known meta keys
+	// are implicit skip because they never carry MCP fields.
+	for _, v := range m {
+		nested, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if result := findMcpConfig(nested); result != nil {
+			return result
+		}
+	}
+	return nil
+}
+
+// hasMcpField reports whether the map looks like an MCP server config
+// rather than a wrapper / meta object.
+func hasMcpField(m map[string]interface{}) bool {
+	for _, key := range []string{"command", "url", "type"} {
+		if v, ok := m[key]; ok && v != nil {
+			return true
+		}
+	}
+	if v, ok := m["args"]; ok {
+		if arr, isArray := v.([]interface{}); isArray && len(arr) > 0 {
+			return true
+		}
+	}
+	return false
 }

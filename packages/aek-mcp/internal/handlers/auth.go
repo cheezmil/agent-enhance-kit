@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -44,52 +45,121 @@ func generateToken(user *models.User) (string, error) {
 
 func Login(c *gin.Context) {
 	var req models.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ApiResponse{
-			Success: false,
-			Message: "Invalid request body",
-		})
+
+	// Support both JSON (frontend fetch) and form-urlencoded (native form submit).
+	// Native form submission triggers the browser's password-save prompt.
+	ct := c.GetHeader("Content-Type")
+	if strings.Contains(ct, "application/json") {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, models.ApiResponse{
+				Success: false,
+				Message: "Invalid request body",
+			})
+			return
+		}
+	} else {
+		c.ShouldBind(&req)
+	}
+
+	// Reject empty credentials even for form submissions
+	if req.Username == "" || req.Password == "" {
+		if strings.Contains(ct, "application/json") {
+			c.JSON(http.StatusBadRequest, models.ApiResponse{
+				Success: false,
+				Message: "Invalid request body",
+			})
+		} else {
+			c.Redirect(http.StatusFound, getLoginFormRedirectURL(c, "emptyFields"))
+		}
 		return
 	}
 
 	user := services.Store.GetUser(req.Username)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, models.ApiResponse{
-			Success: false,
-			Message: "Invalid credentials",
-		})
+		if strings.Contains(ct, "application/json") {
+			c.JSON(http.StatusUnauthorized, models.ApiResponse{
+				Success: false,
+				Message: "Invalid credentials",
+			})
+		} else {
+			c.Redirect(http.StatusFound, getLoginFormRedirectURL(c, "invalidCredentials"))
+		}
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, models.ApiResponse{
-			Success: false,
-			Message: "Invalid credentials",
-		})
+		if strings.Contains(ct, "application/json") {
+			c.JSON(http.StatusUnauthorized, models.ApiResponse{
+				Success: false,
+				Message: "Invalid credentials",
+			})
+		} else {
+			c.Redirect(http.StatusFound, getLoginFormRedirectURL(c, "invalidCredentials"))
+		}
 		return
 	}
 
 	tokenString, err := generateToken(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.ApiResponse{
-			Success: false,
-			Message: "Failed to generate token",
-		})
+		if strings.Contains(ct, "application/json") {
+			c.JSON(http.StatusInternalServerError, models.ApiResponse{
+				Success: false,
+				Message: "Failed to generate token",
+			})
+		} else {
+			c.Redirect(http.StatusFound, getLoginFormRedirectURL(c, "internalError"))
+		}
 		return
 	}
 
 	isDefault := isDefaultPassword(req.Password)
-	message := ""
-	if isDefault {
-		message = "Warning: You are using a default password. Please change it immediately."
+
+	// JSON response for frontend fetch
+	if strings.Contains(ct, "application/json") {
+		message := ""
+		if isDefault {
+			message = "Warning: You are using a default password. Please change it immediately."
+		}
+		c.JSON(http.StatusOK, models.AuthResponse{
+			Success: true,
+			Token:   tokenString,
+			User:    user,
+			Message: message,
+		})
+		return
 	}
 
-	c.JSON(http.StatusOK, models.AuthResponse{
-		Success: true,
-		Token:   tokenString,
-		User:    user,
-		Message: message,
-	})
+	// Browser redirect
+	redirectURL := getLoginFormRedirectURL(c, "")
+	if isDefault {
+		separator := "?"
+		if strings.Contains(redirectURL, "?") {
+			separator = "&"
+		}
+		redirectURL = redirectURL + separator + "defaultPassword=true"
+	}
+	c.Redirect(http.StatusFound, redirectURL)
+}
+
+// getLoginFormRedirectURL builds the URL to redirect back to the login SPA,
+// preserving the basePath and carrying an optional ?error or ?token query param.
+func getLoginFormRedirectURL(c *gin.Context, errCode string) string {
+	basePath := config.AppConfig.BasePath
+	redirectURL := ""
+	if basePath != "" {
+		redirectURL = "/" + strings.TrimPrefix(basePath, "/")
+	}
+	redirectURL = redirectURL + "/login"
+
+	// If an error occurred, tag it on the query string so the SPA can display it.
+	if errCode != "" {
+		separator := "?"
+		if strings.Contains(redirectURL, "?") {
+			separator = "&"
+		}
+		redirectURL = redirectURL + separator + "error=" + errCode
+	}
+	return redirectURL
 }
 
 func Register(c *gin.Context) {
