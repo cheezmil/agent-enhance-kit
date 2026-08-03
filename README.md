@@ -1,10 +1,54 @@
+<div align="center">
+
+<img width="120px" alt="AEK Logo" src="static/aek-logo.svg">
+
+<a name="readme-top"></a>
+
 # Agent Enhance Kit (AEK)
 
+AI Agent 基础设施工具集 —— 多提供商搜索、MCP 代理网关、Web 管理界面
 
-## 包
+[![Go version][go_version_img]][go_dev_url]
+[![License][repo_license_img]][repo_license_url]
+[![GitHub][github_img]][github_url]
+
+</div>
+
+
+## 📦 包结构
 
 | 包 | 说明 |
 |----|------|
-| `aek-mcp` | MCP 代理网关，支持 stdio/http/sse 传输，Web 管理界面 |
-| `aek-websearch` | 多提供商网页搜索，CLI + HTTP API |
+| [`aek-websearch`](packages/aek-websearch) | 多提供商网页搜索聚合引擎：CLI + HTTP API + MCP Server |
+| [`aek-mcp`](packages/aek-mcp) | MCP 代理网关 + Web 管理界面（Next.js 前端 + Go 后端） |
+
+### 🔍 aek-websearch
+
+多提供商搜索聚合，统一接口，自动故障转移。
+
+```
+aek search <query>                    # CLI 搜索
+aek serve                             # 启动 HTTP API 服务
+```
+
+支持的搜索提供商：
+`Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
+
+### 🔌 aek-mcp
+
+MCP 代理网关，集中管理所有 MCP 服务器连接。
+
+- **传输协议**：stdio / HTTP / SSE
+- **Web 管理界面**：服务器管理、用户管理、分组管理、密钥管理、活动日志、Prompt 管理、资源管理
+- **权限控制**：用户 → 分组 → 工具级别权限，细粒度控制
+- **MCP 市场**：浏览并一键添加社区 MCP 服务器
+
+<div align="right">
+
+[&nwarr; 回到顶部](#readme-top)
+
+</div>
+
+
+## 🏆 项目目标
 
