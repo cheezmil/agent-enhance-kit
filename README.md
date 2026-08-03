@@ -6,49 +6,68 @@
 
 # Agent Enhance Kit (AEK)
 
-AI Agent 基础设施工具集 —— 多提供商搜索、MCP 代理网关、Web 管理界面
+AI Agent infrastructure monorepo — multi-provider search, MCP proxy gateway, Web management UI
 
 [![Go version][go_version_img]][go_dev_url]
 [![License][repo_license_img]][repo_license_url]
 [![GitHub][github_img]][github_url]
 
+**&searr;&nbsp;&nbsp;Read this in other languages&nbsp;&nbsp;&swarr;**
+
+[English](README.md) · [简体中文](README-ZH.md)
+
 </div>
 
+Agent Enhance Kit is a **Go monorepo** containing two standalone packages:
 
-## 📦 包结构
+| Package | Description |
+|---------|-------------|
+| [`aek-websearch`](packages/aek-websearch) | Multi-provider web search engine: CLI + HTTP API + MCP Server |
+| [`aek-mcp`](packages/aek-mcp) | MCP proxy gateway + Web management UI (Next.js frontend + Go backend) |
 
-| 包 | 说明 |
-|----|------|
-| [`aek-websearch`](packages/aek-websearch) | 多提供商网页搜索聚合引擎：CLI + HTTP API + MCP Server |
-| [`aek-mcp`](packages/aek-mcp) | MCP 代理网关 + Web 管理界面（Next.js 前端 + Go 后端） |
+---
 
 ### 🔍 aek-websearch
 
-多提供商搜索聚合，统一接口，自动故障转移。
+Multi-provider search aggregation with a unified interface and automatic failover.
 
 ```
-aek search <query>                    # CLI 搜索
-aek serve                             # 启动 HTTP API 服务
+aek search <query>                    # CLI search
+aek serve                             # Start HTTP API server
 ```
 
-支持的搜索提供商：
+Supported search providers:
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
 ### 🔌 aek-mcp
 
-MCP 代理网关，集中管理所有 MCP 服务器连接。
+MCP proxy gateway for centralized management of all MCP server connections.
 
-- **传输协议**：stdio / HTTP / SSE
-- **Web 管理界面**：服务器管理、用户管理、分组管理、密钥管理、活动日志、Prompt 管理、资源管理
-- **权限控制**：用户 → 分组 → 工具级别权限，细粒度控制
-- **MCP 市场**：浏览并一键添加社区 MCP 服务器
+- **Transports**: stdio / HTTP / SSE
+- **Web management UI**: Server management, user management, group management, API keys, activity logs, prompts, resources
+- **Permissions**: User → group → tool-level granular access control
+- **MCP marketplace**: Browse and add community MCP servers with one click
 
-<div align="right">
+---
 
-[&nwarr; 回到顶部](#readme-top)
+## 🏆 Project goals
 
-</div>
+As AI Agents evolve rapidly, MCP server management and multi-provider search integration are often fragmented.
 
+**Agent Enhance Kit** aims to provide a ready-to-use infrastructure that lets developers:
+1. Manage all MCP server connections through a unified gateway
+2. Aggregate multiple search providers to avoid single points of failure
+3. Reduce operational overhead with a visual Web configuration UI
 
-## 🏆 项目目标
+## ⚠️ License
 
+[`Agent Enhance Kit`][github_url] is open-sourced under the [MIT license][repo_license_url].
+
+<!-- Links -->
+
+[go_version_img]: https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go
+[go_dev_url]: https://pkg.go.dev/github.com/cheezmil/agent-enhance-kit
+[repo_license_url]: https://github.com/cheezmil/agent-enhance-kit/blob/main/LICENSE
+[repo_license_img]: https://img.shields.io/badge/license-MIT-green?style=for-the-badge&logo=none
+[github_img]: https://img.shields.io/badge/github-181717?style=for-the-badge&logo=github
+[github_url]: https://github.com/cheezmil/agent-enhance-kit
