@@ -25,22 +25,34 @@ Agent Enhance Kit 是一个 **monorepo**
 | [`aek-websearch`](packages/aek-websearch) | 多提供商网页搜索聚合引擎：CLI + HTTP API + MCP Server |
 | [`aek-mcp`](packages/aek-mcp) | MCP 代理网关 + Web 管理界面（Next.js 前端 + Go 后端） |
 
+## 🚀 快速上手
+
+1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) 本仓库到你的 GitHub（方便你提交PR，及时改进本项目）
+2. Clone 你 fork 的仓库：
+   ```bash
+   git clone https://github.com/<你的用户名>/agent-enhance-kit.git
+   cd agent-enhance-kit
+   ```
+3. 用你的 AI 编程工具（Cursor、Claude Code、Hermes 等）打开项目
+4. 向Agent询问“这个项目是什么、怎么用、帮我安装使用本项目”，Agent将帮你搞定。
+
+
 ---
 
 ### 🔍 aek-websearch
 
-多提供商搜索聚合，统一接口，自动故障转移。
-
 使用方法： [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
+
+多提供商搜索聚合，统一接口，自动故障转移。
 
 支持的搜索提供商：
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
 ### 🔌 aek-mcp
 
-MCP 代理网关，集中管理所有 MCP 服务器连接。
-
 使用方法： [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
+
+MCP 代理网关，集中管理所有 MCP 服务器连接。
 
 - **传输协议**：stdio / HTTP / SSE
 - **Web 管理界面**：服务器管理、用户管理、分组管理、密钥管理、活动日志、Prompt 管理、资源管理
@@ -48,8 +60,6 @@ MCP 代理网关，集中管理所有 MCP 服务器连接。
 - **MCP 市场**：浏览并一键添加社区 MCP 服务器
 
 ---
-
-
 
 <!-- 链接 -->
 
