@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePathname, useParams } from 'next/navigation';
 import { useEmbeddingSync } from '../../contexts/EmbeddingSyncContext';
 
 interface HeaderProps {
@@ -14,23 +13,9 @@ const LANGUAGES = [
   { code: 'zh', label: '中文', flag: '🇨🇳' },
 ];
 
-const useCrumbs = (): string[] => {
-  const { t } = useTranslation();
-  const pathname = usePathname();
-  return useMemo(() => {
-    const segs = pathname.replace(/^\//, '').split('/').filter(Boolean);
-    if (segs.length === 0) return [];
-    const pageKey = `pages.${segs[segs.length - 1]}.title`;
-    const translated = t(pageKey);
-    const last = translated !== pageKey ? translated : segs[segs.length - 1];
-    return [...segs.slice(0, -1).map((s) => s), last];
-  }, [pathname, t]);
-};
-
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { t, i18n } = useTranslation();
   const { activeSyncs } = useEmbeddingSync();
-  const crumbs = useCrumbs();
   const [isDark, setIsDark] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
 
@@ -67,14 +52,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         </svg>
       </button>
 
-      <div className="hub-crumb flex items-center min-w-0">
-        {crumbs.map((c, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <span className="sep">/</span>}
-            {i === crumbs.length - 1 ? <b className="truncate">{c}</b> : <span className="truncate">{c}</span>}
-          </React.Fragment>
-        ))}
-      </div>
+      <React.Fragment />
 
       <div className="flex-1 flex justify-center px-2 min-w-0">
         {activeSyncs.length > 0 && (
