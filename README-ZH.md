@@ -6,7 +6,7 @@
 
 # Agent Enhance Kit (AEK)
 
-AI Agent 基础设施 monorepo —— 多提供商搜索、MCP 代理网关、Web 管理界面
+AI Agent 增强提效工具
 
 [![Go version][go_version_img]][go_dev_url]
 [![Go report][go_report_img]][go_report_url]
@@ -31,10 +31,7 @@ Agent Enhance Kit 是一个 **monorepo**
 
 多提供商搜索聚合，统一接口，自动故障转移。
 
-```
-aek search <query>                    # CLI 搜索
-aek serve                             # 启动 HTTP API 服务
-```
+使用方法： [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
 
 支持的搜索提供商：
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
@@ -42,6 +39,8 @@ aek serve                             # 启动 HTTP API 服务
 ### 🔌 aek-mcp
 
 MCP 代理网关，集中管理所有 MCP 服务器连接。
+
+使用方法： [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
 - **传输协议**：stdio / HTTP / SSE
 - **Web 管理界面**：服务器管理、用户管理、分组管理、密钥管理、活动日志、Prompt 管理、资源管理
