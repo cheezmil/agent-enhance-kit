@@ -6,7 +6,7 @@
 
 # Agent Enhance Kit (AEK)
 
-AI Agent infrastructure monorepo — multi-provider search, MCP proxy gateway, Web management UI
+AI Agent productivity toolkit
 
 [![Go version][go_version_img]][go_dev_url]
 [![Go report][go_report_img]][go_report_url]
@@ -14,7 +14,7 @@ AI Agent infrastructure monorepo — multi-provider search, MCP proxy gateway, W
 
 **&searr;&nbsp;&nbsp;Other languages&nbsp;&nbsp;&swarr;**
 
-[English](README.md) · [简体中文](README-ZH.md)
+[简体中文](README-ZH.md)
 
 </div>
 
@@ -31,10 +31,7 @@ Agent Enhance Kit is a **monorepo**
 
 Multi-provider search aggregation with a unified interface and automatic failover.
 
-```
-aek search <query>                    # CLI search
-aek serve                             # Start HTTP API server
-```
+Usage: [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
 
 Supported search providers:
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
@@ -42,6 +39,8 @@ Supported search providers:
 ### 🔌 aek-mcp
 
 MCP proxy gateway for centralized management of all MCP server connections.
+
+Usage: [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
 - **Transports**: stdio / HTTP / SSE
 - **Web management UI**: Server management, user management, group management, API keys, activity logs, prompts, resources
