@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # Start aek-mcp: launch BOTH frontend (1351) + backend (1352)
-# Requires deployed services (run start_deploy_aek-mcp.py first)
+# Delegates to start_fe_aek-mcp.py / start_be_aek-mcp.py (one-shot launchers
+# that spawn the real process, wait for readiness, then exit). We verify
+# success via return code, then confirm ports are live ourselves.
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).parent
@@ -12,30 +15,46 @@ FE_SCRIPT = SCRIPTS_DIR / "start_fe_aek-mcp.py"
 BE_SCRIPT = SCRIPTS_DIR / "start_be_aek-mcp.py"
 
 
-def run_script(label: str, script: Path):
+def launch(label: str, script: Path, port: int):
     if not script.exists():
         print(f"Error: {script} not found")
         sys.exit(1)
-    print(f"\n--- {label} ---")
+    print(f"\n--- Starting {label} ({script}) ---")
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
-    r = subprocess.run([sys.executable, str(script)], env=env)
+    r = subprocess.run([sys.executable, str(script)], env=env, timeout=120)
     if r.returncode != 0:
-        print(f"Error: {label} failed (exit {r.returncode})")
+        print(f"Error: {label} launcher failed (exit {r.returncode})")
         sys.exit(1)
+    time.sleep(2)
+    if port_ready(port):
+        print(f"  {label} ready on port {port}")
+    else:
+        print(f"  Warning: {label} launcher exited 0 but port {port} is not listening")
+
+
+def port_ready(port: int) -> bool:
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+    except Exception:
+        return False
 
 
 def main():
     print("=== Starting aek-mcp (frontend + backend) ===")
+    launch("frontend", FE_SCRIPT, 1351)
+    launch("backend", BE_SCRIPT, 1352)
 
-    for label, script in [("frontend", FE_SCRIPT), ("backend", BE_SCRIPT)]:
-        run_script(label, script)
-
-    print(f"""
+    print(
+        """
 === aek-mcp started ===
-    Frontend (main):  http://127.0.0.1:1351/
-    Backend (gin):    http://127.0.0.1:1352/
-""")
+    Frontend (1351): http://127.0.0.1:1351/aek-mcp/
+    Backend  (1352): http://127.0.0.1:1352/
+"""
+    )
 
 
 if __name__ == "__main__":
