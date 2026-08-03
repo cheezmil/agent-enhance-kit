@@ -27,7 +27,7 @@ Agent Enhance Kit 是一个 **monorepo**
 
 ## 🚀 快速上手
 
-1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) 本仓库到你的 GitHub（方便你提交PR，及时改进本项目）
+1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) 本仓库到你的 GitHub（方便你提交PR，及时改进本项目，感谢你的使用）
 2. Clone 你 fork 的仓库：
    ```bash
    git clone https://github.com/<你的用户名>/agent-enhance-kit.git
