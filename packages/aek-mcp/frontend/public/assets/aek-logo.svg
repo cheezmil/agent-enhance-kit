@@ -1,0 +1,17 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="rindGrad" x1="0 0" x2="1 1">
+<stop stop-color="#fdba74"/>
+<stop offset="1" stop-color="#ea580c"/>
+</linearGradient>
+<linearGradient id="fleshGrad" x1="0 0" x2="1 1">
+<stop stop-color="#fff0bc"/>
+<stop offset="1" stop-color="#fb923c"/>
+</linearGradient>
+</defs>
+<circle cx="60" cy="60" r="42" fill="url(#rindGrad)"/>
+<circle cx="60" cy="60" r="34" fill="#fffbeb"/>
+<circle cx="60" cy="60" r="30" fill="url(#fleshGrad)"/>
+<path d="M60 30 L60 90 M30 60 L90 60 M40 40 L80 80 M80 40 L40 80" stroke="#ea580c" stroke-width="2" opacity="0.5"/>
+<circle cx="60" cy="60" r="8" fill="#fffbeb"/>
+</svg>
