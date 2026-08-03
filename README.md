@@ -25,22 +25,34 @@ Agent Enhance Kit is a **monorepo**
 | [`aek-websearch`](packages/aek-websearch) | Multi-provider web search engine: CLI + HTTP API + MCP Server |
 | [`aek-mcp`](packages/aek-mcp) | MCP proxy gateway + Web management UI (Next.js frontend + Go backend) |
 
+## 🚀 Quick Start
+
+1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) this repo on GitHub (so you can submit PRs to improve it)
+2. Clone your fork:
+
+   ```bash
+   git clone https://github.com/<YOUR_USERNAME>/agent-enhance-kit.git
+   cd agent-enhance-kit
+   ```
+3. Open the project in your AI coding agent (Cursor, Claude Code, Hermes, etc.)
+4. Ask the agent: "What is this project? How do I use it? Help me install and use it." — the agent will handle the rest.
+
 ---
 
 ### 🔍 aek-websearch
 
-Multi-provider search aggregation with a unified interface and automatic failover.
-
 Usage: [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
+
+Multi-provider search aggregation with a unified interface and automatic failover.
 
 Supported search providers:
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
 ### 🔌 aek-mcp
 
-MCP proxy gateway for centralized management of all MCP server connections.
-
 Usage: [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
+
+MCP proxy gateway for centralized management of all MCP server connections.
 
 - **Transports**: stdio / HTTP / SSE
 - **Web management UI**: Server management, user management, group management, API keys, activity logs, prompts, resources
