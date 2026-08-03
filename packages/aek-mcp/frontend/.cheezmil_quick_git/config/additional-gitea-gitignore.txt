@@ -1,7 +1,0 @@
-# cqg-gitea-all-project-ignore-head
-
-# cqg-gitea-all-project-ignore-end
-
-# cqg-gitea-this-project-ignore-head
-
-# cqg-gitea-this-project-ignore-end
