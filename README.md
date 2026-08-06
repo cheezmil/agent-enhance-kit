@@ -27,7 +27,7 @@ Agent Enhance Kit is a **monorepo**
 
 ## 🚀 Quick Start
 
-1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) this repo on GitHub (so you can submit PRs to improve it)
+1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) this repo on GitHub (Convenient for you to submit PR, improve this project in a timely manner, thank you for using)
 2. Clone your fork:
 
    ```bash
@@ -57,7 +57,14 @@ MCP proxy gateway for centralized management of all MCP server connections.
 - **Transports**: stdio / HTTP / SSE
 - **Web management UI**: Server management, user management, group management, API keys, activity logs, prompts, resources
 - **Permissions**: User → group → tool-level granular access control
-- **MCP marketplace**: Browse and add community MCP servers with one click
+
+**Server management dashboard** — Manage all connected MCP servers, filter by status (Online / Offline / Disabled), and inspect each server's Tools, Prompts, Resources and context footprint.
+
+![aek-mcp server management](static/aek-mcp/1.jpg)
+
+**Config generator** — Auto-generate and copy-ready MCP configurations for various AI tools (e.g. Claude Code), supporting both full and inner JSON snippets.
+
+![aek-mcp tutorial config](static/aek-mcp/2.jpg)
 
 ---
 

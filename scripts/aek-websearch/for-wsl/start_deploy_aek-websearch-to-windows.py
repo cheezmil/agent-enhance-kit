@@ -1,13 +1,28 @@
 #!/usr/bin/env python3
 """
-用途：在 WSL 中执行，将 aek-websearch 安装到 Windows 全局 npm
-使用：python3 scripts/aek-websearch/for-wsl/install-aek-to-windows.py
+用途：在 WSL 中执行，将 aek-websearch 交叉编译并部署到 Windows
+使用：python3 scripts/aek-websearch/for-wsl/start_deploy_aek-websearch-to-windows.py
+
+原理：
+  1. 在 WSL 中交叉编译出 Windows 版 aek.exe（GOOS=windows GOARCH=amd64）
+  2. 通过 wsl.localhost UNC 路径把整个包复制到 Windows 临时目录
+  3. 直接把交叉编译好的 aek.exe 复制到 %USERPROFILE%\bin\（不依赖 npm postinstall，
+     因为 npm 的 allow-scripts 机制会拦截 postinstall，导致 platforms/ 里的 Windows
+     二进制从未被使用）
+  4. 确保 %USERPROFILE%\bin 已加入当前用户 PATH（持久化 + 当前会话）
 """
 
 import subprocess
 import shutil
 import os
 import sys
+from pathlib import Path
+
+# 本脚本位于 scripts/aek-websearch/for-wsl/ 下，向上3级到项目根
+SCRIPT_DIR = Path(__file__).resolve().parent                     # scripts/aek-websearch/for-wsl/
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent                  # -> 项目根
+PKG_DIR = PROJECT_ROOT / "packages" / "aek-websearch"
+
 
 def get_wsl_distro():
     distro = os.environ.get("WSL_DISTRO_NAME")
@@ -16,12 +31,24 @@ def get_wsl_distro():
         sys.exit(1)
     return distro
 
+
 def get_wsl_user():
     user = os.environ.get("USER") or os.environ.get("USERNAME")
     if not user:
         print("[✗] 找不到用户名，请设置 USER 或 USERNAME 环境变量")
         sys.exit(1)
     return user
+
+
+def wsl_path_to_unc(path: Path, distro: str) -> str:
+    """把 WSL 绝对路径转成 wsl.localhost UNC 路径。
+    如 /home/xdx/foo -> \\\\wsl.localhost\\Ubuntu-22.04\\home\\xdx\\foo
+    """
+    p = str(path).replace("/", "\\")
+    if p.startswith("\\"):
+        p = p.lstrip("\\")
+    return f"\\\\wsl.localhost\\{distro}\\{p}"
+
 
 def get_windows_pwsh():
     candidates = [
@@ -33,6 +60,7 @@ def get_windows_pwsh():
             return p
     return None
 
+
 def run_pwsh(script):
     pwsh = get_windows_pwsh()
     if not pwsh:
@@ -40,38 +68,72 @@ def run_pwsh(script):
         sys.exit(1)
     subprocess.run([pwsh, "-Command", script], check=True)
 
+
 def main():
     distro = get_wsl_distro()
     user = get_wsl_user()
-    src = f"\\\\wsl.localhost\\{distro}\\home\\{user}\\CodeRelated\\agent-enhance-kit\\packages\\aek-websearch"
 
-    print(f"[1/5] Building in WSL...")
-    pkg_dir = f"/home/{user}/CodeRelated/agent-enhance-kit/packages/aek-websearch"
-    subprocess.run(["go", "build", "-a", "-o", "bin/aek.exe", "./cmd/aek/"], cwd=pkg_dir, check=True)
+    if not PKG_DIR.exists():
+        print(f"[✗] 找不到包目录: {PKG_DIR}")
+        sys.exit(1)
 
-    print(f"[2/5] 复制到 Windows 临时目录...")
-    print(f"  源: {src}")
+    # 动态推导 UNC 路径，不硬编码
+    src = wsl_path_to_unc(PKG_DIR, distro)
+    print(f"  包目录: {PKG_DIR}")
+    print(f"  UNC源: {src}")
 
+    # 1. 交叉编译 Windows 二进制（GOOS=windows 是关键，否则产出 Linux ELF）
+    print("[1/5] 交叉编译 Windows 版 aek.exe (GOOS=windows GOARCH=amd64)...")
+    env = os.environ.copy()
+    env["GOOS"] = "windows"
+    env["GOARCH"] = "amd64"
+    subprocess.run(
+        ["go", "build", "-a", "-o", "bin/aek.exe", "./cmd/aek/"],
+        cwd=PKG_DIR, env=env, check=True,
+    )
+    # 同步到 platforms/win32-x64，保持与 postinstall 期望一致
+    platforms_dir = PKG_DIR / "platforms" / "win32-x64"
+    platforms_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(PKG_DIR / "bin" / "aek.exe", platforms_dir / "aek.exe")
+    print("  已编译，并同步到 platforms/win32-x64/aek.exe")
+
+    # 2-5. 在 Windows 上复制、安装、配置 PATH
     ps_script = f"""
+$ErrorActionPreference = 'Stop'
 $src = "{src}"
 $dest = Join-Path $env:TEMP "aek-websearch"
 if (Test-Path $dest) {{ Remove-Item $dest -Recurse -Force }}
+Write-Host "[2/5] 复制包到 Windows 临时目录..."
 Copy-Item $src $dest -Recurse
-Write-Host "[3/5] npm uninstall -g aek-websearch (if exists)..."
+
+Write-Host "[3/5] 卸载旧版全局包(如存在)..."
 npm uninstall -g aek-websearch 2>$null
-Write-Host "[4/5] npm install -g..."
-Set-Location $env:TEMP
-npm install -g $dest 2>&1 | Write-Host
-Write-Host "[5/5] 复制 aek.exe 到用户 bin 目录..."
+
+Write-Host "[4/5] 复制 aek.exe 到 %USERPROFILE%\\bin..."
 $userBin = Join-Path $env:USERPROFILE "bin"
 if (!(Test-Path $userBin)) {{ New-Item -ItemType Directory -Path $userBin | Out-Null }}
 $aekExe = Join-Path $dest "bin" "aek.exe"
-if (Test-Path $aekExe) {{ Copy-Item $aekExe $userBin -Force }}
+if (Test-Path $aekExe) {{
+    Copy-Item $aekExe $userBin -Force
+    Write-Host "  已复制: $userBin\\aek.exe"
+}} else {{
+    throw "未找到 Windows 二进制: $aekExe"
+}}
+
+Write-Host "[5/5] 确保 %USERPROFILE%\\bin 在当前用户 PATH 中..."
+$userBin = Join-Path $env:USERPROFILE "bin"
+# 用微软 pave 管理 PATH；未安装则自动 winget 安装
+if (!(Get-Command pave -ErrorAction SilentlyContinue)) {{\n    Write-Host "  pave 未安装，通过 winget 安装..."\n    winget install Microsoft.Pave --accept-source-agreements 2>&1 | Write-Host\n}}
+pave add $userBin 2>&1 | Write-Host
+# 更新当前会话 PATH，方便本轮验证
+$env:Path = $userBin + ';' + $env:Path
+
 Write-Host "[✓] 验证..."
 & (Join-Path $userBin "aek.exe") version
 """
     run_pwsh(ps_script)
-    print("[✓] 安装完成")
+    print("[✓] 部署完成")
+
 
 if __name__ == "__main__":
     main()
