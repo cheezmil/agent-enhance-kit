@@ -52,12 +52,21 @@ Agent Enhance Kit 是一个 **monorepo**
 
 使用方法： [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
-MCP 代理网关，集中管理所有 MCP 服务器连接。
+MCP 代理网关，集中管理所有 MCP 服务器的连接。
 
-- **传输协议**：stdio / HTTP / SSE
-- **Web 管理界面**：服务器管理、用户管理、分组管理、密钥管理、活动日志、Prompt 管理、资源管理
-- **权限控制**：用户 → 分组 → 工具级别权限，细粒度控制
-- **MCP 市场**：浏览并一键添加社区 MCP 服务器
+- **传输方式**：stdio / HTTP / SSE
+- **Web 管理界面**：服务器管理、用户管理、分组管理、API 密钥、活动日志、提示词、资源
+- **权限控制**：用户 → 分组 → 工具级细粒度访问控制
+
+**服务器管理仪表盘** — 管理所有已连接的 MCP 服务器，按状态（在线 / 离线 / 已禁用）筛选，查看每个服务器的工具（Tools）、提示词（Prompts）、资源（Resources）及上下文占用。
+
+![aek-mcp server management](static/aek-mcp/1.jpg)
+
+**配置生成器** — 针对不同 AI 工具（如 Claude Code）自动生成并一键复制 MCP 配置，支持完整配置与内部片段两种 JSON 格式。
+
+![aek-mcp tutorial config](static/aek-mcp/2.jpg)
+
+
 
 ---
 

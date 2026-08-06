@@ -18,7 +18,7 @@ MCP proxy gateway for centralized management of all MCP server connections. Supp
 - Need to manage MCP servers via a unified gateway
 - Need to start or deploy the MCP gateway
 - Need to manage servers, users, groups, or API keys via Web UI
-- Need to configure permissions or browse MCP marketplace
+- Need to configure permissions
 
 ## Usage
 
@@ -60,14 +60,15 @@ python3 scripts/aek-mcp/start_install_dependencies_aek-mcp.py
 ```
 
 ### Web UI Features
-
+- Dashboard
 - Server management
 - User & group management
 - API keys
 - Activity logs
+- Logs
 - Prompts & resources
-- Tool-level permissions
-- MCP marketplace
+- Tutorial (MCP client config generator)
+- Tool-level permissions (Settings)
 
 ## Common Pitfalls
 
