@@ -29,11 +29,21 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Local (loopback) requests are trusted and skip authentication.
 		if isLocalClient(c.ClientIP()) {
+			username := "local"
+			role := "admin"
+			// Bind to a real user when one exists, so handlers that look up
+			// the user by username (e.g. GetCurrentUser) do not fail.
+			for _, u := range services.Store.GetAllUsers() {
+				if u.Role == "admin" {
+					username = u.Username
+					break
+				}
+			}
 			c.Set("user", &map[string]interface{}{
-				"username": "local",
-				"role":     "admin",
+				"username": username,
+				"role":     role,
 			})
-			c.Set("username", "local")
+			c.Set("username", username)
 			c.Next()
 			return
 		}
