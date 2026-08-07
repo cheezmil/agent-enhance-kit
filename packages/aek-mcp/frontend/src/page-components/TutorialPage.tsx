@@ -181,8 +181,8 @@ const AGENT_TOOLS: AgentTool[] = [
     description: 'hermes_config.yaml',
     configPath: { win: '%USERPROFILE%\\.hermes\\profiles\\default\\hermes_config.yaml', mac: '~/.hermes/profiles/default/hermes_config.yaml', linux: '~/.hermes/profiles/default/hermes_config.yaml' },
     buildConfig: (cfg) => ({
-      inner: `aek_mcp:\n  type: streamable-http\n  url: "${mcpUrl(cfg)}"\n  enabled: true`,
-      full: `mcp:\n  aek_mcp:\n    type: streamable-http\n    url: "${mcpUrl(cfg)}"\n    enabled: true`,
+      inner: `aek__mcp:\n  type: streamable-http\n  url: "${mcpUrl(cfg)}"\n  enabled: true`,
+      full: `mcp:\n  aek__mcp:\n    type: streamable-http\n    url: "${mcpUrl(cfg)}"\n    enabled: true`,
     }),
   },
   {
