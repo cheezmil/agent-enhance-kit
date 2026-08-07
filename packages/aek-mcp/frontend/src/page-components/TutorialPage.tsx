@@ -92,8 +92,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%USERPROFILE%\\.claude.json', mac: '~/.claude.json', linux: '~/.claude.json' },
     docUrl: 'https://docs.anthropic.com/en/docs/claude-code/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -103,8 +103,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%APPDATA%\\Claude\\claude_desktop_config.json', mac: '~/Library/Application Support/Claude/claude_desktop_config.json', linux: '~/.config/Claude/claude_desktop_config.json' },
     docUrl: 'https://docs.anthropic.com/en/docs/claude-desktop/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -114,8 +114,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: 'Settings > MCP Servers', mac: 'Settings > MCP Servers', linux: 'Settings > MCP Servers' },
     docUrl: 'https://docs.cherry-ai.com/docs/en-us/advanced-basic/mcp/config',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -131,7 +131,7 @@ const AGENT_TOOLS: AgentTool[] = [
       // NO `transport` field.
       const chatboxJson = {
         mcpServers: {
-          'aek-mcp': {
+          'aek_mcp': {
             url: mcpUrl(cfg),
           },
         },
@@ -149,8 +149,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%APPDATA%\\Code\\User\\globalStorage\\saoudrizwan.claude-dev\\settings\\cline_mcp_settings.json', mac: '~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json', linux: '~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json' },
     docUrl: 'https://docs.cline.bot/mcp/mcp-overview',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -160,8 +160,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%USERPROFILE%\\.continue\\mcpServers\\mcp.json', mac: '~/.continue/mcpServers/mcp.json', linux: '~/.continue/mcpServers/mcp.json' },
     docUrl: 'https://docs.continue.dev/customize/deep-dives/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -171,8 +171,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%USERPROFILE%\\.cursor\\mcp.json', mac: '~/.cursor/mcp.json', linux: '~/.cursor/mcp.json' },
     docUrl: 'https://docs.cursor.com/context/model-context-protocol',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
   {
@@ -181,8 +181,8 @@ const AGENT_TOOLS: AgentTool[] = [
     description: 'hermes_config.yaml',
     configPath: { win: '%USERPROFILE%\\.hermes\\profiles\\default\\hermes_config.yaml', mac: '~/.hermes/profiles/default/hermes_config.yaml', linux: '~/.hermes/profiles/default/hermes_config.yaml' },
     buildConfig: (cfg) => ({
-      inner: `aek-mcp:\n  type: streamable-http\n  url: "${mcpUrl(cfg)}"\n  enabled: true`,
-      full: `mcp:\n  aek-mcp:\n    type: streamable-http\n    url: "${mcpUrl(cfg)}"\n    enabled: true`,
+      inner: `aek_mcp:\n  type: streamable-http\n  url: "${mcpUrl(cfg)}"\n  enabled: true`,
+      full: `mcp:\n  aek_mcp:\n    type: streamable-http\n    url: "${mcpUrl(cfg)}"\n    enabled: true`,
     }),
   },
   {
@@ -191,10 +191,25 @@ const AGENT_TOOLS: AgentTool[] = [
     description: 'opencode.json',
     configPath: { win: '%USERPROFILE%\\.config\\opencode\\opencode.json', mac: '~/.config/opencode/opencode.json', linux: '~/.config/opencode/opencode.json' },
     docUrl: 'https://opencode.ai/docs/config',
-    buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg, { timeout: 6600000 }),
-      full: buildFullConfig('aek-mcp', cfg, { timeout: 6600000 }),
-    }),
+    buildConfig: (cfg) => {
+      // OpenCode only supports type "local" (spawn a process) or "remote" (HTTP).
+      // There is no "streamable-http" type — remote servers use type "remote".
+      const obj = {
+        type: 'remote',
+        url: mcpUrl(cfg),
+        enabled: true,
+        timeout: 6600000,
+      };
+      const inner = JSON.stringify(obj, null, 2);
+      const indented = inner
+        .split('\n')
+        .map((line, i) => (i === 0 ? line : '  ' + line))
+        .join('\n');
+      return {
+        inner: `"aek_mcp": ${indented}`,
+        full: JSON.stringify({ mcp: { 'aek_mcp': obj } }, null, 2),
+      };
+    },
   },
   {
     id: 'vscode',
@@ -203,8 +218,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '<project>\\.vscode\\mcp.json', mac: '<project>/.vscode/mcp.json', linux: '<project>/.vscode/mcp.json' },
     docUrl: 'https://code.visualstudio.com/docs/copilot/chat/mcp-servers',
     buildConfig: (cfg) => ({
-      inner: `"aek-mcp":\n  type: "http"\n  url: "${mcpUrl(cfg)}"`,
-      full: `{\n  "servers": {\n    "aek-mcp": {\n      "type": "http",\n      "url": "${mcpUrl(cfg)}"\n    }\n  }\n}`,
+      inner: `"aek_mcp":\n  type: "http"\n  url: "${mcpUrl(cfg)}"`,
+      full: `{\n  "servers": {\n    "aek_mcp": {\n      "type": "http",\n      "url": "${mcpUrl(cfg)}"\n    }\n  }\n}`,
     }),
   },
   {
@@ -214,8 +229,8 @@ const AGENT_TOOLS: AgentTool[] = [
     configPath: { win: '%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json', mac: '~/.codeium/windsurf/mcp_config.json', linux: '~/.codeium/windsurf/mcp_config.json' },
     docUrl: 'https://docs.windsurf.com/plugins/cascade/mcp',
     buildConfig: (cfg) => ({
-      inner: buildInnerConfig('aek-mcp', cfg),
-      full: buildFullConfig('aek-mcp', cfg),
+      inner: buildInnerConfig('aek_mcp', cfg),
+      full: buildFullConfig('aek_mcp', cfg),
     }),
   },
 ];
@@ -316,7 +331,7 @@ const TutorialPage: React.FC = () => {
     setError('');
     try {
       const res = await fetch(getApiUrl(`/tutorial/config?group=${encodeURIComponent(selectedGroup)}`), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('aek-mcp_token') || ''}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('aek_mcp_token') || ''}` },
       });
       const data = await res.json();
       if (data.success && data.data) {
