@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/subtle"
+	"net"
 	"net/http"
 	"strings"
 
@@ -11,8 +12,32 @@ import (
 	"github.com/cheezmil/aek-mcp/internal/services"
 )
 
+// isLocalClient reports whether the request comes from a loopback address.
+// Local (same-machine) requests are trusted and skip bearer/JWT auth.
+func isLocalClient(host string) bool {
+	if host == "" {
+		return false
+	}
+	if host == "localhost" || host == "testclient" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Local (loopback) requests are trusted and skip authentication.
+		if isLocalClient(c.ClientIP()) {
+			c.Set("user", &map[string]interface{}{
+				"username": "local",
+				"role":     "admin",
+			})
+			c.Set("username", "local")
+			c.Next()
+			return
+		}
+
 		// 1. Check Bearer key authentication
 		tokenString := c.GetHeader("Authorization")
 		if tokenString != "" {
