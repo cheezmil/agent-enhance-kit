@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Start aek-mcp: launch BOTH frontend (1351) + backend (1352)
-# Delegates to start_fe_aek-mcp.py / start_be_aek-mcp.py (one-shot launchers
+# Start aek-mcp: launch backend (1352) first, then frontend (1351).
+# Delegates to start_be_aek-mcp.py / start_fe_aek-mcp.py (one-shot launchers
 # that spawn the real process, wait for readiness, then exit). We verify
 # success via return code, then confirm ports are live ourselves.
 import os
@@ -44,15 +44,15 @@ def port_ready(port: int) -> bool:
 
 
 def main():
-    print("=== Starting aek-mcp (frontend + backend) ===")
-    launch("frontend", FE_SCRIPT, 1351)
+    print("=== Starting aek-mcp (backend + frontend) ===")
     launch("backend", BE_SCRIPT, 1352)
+    launch("frontend", FE_SCRIPT, 1351)
 
     print(
         """
 === aek-mcp started ===
-    Frontend (1351): http://127.0.0.1:1351/aek-mcp/
     Backend  (1352): http://127.0.0.1:1352/
+    Frontend (1351): http://127.0.0.1:1351/aek-mcp/
 """
     )
 
