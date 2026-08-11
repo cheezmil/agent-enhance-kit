@@ -70,6 +70,7 @@ packages/aek-websearch/aek
 packages/aek-mcp/bin/
 packages/aek-mcp/aek-mcp
 packages/aek-mcp/tmp/
+packages/aek-task-manager/bin/
 
 # Build artifacts
 *.exe
@@ -109,7 +110,7 @@ packages/aek-mcp/frontend/.next/
 # cqg-head
 # cqg-all-platforms-ignore-head
 .cheezmil_quick_git/logs/
-.cheezmil_quick_git/_platform_repos/
+.cheezmil_quick_git/_worktrees/
 .cheezmil_quick_git/*.mjs
 node_modules/
 # cqg-all-platforms-ignore-end
