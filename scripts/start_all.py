@@ -8,7 +8,8 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "shared"))
 from start_scripts_shared_logic import run, kill_port, can_bind, is_win, PROJECT_ROOT
 
 AEK_MCP_DIR = PROJECT_ROOT / "packages" / "aek-mcp"

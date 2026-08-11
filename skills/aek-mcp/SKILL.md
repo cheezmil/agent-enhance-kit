@@ -25,38 +25,38 @@ MCP proxy gateway for centralized management of all MCP server connections. Supp
 ### Start (frontend + backend)
 
 ```bash
-python3 scripts/aek-mcp/start_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_aek-mcp.py
 ```
 
 ### Start frontend only
 
 ```bash
-python3 scripts/aek-mcp/start_fe_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_fe_aek-mcp.py
 ```
 
 ### Start backend only
 
 ```bash
-python3 scripts/aek-mcp/start_be_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_be_aek-mcp.py
 ```
 
 ### Deploy (build + install)
 
 ```bash
 # Deploy both
-python3 scripts/aek-mcp/start_deploy_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_deploy_aek-mcp.py
 
 # Deploy frontend only
-python3 scripts/aek-mcp/start_deploy_fe_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_deploy_fe_aek-mcp.py
 
 # Deploy backend only
-python3 scripts/aek-mcp/start_deploy_be_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_deploy_be_aek-mcp.py
 ```
 
 ### Install dependencies
 
 ```bash
-python3 scripts/aek-mcp/start_install_dependencies_aek-mcp.py
+python3 packages/aek-mcp/scripts/start_install_dependencies_aek-mcp.py
 ```
 
 ### Web UI Features

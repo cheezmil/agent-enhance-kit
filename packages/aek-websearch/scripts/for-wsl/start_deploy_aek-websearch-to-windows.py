@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 用途：在 WSL 中执行，将 aek-websearch 交叉编译并部署到 Windows
-使用：python3 scripts/aek-websearch/for-wsl/start_deploy_aek-websearch-to-windows.py
+使用：python3 packages/aek-websearch/scripts/for-wsl/start_deploy_aek-websearch-to-windows.py
 
 原理：
   1. 在 WSL 中交叉编译出 Windows 版 aek.exe（GOOS=windows GOARCH=amd64）
@@ -18,9 +18,9 @@ import os
 import sys
 from pathlib import Path
 
-# 本脚本位于 scripts/aek-websearch/for-wsl/ 下，向上3级到项目根
-SCRIPT_DIR = Path(__file__).resolve().parent                     # scripts/aek-websearch/for-wsl/
-PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent                  # -> 项目根
+# 本脚本位于 packages/aek-websearch/scripts/for-wsl/ 下，向上4级到项目根
+SCRIPT_DIR = Path(__file__).resolve().parent             # packages/aek-websearch/scripts/for-wsl/
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent.parent    # -> 项目根
 PKG_DIR = PROJECT_ROOT / "packages" / "aek-websearch"
 
 

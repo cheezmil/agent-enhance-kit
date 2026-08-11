@@ -4,10 +4,11 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "shared"))
 from start_scripts_shared_logic import run, is_win
 
-AEK_WS_DIR = Path(__file__).parent.parent.parent / "packages" / "aek-websearch"
+AEK_WS_DIR = PROJECT_ROOT / "packages" / "aek-websearch"
 
 
 def main():

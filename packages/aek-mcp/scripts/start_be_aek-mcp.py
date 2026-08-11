@@ -8,7 +8,8 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "shared"))
 from start_scripts_shared_logic import (
     kill_port,
     is_win,
@@ -16,7 +17,7 @@ from start_scripts_shared_logic import (
     wait_health,
 )
 
-AEK_MCP_DIR = Path(__file__).parent.parent.parent / "packages" / "aek-mcp"
+AEK_MCP_DIR = PROJECT_ROOT / "packages" / "aek-mcp"
 
 
 def kill_old():

@@ -5,7 +5,8 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "shared"))
 from start_scripts_shared_logic import run, PROJECT_ROOT
 
 DEPLOY_SCRIPTS = [
@@ -15,10 +16,8 @@ DEPLOY_SCRIPTS = [
 
 
 def main():
-    scripts_dir = PROJECT_ROOT / "scripts"
-
     for mod_name, script_name in DEPLOY_SCRIPTS:
-        script = scripts_dir / mod_name / script_name
+        script = PROJECT_ROOT / "packages" / mod_name / "scripts" / script_name
         print(f"\n{'=' * 40}")
         print(f"=== Deploying {mod_name} ===")
         print(f"{'=' * 40}")

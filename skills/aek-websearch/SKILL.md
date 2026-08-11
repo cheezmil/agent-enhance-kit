@@ -24,19 +24,19 @@ Multi-provider web search aggregation engine with a unified interface and automa
 ### Start
 
 ```bash
-python3 scripts/aek-websearch/start_aek-websearch.py
+python3 packages/aek-websearch/scripts/start_aek-websearch.py
 ```
 
 ### Deploy (build + install)
 
 ```bash
-python3 scripts/aek-websearch/start_deploy_aek-websearch.py
+python3 packages/aek-websearch/scripts/start_deploy_aek-websearch.py
 ```
 
 ### Install dependencies
 
 ```bash
-python3 scripts/aek-websearch/start_install_dependencies_aek-websearch.py
+python3 packages/aek-websearch/scripts/start_install_dependencies_aek-websearch.py
 ```
 
 ### CLI
