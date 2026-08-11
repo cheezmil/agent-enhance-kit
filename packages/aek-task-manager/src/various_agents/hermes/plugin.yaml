@@ -1,0 +1,11 @@
+name: aek-task-manager
+version: 2.2.1
+description: |
+  AEK Task Manager — standalone user plugin for long-running task management.
+  Per-task Git repos, human-in-the-loop approval gates, cross-session recovery.
+  Injects context via pre_llm_call hook. Works alongside any memory provider.
+INSTALLATION: |
+  git clone https://github.com/cheezmil/agent-enhance-kit ~/CodeRelated/agent-enhance-kit
+  Then run: python scripts/sync-to-hermes.py
+pip_dependencies: []
+kind: standalone
