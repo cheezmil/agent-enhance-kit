@@ -6,9 +6,10 @@
     ["aek-websearch", "aek-task-manager"]
   ],
   "linked": [],
-  "ignore": ["aek-mcp"],
+  "ignore": [],
   "privatePackages": {
     "version": true,
-    "tag": true
+    "tag": true,
+    "publish": false
   }
 }
