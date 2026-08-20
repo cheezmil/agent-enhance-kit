@@ -51,11 +51,9 @@ def get_versions():
         
         try:
             data = json.loads(pkg_json.read_text())
-            if data.get("private"):
-                continue
             version = data.get("version")
             if version:
-                versions[data["name"]] = version
+                versions[data["name"]] = {"version": version, "private": data.get("private", False)}
         except json.JSONDecodeError:
             continue
     
@@ -69,11 +67,12 @@ def main():
     # 1. Get versions from package.json files
     versions = get_versions()
     if not versions:
-        log("ERROR: No public package versions found", Colors.RED)
+        log("ERROR: No package versions found", Colors.RED)
         sys.exit(1)
 
-    for name, version in versions.items():
-        log(f"  {name}: v{version}", Colors.GREEN)
+    for name, info in versions.items():
+        private_str = " [private]" if info["private"] else ""
+        log(f"  {name}: v{info['version']}{private_str}", Colors.GREEN)
 
     # 3. Check if there are uncommitted changes
     status = exec_command("git status --porcelain")
@@ -98,12 +97,13 @@ def main():
         log("Run: pnpm changeset && git add . && git commit", Colors.YELLOW)
         sys.exit(1)
 
-    # 5. Create tags for each package using their own versions
+    # 5. Create tags for each package
     log("Creating tags...", Colors.CYAN)
     
     tags_created = []
     
-    for pkg_name, pkg_version in versions.items():
+    for pkg_name, info in versions.items():
+        pkg_version = info["version"]
         tag_name = f"{pkg_name}@v{pkg_version}"
         existing_tag = exec_command(f'git tag -l "{tag_name}"')
         if existing_tag == tag_name:
