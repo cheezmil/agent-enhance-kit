@@ -8,8 +8,8 @@ from pathlib import Path
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPT_DIR.parent.parent  # up to scripts, then to root
-VERSION_FILE = ROOT_DIR / "VERSION"
 PACKAGE_JSON = ROOT_DIR / "package.json"
+PACKAGES_DIR = ROOT_DIR / "packages"
 
 # Colors
 class Colors:
@@ -37,29 +37,43 @@ def exec_command(command, check=False):
     except subprocess.CalledProcessError:
         return None
 
-def get_version():
-    """Read version from root package.json."""
-    if not PACKAGE_JSON.exists():
-        return None
+def get_versions():
+    """Read versions from each package's package.json."""
+    packages_dir = ROOT_DIR / "packages"
+    versions = {}
     
-    try:
-        data = json.loads(PACKAGE_JSON.read_text())
-        return data.get("version")
-    except json.JSONDecodeError:
-        return None
+    for pkg_dir in sorted(packages_dir.iterdir()):
+        if not pkg_dir.is_dir():
+            continue
+        pkg_json = pkg_dir / "package.json"
+        if not pkg_json.exists():
+            continue
+        
+        try:
+            data = json.loads(pkg_json.read_text())
+            if data.get("private"):
+                continue
+            version = data.get("version")
+            if version:
+                versions[data["name"]] = version
+        except json.JSONDecodeError:
+            continue
+    
+    return versions
 
 def main():
     print()
     log("=== Agent Enhance Kit Release ===", Colors.CYAN)
     print()
 
-    # 1. Get version from package.json
-    version = get_version()
-    if not version:
-        log("ERROR: Version not found in package.json", Colors.RED)
+    # 1. Get versions from package.json files
+    versions = get_versions()
+    if not versions:
+        log("ERROR: No public package versions found", Colors.RED)
         sys.exit(1)
 
-    log(f"Version: {version}", Colors.GREEN)
+    for name, version in versions.items():
+        log(f"  {name}: v{version}", Colors.GREEN)
 
     # 3. Check if there are uncommitted changes
     status = exec_command("git status --porcelain")
@@ -84,25 +98,24 @@ def main():
         log("Run: pnpm changeset && git add . && git commit", Colors.YELLOW)
         sys.exit(1)
 
-    # 5. Create tags for each package
-    log(f"Creating tags for v{version}...", Colors.CYAN)
+    # 5. Create tags for each package using their own versions
+    log("Creating tags...", Colors.CYAN)
     
-    packages = ["aek-websearch", "aek-task-manager"]
     tags_created = []
     
-    for pkg in packages:
-        tag_name = f"{pkg}@v{version}"
+    for pkg_name, pkg_version in versions.items():
+        tag_name = f"{pkg_name}@v{pkg_version}"
         existing_tag = exec_command(f'git tag -l "{tag_name}"')
         if existing_tag == tag_name:
-            log(f"Tag {tag_name} already exists. Skipping.", Colors.YELLOW)
+            log(f"  Tag {tag_name} already exists. Skipping.", Colors.YELLOW)
             continue
         
         tag_result = exec_command(f'git tag -a {tag_name} -m "Release {tag_name}"')
         if tag_result is None:
-            log(f"ERROR: Failed to create tag {tag_name}", Colors.RED)
+            log(f"  ERROR: Failed to create tag {tag_name}", Colors.RED)
             continue
         
-        log(f"Tag {tag_name} created", Colors.GREEN)
+        log(f"  Tag {tag_name} created", Colors.GREEN)
         tags_created.append(tag_name)
 
     if not tags_created:
@@ -122,9 +135,10 @@ def main():
 
     # 7. Trigger GitHub Actions for npm publish
     print()
-    log(f"✅ Release v{version} initiated!", Colors.GREEN)
-    log("GitHub Actions will now build and publish to npm.", Colors.CYAN)
-    log("Check progress at: https://github.com/cheezmil/agent-enhance-kit/actions", Colors.CYAN)
+    log("Release initiated!", Colors.GREEN)
+    log("Tags created:", Colors.CYAN)
+    for tag in tags_created:
+        log(f"  {tag}", Colors.CYAN)
 
 if __name__ == "__main__":
     main()
