@@ -71,10 +71,17 @@ def main():
         sys.exit(1)
 
     # 4. Check if changesets are pending
-    changeset_status = exec_command("pnpm changeset status")
-    if "No unreleased changesets found" not in (changeset_status or ""):
+    changeset_result = subprocess.run(
+        ["pnpm", "changeset", "status"],
+        cwd=ROOT_DIR,
+        capture_output=True,
+        text=True
+    )
+    has_changesets = changeset_result.returncode == 0 and "Packages to be bumped" in changeset_result.stdout
+    if not has_changesets:
         print()
-        log("There are pending changesets. Please run 'pnpm changeset' first.", Colors.YELLOW)
+        log("No unreleased changesets found.", Colors.YELLOW)
+        log("Run: pnpm changeset && git add . && git commit", Colors.YELLOW)
         sys.exit(1)
 
     # 5. Create tags for each package
