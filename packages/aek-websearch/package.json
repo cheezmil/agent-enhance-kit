@@ -1,9 +1,9 @@
 {
   "name": "aek-websearch",
-  "version": "0.1.1",
+  "version": "1.5.0",
   "description": "AEK — Agent Enhance Kit (Web Search module)",
   "bin": {
-    "aek": "./bin/aek"
+    "aek": "bin/aek"
   },
   "scripts": {
     "build": "go build -o bin/aek ./cmd/aek/",
