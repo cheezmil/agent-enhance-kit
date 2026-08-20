@@ -1,6 +1,6 @@
 {
   "name": "agent-enhance-kit",
-  "version": "1.5.0",
+  "version": "0.0.0",
   "description": "AI Agent infrastructure - multi-provider search, MCP management, and more",
   "private": true,
   "bin": {
