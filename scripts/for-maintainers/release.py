@@ -94,8 +94,17 @@ def curl_json(method, url, token, data=None):
     return json.loads(result.stdout) if result.stdout else {}
 
 
+def delete_github_release(token, tag_name):
+    """Delete an existing GitHub Release by tag_name."""
+    url = f"https://api.github.com/repos/cheezmil/agent-enhance-kit/releases/tags/{tag_name}"
+    curl_json("DELETE", url, token)
+
+
 def create_github_release(token, tag_name, name, body):
     """Create a public (non-draft) GitHub Release."""
+    # Delete existing release with same tag first
+    delete_github_release(token, tag_name)
+
     url = f"https://api.github.com/repos/cheezmil/agent-enhance-kit/releases"
     data = {
         "tag_name": tag_name,
