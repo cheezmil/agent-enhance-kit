@@ -2,9 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/cli/schema.json",
   "changelog": "@changesets/changelog-git",
   "commit": false,
-  "fixed": [
-    ["aek-websearch", "aek-task-manager"]
-  ],
+  "fixed": [],
   "linked": [],
   "ignore": [],
   "privatePackages": {
