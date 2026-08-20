@@ -93,8 +93,15 @@ def main():
     packages_dir = Path("packages")
     updated = 0
     
-    for pkg_json in sorted(packages_dir.rglob("package.json")):
-        pkg_dir = pkg_json.parent
+    for pkg_dir in sorted(packages_dir.iterdir()):
+        if not pkg_dir.is_dir():
+            continue
+        # Skip node_modules
+        if "node_modules" in pkg_dir.parts:
+            continue
+        pkg_json = pkg_dir / "package.json"
+        if not pkg_json.exists():
+            continue
         
         try:
             data = json.loads(pkg_json.read_text())

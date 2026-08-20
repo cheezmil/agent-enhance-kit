@@ -1,5 +1,5 @@
 name: aek-task-manager
-version: 1.5.0
+version: 0.0.1
 description: |
   AEK Task Manager — standalone user plugin for long-running task management.
   Per-task Git repos, human-in-the-loop approval gates, cross-session recovery.

@@ -1,6 +1,6 @@
 {
   "name": "aek-mcp",
-  "version": "1.5.0",
+  "version": "0.11.0",
   "private": true,
   "description": "AEK — Agent Enhance Kit (MCP Management module - internal)",
   "scripts": {
