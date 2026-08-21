@@ -196,6 +196,19 @@ var webSearchKeyPoolEnableCmd = &cobra.Command{
 	},
 }
 
+var webSearchConfigInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Create empty config template files under ~/.aek/websearch/ (never overwrites existing files)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		out, err := commands.InitConfig()
+		if err != nil {
+			return err
+		}
+		fmt.Print(out)
+		return nil
+	},
+}
+
 func init() {
 	webSearchCmd.AddCommand(webSearchExtractCmd)
 	webSearchCmd.AddCommand(webSearchCodeSearchCmd)
@@ -205,6 +218,7 @@ func init() {
 	webSearchCmd.AddCommand(webSearchKeyPoolCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolDisableCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolEnableCmd)
+	webSearchCmd.AddCommand(webSearchConfigInitCmd)
 
 	webSearchCmd.Flags().StringP("mode", "m", "discovery", "Search mode: recovery, discovery, grounding, research")
 	webSearchCmd.Flags().StringP("providers", "p", "", "Override providers (comma-separated)")
