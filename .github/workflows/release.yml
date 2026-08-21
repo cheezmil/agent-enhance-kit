@@ -22,13 +22,20 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
 
       - name: Install dependencies
         run: pnpm install
@@ -39,134 +46,12 @@ jobs:
         with:
           version: |
             pnpm changeset version
-            python scripts/for-maintainers/sync-versions.py
-          publish: pnpm changeset publish
+            python3 scripts/for-maintainers/sync-versions.py
+          publish: |
+            python3 scripts/for-maintainers/build-platform-bins.py
+            pnpm changeset publish
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build:
-    needs: release
-    if: needs.release.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - package: aek-websearch
-            os: linux
-            arch: amd64
-          - package: aek-websearch
-            os: linux
-            arch: arm64
-          - package: aek-websearch
-            os: darwin
-            arch: amd64
-          - package: aek-websearch
-            os: darwin
-            arch: arm64
-          - package: aek-websearch
-            os: windows
-            arch: amd64
-          - package: aek-task-manager
-            os: linux
-            arch: amd64
-          - package: aek-task-manager
-            os: linux
-            arch: arm64
-          - package: aek-task-manager
-            os: darwin
-            arch: amd64
-          - package: aek-task-manager
-            os: darwin
-            arch: arm64
-          - package: aek-task-manager
-            os: windows
-            arch: amd64
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - name: Build
-        working-directory: packages/${{ matrix.package }}
-        run: |
-          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
-            -o aek-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }} \
-            ./cmd/aek/
-
-      - name: Package
-        run: |
-          cd packages/${{ matrix.package }}
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            zip aek-${{ matrix.os }}-${{ matrix.arch }}.zip aek-${{ matrix.os }}-${{ matrix.arch }}.exe
-          else
-            tar -czf aek-${{ matrix.os }}-${{ matrix.arch }}.tar.gz aek-${{ matrix.os }}-${{ matrix.arch }}
-          fi
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifact-${{ matrix.package }}-${{ matrix.os }}-${{ matrix.arch }}
-          path: packages/${{ matrix.package }}/aek-*
-
-  publish-npm:
-    needs: [release, build]
-    if: needs.release.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: ${{ fromJSON(needs.release.outputs.published-packages) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Publish to npm
-        run: pnpm publish --no-git-checks --access public
-        working-directory: packages/${{ matrix.package }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  create-release:
-    needs: [release, build]
-    if: needs.release.outputs.published == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Get the published packages list
-          PACKAGES="${{ needs.release.outputs.published-packages }}"
-          echo "Published packages: $PACKAGES"
-          
-          # Create release with all artifacts
-          gh release create ${{ github.ref_name }} \
-            --repo ${{ github.repository }} \
-            --title "Release ${{ github.ref_name }}" \
-            --notes "See changesets for details.\n\nPublished packages: $PACKAGES" \
-            artifacts/**/*
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "cd packages/aek-websearch && go build -o bin/aek ./cmd/aek/ && cd ../aek-mcp && go build -o bin/aek-mcp ./cmd/aek-mcp/",
-    "test": "cd packages/aek-websearch && go test ./..."
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.1"

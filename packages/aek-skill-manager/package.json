@@ -1,5 +1,6 @@
 {
-  "name": "aek-skill-manager",
+  "name": "@cheezmil/aek-skill-manager",
+  "version": "0.1.0",
   "description": "同步 AI Agent Skills（SKILL.md）到各工具的全局或项目目录",
   "scripts": {
     "test": "node --test"
@@ -20,12 +21,14 @@
   "type": "module",
   "main": "src/cli.js",
   "bin": {
-    "aek-skill-manager": "./bin/aek-skill-manager.js"
+    "aek-skill-manager": "./bin/aek-skill-manager.js",
+    "aek": "bin/aek-shim.cjs"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@cheezmil/aek-common": "workspace:*",
     "@inquirer/prompts": "^5.0.1"
   },
   "files": [

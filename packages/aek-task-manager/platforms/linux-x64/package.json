@@ -1,0 +1,15 @@
+{
+  "name": "@cheezmil/aek-task-manager-linux-x64",
+  "version": "0.0.1",
+  "description": "AEK — Agent Enhance Kit (Task Manager module) platform binary for linux-x64",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@cheezmil/aek",
+  "version": "0.1.0",
+  "description": "AEK — Agent Enhance Kit (All-in-one CLI)",
+  "type": "module",
+  "bin": {
+    "aek": "bin/aek.js"
+  },
+  "dependencies": {
+    "@cheezmil/aek-common": "workspace:*",
+    "@cheezmil/aek-websearch": "workspace:*",
+    "@cheezmil/aek-skill-manager": "workspace:*",
+    "@cheezmil/aek-task-manager": "workspace:*",
+    "@cheezmil/aek-mcp": "workspace:*"
+  },
+  "files": [
+    "bin/",
+    "package.json"
+  ],
+  "keywords": [
+    "ai",
+    "agent"
+  ],
+  "license": "MIT"
+}

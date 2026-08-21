@@ -1,3 +1,4 @@
 packages:
   - 'packages/*'
+  - 'packages/*/platforms/*'
   - '!packages/aek-mcp/frontend'
