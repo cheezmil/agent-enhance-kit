@@ -55,7 +55,8 @@ function main() {
     case 'ws':
     case 'websearch':
     case 'web':
-      runAekWebsearch(rest);
+      // 二进制以 `websearch` 作为子命令，需保留前缀（ws/web 别名转成 websearch）
+      runAekWebsearch(['websearch', ...rest]);
       break;
     case 'mcp':
       runAekMcp(rest);
