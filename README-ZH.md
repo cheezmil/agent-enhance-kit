@@ -22,6 +22,7 @@ Agent Enhance Kit 是一个 **monorepo**
 
 | 包 | 说明 |
 |----|------|
+| [`aek`](packages/aek) | 全家桶 CLI——统一的 `aek` 入口，聚合所有模块（网页搜索、MCP、Skill 同步、任务管理） |
 | [`aek-websearch`](packages/aek-websearch) | 多提供商网页搜索聚合引擎：CLI + HTTP API + MCP Server |
 | [`aek-mcp`](packages/aek-mcp) | MCP 代理网关 + Web 管理界面（Next.js 前端 + Go 后端） |
 | [`aek-skill-manager`](packages/aek-skill-manager) | 从中心仓库（`~/.aek/skill-manager/skills/`）同步 Agent Skills（SKILL.md 文件夹）到各 AI 工具（Claude Code、Cursor、Codex、OpenCode 等），通过 `aek sm` 命令 |
