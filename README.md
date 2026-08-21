@@ -83,6 +83,8 @@ Based on actual usage testing (as of 2026-08-21):
 
 > If you want to save time, just use **Exa** directly — it delivers the best overall search quality and experience.
 
+**Serper** and **Tavily** work well as backup providers; the others are not needed for now.
+
 *This ranking reflects personal testing experience and is subject to change over time.*
 
  ### 🔌 aek-mcp
