@@ -34,10 +34,10 @@ Agent Enhance Kit 是一个 **monorepo**
    ```
 3. 用你的 AI 编程工具（Cursor、Claude Code、Hermes 等）打开项目
 4. 向Agent询问：
-```plaintext
-这个项目是什么？怎么用？帮我安装使用本项目。
-```
-Agent 将帮你搞定。
+   ```plaintext
+   这个项目是什么？怎么用？帮我安装使用本项目。
+   ```
+   Agent 将帮你搞定。
 
 
 ---
