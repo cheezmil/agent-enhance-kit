@@ -176,6 +176,11 @@ func serveAPIRoutes(r *gin.Engine) {
 
 		// Tutorial config
 		api.GET("/tutorial/config", GetTutorialConfig)
+		api.GET("/tutorial/prefs", GetTutorialPrefs)
+		api.PUT("/tutorial/prefs", SaveTutorialPrefs)
+		api.GET("/tutorial/agents", ListTutorialAgents)
+		api.POST("/tutorial/apply", ApplyTutorialConfig)
+		api.POST("/tutorial/remove", RemoveTutorialConfig)
 
 		// Bearer keys
 		api.GET("/auth/keys", GetBearerKeys)

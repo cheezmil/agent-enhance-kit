@@ -1194,6 +1194,19 @@
     "docs": "文档",
     "search": "搜索工具...",
     "noResults": "没有匹配的工具",
-    "chatboxPaste": "在 Chatbox 中点击「从剪贴板中的 JSON 导入」即可导入"
+    "chatboxPaste": "在 Chatbox 中点击「从剪贴板中的 JSON 导入」即可导入",
+    "oneClickTitle": "一键配置",
+    "oneClickDescription": "勾选 AI 工具后点击应用，即可把 AEK-MCP 直接写入各工具的配置文件中。你的勾选会自动记住。",
+    "selectAll": "全选",
+    "clearAll": "清空",
+    "applySelected": "配置到勾选工具 ({{count}})",
+    "applying": "配置中...",
+    "applySuccess": "配置成功",
+    "applyPartial": "部分工具失败",
+    "applyFailed": "配置失败",
+    "resultSuccess": "成功",
+    "resultError": "失败",
+    "resultSkipped": "跳过",
+    "restartHint": "应用后请重启对应工具，使其重新加载 MCP 配置。"
   }
 }
