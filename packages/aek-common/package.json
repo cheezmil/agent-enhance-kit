@@ -1,7 +1,6 @@
 {
   "name": "aek-common",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "description": "AEK 各包共用代码（工具函数、类型、常量）",
   "bin": {
