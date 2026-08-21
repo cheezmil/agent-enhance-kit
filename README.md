@@ -49,6 +49,18 @@ Multi-provider search aggregation with a unified interface and automatic failove
 Supported search providers:
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
+#### Core features
+
+- **Multi-provider aggregation** — unified interface with automatic failover
+- **Concurrent search** — queries all configured providers in parallel via goroutines
+- **RRF result fusion** — Reciprocal Rank Fusion merges and deduplicates results across providers
+- **API key pool** — multiple keys per provider, cycled round-robin or in order
+- **Automatic failover** — a failing key automatically switches to the next available key
+- **Exponential backoff cooldown** — failed keys cool down 1min → 5min → 25min → 1hr
+- **Automatic key disabling** — 401/403 or quota-exhausted (402) keys are disabled automatically
+- **Persistent disabled state** — disabled keys survive restarts via `.disabled.txt`
+- **Result caching** — identical queries hit the in-memory cache
+
 #### Search provider signup
 
 Providers with free tiers (API Key required):
