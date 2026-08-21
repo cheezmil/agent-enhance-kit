@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-mcp-win32-x64",
-  "version": "0.11.0",
+  "version": "0.11.2",
   "description": "AEK — Agent Enhance Kit (MCP Management module) platform binary for win32-x64",
   "os": [
     "win32"
