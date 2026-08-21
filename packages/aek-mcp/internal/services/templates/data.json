@@ -1,0 +1,9 @@
+{
+  "servers": {},
+  "systemConfig": {
+    "routing": {}
+  },
+  "bearerKeys": {},
+  "oauthTokens": [],
+  "oauthClients": []
+}
