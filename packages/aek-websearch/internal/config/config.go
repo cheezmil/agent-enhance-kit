@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// SupportedProviders returns all provider names in alphabetical order.
+// Includes both API-key providers and free providers.
+func SupportedProviders() []string {
+	return []string{"context7", "duckduckgo", "exa", "linkup", "parallel", "serper", "tavily", "wolfram", "yahoo", "you"}
+}
+
 // ProviderConfig holds per-provider settings.
 type ProviderConfig struct {
 	Default        bool   `json:"default"`

@@ -129,6 +129,12 @@ func (ms *MCPServer) registerTools() {
 			mcp.WithNumber("index", mcp.Required(), mcp.Description("Key index to enable")),
 		), ms.handleKeyPoolEnable,
 	)
+
+	ms.mcpServer.AddTool(
+		mcp.NewTool("web_config_init",
+			mcp.WithDescription("Create empty config template files under ~/.aek/websearch/ (settings + all provider key files). Existing files are NEVER overwritten."),
+		), ms.handleConfigInit,
+	)
 }
 
 // ── handlers ────────────────────────────────────────────────────────────────
@@ -245,6 +251,14 @@ func (ms *MCPServer) handleKeyPoolEnable(_ context.Context, req mcp.CallToolRequ
 		return mcp.NewToolResultError("missing required parameter: provider"), nil
 	}
 	out, err := commands.KeyPoolEnable(provider, int(req.GetFloat("index", 0)))
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	return mcp.NewToolResultText(out), nil
+}
+
+func (ms *MCPServer) handleConfigInit(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	out, err := commands.InitConfig()
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
