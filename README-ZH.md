@@ -49,6 +49,18 @@ Agent Enhance Kit 是一个 **monorepo**
 支持的搜索提供商：
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
+#### 核心功能
+
+- **多提供商搜索聚合** — 统一接口，自动故障转移
+- **并发搜索** — 通过 goroutine 并行查询所有已配置的提供商
+- **RRF 结果融合** — 倒数排名融合（Reciprocal Rank Fusion）跨提供商合并并去重结果
+- **API Key 轮询池** — 每个提供商支持多个 Key，按 round-robin 或顺序循环
+- **自动故障转移** — 失败的 Key 自动切换到下一个可用 Key
+- **指数退避冷却** — 失败的 Key 按 1分钟 → 5分钟 → 25分钟 → 1小时 冷却
+- **自动禁用** — 401/403 或配额耗尽（402）的 Key 自动禁用
+- **持久化禁用状态** — 禁用的 Key 通过 `.disabled.txt` 持久化，重启后依然生效
+- **结果缓存** — 相同查询直接命中内存缓存
+
 #### 搜索提供商注册
 
 有免费额度（需 API Key）：
