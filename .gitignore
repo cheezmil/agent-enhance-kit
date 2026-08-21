@@ -60,6 +60,7 @@ docs/042826_plan.md
 # Monorepo
 node_modules/
 .pnpm-store/
+locks/
 
 # Go binaries
 packages/aek/bin/

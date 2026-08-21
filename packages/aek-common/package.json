@@ -1,0 +1,14 @@
+{
+  "name": "aek-common",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AEK 各包共用代码（工具函数、类型、常量）",
+  "bin": {
+    "aek": "bin/aek.js"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  }
+}
