@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-mcp-darwin-arm64",
-  "version": "0.11.0",
+  "version": "0.11.2",
   "description": "AEK — Agent Enhance Kit (MCP Management module) platform binary for darwin-arm64",
   "os": [
     "darwin"
