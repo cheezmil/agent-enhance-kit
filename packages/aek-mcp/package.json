@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-mcp",
-  "version": "0.11.0",
+  "version": "0.11.2",
   "type": "module",
   "description": "AEK — Agent Enhance Kit (MCP Management module)",
   "bin": {
