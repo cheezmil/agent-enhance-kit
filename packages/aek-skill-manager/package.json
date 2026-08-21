@@ -1,0 +1,36 @@
+{
+  "name": "aek-skill-manager",
+  "description": "同步 AI Agent Skills（SKILL.md）到各工具的全局或项目目录",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "skill",
+    "agent-skills",
+    "skill-md",
+    "sync",
+    "codex",
+    "claude",
+    "cursor",
+    "gemini",
+    "copilot",
+    "opencode"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "src/cli.js",
+  "bin": {
+    "aek-skill-manager": "./bin/aek-skill-manager.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^5.0.1"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "package.json"
+  ]
+}
