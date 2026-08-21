@@ -41,7 +41,7 @@ func Load() *Config {
 	godotenv.Load()
 
 	home := getHomeDir()
-	settingsPath := filepath.Join(home, ".aek", "mcp", "settings.jsonc")
+	settingsPath := filepath.Join(home, ".aek", "mcp", "settings", "system", "settings.jsonc")
 
 	port := "1352"
 	host := "0.0.0.0"
@@ -98,7 +98,7 @@ func Load() *Config {
 	}
 	// jwtSecret is auto-managed
 
-	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "db", ".internal.json")
+	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "db", "system", ".internal.json")
 	jwtSecret = loadOrCreateSecret(internalPath)
 
 	nodeEnv := os.Getenv("NODE_ENV")
@@ -159,7 +159,7 @@ func loadOrCreateSecret(path string) string {
 
 func GetSettingsPath() string {
 	home := getHomeDir()
-	return filepath.Join(home, ".aek", "mcp", "settings.jsonc")
+	return filepath.Join(home, ".aek", "mcp", "settings", "system", "settings.jsonc")
 }
 
 func ReadSettingsJson() map[string]interface{} {

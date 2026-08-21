@@ -45,11 +45,11 @@ func getDataDir() string {
 }
 
 func getDataFilePath() string {
-	return filepath.Join(getDataDir(), "db", "data.json")
+	return filepath.Join(getDataDir(), "db", "system", "data.json")
 }
 
 func getUserFilePath() string {
-	return filepath.Join(getDataDir(), "db", "user.jsonc")
+	return filepath.Join(getDataDir(), "db", "system", "user.jsonc")
 }
 
 func InitStore() {
@@ -304,10 +304,10 @@ type GroupFile struct {
 	Groups map[string]*models.Group `json:"groups"`
 }
 
-// Group operations (per-user, stored in ~/.aek/mcp/db/user-custom-configuration/<username>/groups.jsonc)
+// Group operations (per-user, stored in ~/.aek/mcp/settings/user-custom-configuration/<username>/groups.jsonc)
 func userCustomConfigDir(username string) string {
 	h, _ := os.UserHomeDir()
-	return filepath.Join(h, ".aek", "mcp", "db", "user-custom-configuration", username)
+	return filepath.Join(h, ".aek", "mcp", "settings", "user-custom-configuration", username)
 }
 
 func userGroupsFilePath(username string) string {

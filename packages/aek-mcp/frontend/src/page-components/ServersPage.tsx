@@ -125,7 +125,7 @@ const ServersPage: React.FC = () => {
   // Turn an absolute path like "/home/xdx/.aek/.../username/file.jsonc"
   // into the user-friendly "~/.aek/.../username/file.jsonc".
   const getMcpSettingsDisplayPath = (p: string) => {
-    if (!p) return '~/.aek/mcp/db/user-custom-configuration/mcp-settings.jsonc';
+    if (!p) return '~/.aek/mcp/settings/user-custom-configuration/mcp-settings.jsonc';
     // Normalize backslashes on Windows to forward slashes for display
     const fwd = p.replace(/\\/g, '/');
     // Strip the "/home/<user>" / "C:/Users/<user>" prefix

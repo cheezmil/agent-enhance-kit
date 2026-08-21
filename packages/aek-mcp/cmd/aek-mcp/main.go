@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,14 @@ import (
 )
 
 func main() {
+	initFlag := flag.Bool("init", false, "Initialize directory structure and default config files, then exit")
+	flag.Parse()
+
+	if *initFlag {
+		runInit()
+		return
+	}
+
 	config.Load()
 	services.InitStore()
 	services.LoadMcpSettings()
@@ -49,4 +58,27 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to start server: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runInit() {
+	// 1. 生成 .internal.json 和 db/system/ 目录
+	config.Load()
+
+	// 2. 创建 settings/user-custom-configuration/ 空目录
+	if err := services.InitConfigDirs(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create config dirs: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 3. 用嵌入模板创建默认文件（不覆盖已有）
+	created, err := services.WriteDefaultConfigFiles()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write default config files: %v\n", err)
+		os.Exit(1)
+	}
+	for dest, src := range created {
+		fmt.Printf("[aek-mcp] Created %s (from %s)\n", dest, src)
+	}
+
+	fmt.Println("[aek-mcp] Initialization complete")
 }
