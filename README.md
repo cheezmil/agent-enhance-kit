@@ -48,7 +48,31 @@ Multi-provider search aggregation with a unified interface and automatic failove
 Supported search providers:
 `Exa` · `Tavily` · `Serper` · `DuckDuckGo` · `Yahoo` · `You.com` · `Linkup` · `Wolfram Alpha` · `Context7`
 
-### 🔌 aek-mcp
+#### Search provider signup
+
+Providers with free tiers (API Key required):
+
+| Provider | Free quota | Credit card | Signup URL | Notes |
+|----------|-----------|-------------|-----------|-------|
+| Tavily | 1k/month | No | https://app.tavily.com/home | Ready to use after signup, no credit card |
+| Exa | 1k/month | No | https://exa.ai/pricing | Get API Key from Dashboard after signup |
+| Serper | 2.5k one-time | No | https://serper.dev/signup | Ready to use after signup, no credit card |
+| You.com | $100 one-time | No | https://you.com/platform | $100 credit on signup |
+| Linkup | $20/month (≈4k queries) | No | https://www.linkup.so/ | $20 credit on signup, refreshed monthly |
+| Parallel | Anonymous free | No | https://platform.parallel.ai | Works anonymously, higher limits after signup |
+| WolframAlpha | 2k/month | No | https://developer.wolframalpha.com/ | Requires Wolfram ID, get APP_ID |
+
+#### Search provider ranking
+
+Based on actual usage testing (as of 2026-08-21):
+
+**Exa** > **Serper** > **Tavily** > Others
+
+> If you want to save time, just use **Exa** directly — it delivers the best overall search quality and experience.
+
+*This ranking reflects personal testing experience and is subject to change over time.*
+
+ ### 🔌 aek-mcp
 
 Usage: [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
