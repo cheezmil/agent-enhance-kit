@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Deploy aek-mcp backend: stop old → build
 # Does NOT start the server (use start_be_aek-mcp.py to launch)
+import json
 import os
 import signal
 import subprocess
@@ -41,8 +42,11 @@ def main():
     kill_old()
 
     print("\n[2/2] Building backend...")
-    run(["go", "build", "-a", "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
-    print("[aek-mcp] Built to bin/aek-mcp")
+    pkg_json = json.loads((AEK_MCP_DIR / "package.json").read_text(encoding="utf-8"))
+    version = pkg_json.get("version", "dev")
+    ldflags = f'-s -w -X github.com/cheezmil/aek-mcp/internal/config.Version={version}'
+    run(["go", "build", "-a", "-ldflags", ldflags, "-o", "bin/aek-mcp", "./cmd/aek-mcp/"], cwd=AEK_MCP_DIR)
+    print(f"[aek-mcp] Built to bin/aek-mcp (version {version})")
 
     bin_path = AEK_MCP_DIR / "bin" / "aek-mcp"
     if not bin_path.exists():

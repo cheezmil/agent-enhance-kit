@@ -27,6 +27,10 @@ type Config struct {
 
 var AppConfig *Config
 
+// Version is the aek-mcp version, injectable at build time via ldflags:
+// go build -ldflags "-X github.com/cheezmil/aek-mcp/internal/config.Version=0.11.0"
+var Version = "dev"
+
 func getHomeDir() string {
 	if home, err := os.UserHomeDir(); err == nil {
 		return home
@@ -98,7 +102,7 @@ func Load() *Config {
 	}
 	// jwtSecret is auto-managed
 
-	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "db", "system", ".internal.json")
+	internalPath := filepath.Join(getHomeDir(), ".aek", "mcp", "settings", "system", ".internal.json")
 	jwtSecret = loadOrCreateSecret(internalPath)
 
 	nodeEnv := os.Getenv("NODE_ENV")

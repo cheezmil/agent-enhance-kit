@@ -21,6 +21,11 @@ func WriteDefaultConfigFiles() (map[string]string, error) {
 		"templates/settings.jsonc": config.GetSettingsPath(),
 		"templates/user.jsonc":     getUserFilePath(),
 		"templates/data.json":      getDataFilePath(),
+		// mcp-settings.template.jsonc is placed in the user-custom-configuration
+		// root as a reference — users copy it into their own <username>/ dir
+		// and customise. The file is written only when absent, so real
+		// per-user config is never overwritten.
+		"templates/mcp-settings.template.jsonc": getMcpSettingsTemplatePath(),
 	}
 
 	for src, dest := range dests {

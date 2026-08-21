@@ -28,6 +28,13 @@ func getMcpSettingsPath() string {
 	return getMcpSettingsPathForUser("")
 }
 
+// getMcpSettingsTemplatePath returns the reference template path placed in the
+// user-custom-configuration root during init. Users copy it into their own
+// <username>/ directory and customise.
+func getMcpSettingsTemplatePath() string {
+	return filepath.Join(userCustomConfigRoot(), "mcp-settings.jsonc")
+}
+
 func getMcpSettingsPathForUser(username string) string {
 	home, _ := os.UserHomeDir()
 	if username == "" {
