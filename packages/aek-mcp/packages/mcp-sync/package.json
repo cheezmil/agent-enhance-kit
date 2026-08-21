@@ -1,0 +1,32 @@
+{
+  "name": "mcp-sync",
+  "description": "MCP 配置同步到各 AI agent 工具的全局配置",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "sync",
+    "codex",
+    "claude",
+    "code",
+    "gemini"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "src/cli.js",
+  "bin": {
+    "mcp-sync": "./bin/mcp-sync.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^5.0.1"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "package.json"
+  ]
+}
