@@ -68,7 +68,7 @@ Agent Enhance Kit 是一个 **monorepo**
 | 提供商 | 免费额度 | 需要信用卡 | 注册地址 | 说明 |
 |--------|----------|-----------|----------|------|
 | Tavily | 1k次/月 | 否 | https://app.tavily.com/home | 注册即用，无需信用卡 |
-| Exa | 1k次/月 | 否 | https://exa.ai/pricing | 注册后从 Dashboard 获取 API Key |
+| Exa | 1k次/月 | 否 | https://dashboard.exa.ai/login | 注册后从 Dashboard 获取 API Key |
 | Serper | 2.5k次一次性 | 否 | https://serper.dev/signup | 注册即用，无需信用卡 |
 | You.com | $100一次性 | 否 | https://you.com/platform | 注册即送 $100 |
 | Linkup | $20/月（≈4k次） | 否 | https://www.linkup.so/ | 注册即送 $20，每月刷新 |
