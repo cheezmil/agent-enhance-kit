@@ -1193,6 +1193,19 @@
     "docs": "Documentation",
     "search": "Search tools...",
     "noResults": "No tools match your search",
-    "chatboxPaste": "Click 'Import from JSON in clipboard' in Chatbox to import"
+    "chatboxPaste": "Click 'Import from JSON in clipboard' in Chatbox to import",
+    "oneClickTitle": "One-click Config",
+    "oneClickDescription": "Select the AI tools, then click apply to write the AEK-MCP entry directly into each tool's config file. Your selection is remembered automatically.",
+    "selectAll": "Select All",
+    "clearAll": "Clear",
+    "applySelected": "Apply to selected ({{count}})",
+    "applying": "Applying...",
+    "applySuccess": "Config applied",
+    "applyPartial": "Some tools failed",
+    "applyFailed": "Config failed",
+    "resultSuccess": "OK",
+    "resultError": "Failed",
+    "resultSkipped": "Skipped",
+    "restartHint": "Restart the tool after applying so it reloads the MCP entry."
   }
 }

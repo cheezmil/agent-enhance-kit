@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, Check, BookOpen, RefreshCw, ExternalLink, Search, X, Layers } from 'lucide-react';
+import { Copy, Check, BookOpen, RefreshCw, ExternalLink, Search, X, Layers, Zap, Wrench } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { useGroupData } from '@/hooks/useGroupData';
 import { getApiUrl } from '@/utils/runtime';
@@ -25,6 +25,15 @@ interface AgentTool {
   configPath: { win: string; mac: string; linux: string };
   docUrl?: string;
   buildConfig: (cfg: TutorialConfig) => { inner: string; full: string };
+}
+
+interface ApplyResult {
+  agentId: string;
+  name: string;
+  path: string;
+  success: boolean;
+  skipped: boolean;
+  message?: string;
 }
 
 const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -154,6 +163,17 @@ const AGENT_TOOLS: AgentTool[] = [
     }),
   },
   {
+    id: 'codex',
+    name: 'Codex',
+    description: '~/.codex/config.toml',
+    configPath: { win: '%USERPROFILE%\\.codex\\config.toml', mac: '~/.codex/config.toml', linux: '~/.codex/config.toml' },
+    docUrl: 'https://developers.openai.com/codex/mcp',
+    buildConfig: (cfg) => ({
+      inner: `[mcp_servers.aek_mcp]\nurl = "${mcpUrl(cfg)}"\nenabled = true`,
+      full: `[mcp_servers.aek_mcp]\nurl = "${mcpUrl(cfg)}"\nenabled = true`,
+    }),
+  },
+  {
     id: 'continue',
     name: 'Continue',
     description: '.continue/mcpServers/mcp.json',
@@ -233,10 +253,131 @@ const AGENT_TOOLS: AgentTool[] = [
       full: buildFullConfig('aek_mcp', cfg),
     }),
   },
+  {
+    id: 'workbuddy',
+    name: 'WorkBuddy',
+    description: '~/.codebuddy/.mcp.json',
+    configPath: { win: '%USERPROFILE%\\.codebuddy\\.mcp.json', mac: '~/.codebuddy/.mcp.json', linux: '~/.codebuddy/.mcp.json' },
+    docUrl: 'https://www.workbuddy.ai/docs/cli/mcp',
+    buildConfig: (cfg) => {
+      const obj = { type: 'http', url: mcpUrl(cfg) };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'openclaw',
+    name: 'OpenClaw',
+    description: '~/.openclaw/openclaw.json',
+    configPath: { win: '%USERPROFILE%\\.openclaw\\openclaw.json', mac: '~/.openclaw/openclaw.json', linux: '~/.openclaw/openclaw.json' },
+    docUrl: 'https://docs.openclaw.ai/cli/mcp',
+    buildConfig: (cfg) => {
+      const obj = { url: mcpUrl(cfg), transport: 'streamable-http', enabled: true };
+      const full = { mcp: { servers: { aek_mcp: obj } } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'qoder',
+    name: 'Qoder',
+    description: '~/.qoder/settings.json',
+    configPath: { win: '%USERPROFILE%\\.qoder\\settings.json', mac: '~/.qoder/settings.json', linux: '~/.qoder/settings.json' },
+    docUrl: 'https://docs.qoder.com/cli/mcp-servers',
+    buildConfig: (cfg) => {
+      const obj = { type: 'http', url: mcpUrl(cfg) };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'qwencode',
+    name: 'QWencode',
+    description: '~/.qwen/settings.json',
+    configPath: { win: '%USERPROFILE%\\.qwen\\settings.json', mac: '~/.qwen/settings.json', linux: '~/.qwen/settings.json' },
+    docUrl: 'https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/',
+    buildConfig: (cfg) => {
+      const obj = { httpUrl: mcpUrl(cfg), timeout: 60000 };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'antigravity',
+    name: 'Antigravity',
+    description: '~/.gemini/config/mcp_config.json',
+    configPath: { win: '%USERPROFILE%\\.gemini\\config\\mcp_config.json', mac: '~/.gemini/config/mcp_config.json', linux: '~/.gemini/config/mcp_config.json' },
+    docUrl: 'https://antigravity.google/docs/cli/mcp/',
+    buildConfig: (cfg) => {
+      const obj = { serverUrl: mcpUrl(cfg) };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'kiro',
+    name: 'Kiro',
+    description: '~/.kiro/settings/mcp.json',
+    configPath: { win: '%USERPROFILE%\\.kiro\\settings\\mcp.json', mac: '~/.kiro/settings/mcp.json', linux: '~/.kiro/settings/mcp.json' },
+    docUrl: 'https://kiro.dev/docs/cli/mcp/',
+    buildConfig: (cfg) => {
+      const obj = { url: mcpUrl(cfg), disabled: false };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'kilocode',
+    name: 'Kilo Code',
+    description: '~/.config/kilo/kilo.jsonc',
+    configPath: { win: '%USERPROFILE%\\.config\\kilo\\kilo.jsonc', mac: '~/.config/kilo/kilo.jsonc', linux: '~/.config/kilo/kilo.jsonc' },
+    docUrl: 'https://kilo.ai/docs/automate/mcp/using-in-kilo-code',
+    buildConfig: (cfg) => {
+      // Kilo Code uses top-level "mcp" key (not "mcpServers")
+      const obj = { type: 'remote', url: mcpUrl(cfg), enabled: true };
+      const full = { mcp: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
+  {
+    id: 'pi',
+    name: 'Pi Agent',
+    description: '~/.pi/agent/mcp.json',
+    configPath: { win: '%USERPROFILE%\\.pi\\agent\\mcp.json', mac: '~/.pi/agent/mcp.json', linux: '~/.pi/agent/mcp.json' },
+    docUrl: 'https://pi.dev/docs',
+    buildConfig: (cfg) => {
+      const obj = { transport: 'streamable-http', url: mcpUrl(cfg), lifecycle: 'eager' };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
 ];
 
 // Tools whose config is accessed through a GUI dialog rather than an editable file.
-const GUI_ONLY_IDS = new Set(['cherry-studio', 'cline']);
+const GUI_ONLY_IDS = new Set(['cherry-studio', 'chatbox', 'cline']);
 
 const CopyPathButton: React.FC<{ path: string; showToast: (msg: string, type: 'success' | 'error') => void }> = ({ path, showToast }) => {
   const [copied, setCopied] = useState(false);
@@ -302,6 +443,11 @@ const TutorialPage: React.FC = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('default');
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyResults, setApplyResults] = useState<ApplyResult[] | null>(null);
+  const savePrefsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Detect platform and pick the matching absolute path string. */
   const platformPath = useMemo(() => {
@@ -346,6 +492,79 @@ const TutorialPage: React.FC = () => {
       setLoading(false);
     }
   }, [selectedGroup]);
+
+  // Load saved prefs from backend on mount
+  const loadPrefs = useCallback(async () => {
+    try {
+      const res = await fetch(getApiUrl('/tutorial/prefs'), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('aek_mcp_token') || ''}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSelectedAgents(data.data.selectedAgents || []);
+      }
+    } catch { /* ignore */ }
+    setPrefsLoaded(true);
+  }, []);
+
+  // Save prefs to backend with debounce
+  const savePrefs = useCallback((agents: string[]) => {
+    if (savePrefsTimer.current) clearTimeout(savePrefsTimer.current);
+    savePrefsTimer.current = setTimeout(async () => {
+      try {
+        await fetch(getApiUrl('/tutorial/prefs'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('aek_mcp_token') || ''}` },
+          body: JSON.stringify({ selectedAgents: agents }),
+        });
+      } catch { /* ignore */ }
+    }, 300);
+  }, []);
+
+  // Apply config to selected agents
+  const applyToAgents = useCallback(async () => {
+    if (selectedAgents.length === 0 || !config) return;
+    setApplying(true);
+    setApplyResults(null);
+    try {
+      const res = await fetch(getApiUrl('/tutorial/apply'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('aek_mcp_token') || ''}` },
+        body: JSON.stringify({ agents: selectedAgents, group: selectedGroup }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setApplyResults(data.data as ApplyResult[]);
+        const allOk = data.data.every((r: ApplyResult) => r.success || r.skipped);
+        if (allOk) {
+          showToast(t('tutorial.applySuccess', 'Config applied'), 'success');
+        } else {
+          showToast(t('tutorial.applyPartial', 'Some tools failed'), 'warning');
+        }
+      } else {
+        showToast(t('tutorial.applyFailed', 'Config failed'), 'error');
+      }
+    } catch {
+      showToast(t('tutorial.applyFailed', 'Config failed'), 'error');
+    } finally {
+      setApplying(false);
+    }
+  }, [selectedAgents, selectedGroup, config, showToast, t]);
+
+  // Handle checkbox change
+  const toggleAgent = useCallback((agentId: string) => {
+    setSelectedAgents((prev) => {
+      const next = prev.includes(agentId)
+        ? prev.filter((id) => id !== agentId)
+        : [...prev, agentId];
+      savePrefs(next);
+      return next;
+    });
+  }, [savePrefs]);
+
+  useEffect(() => {
+    loadPrefs();
+  }, [loadPrefs]);
 
   useEffect(() => {
     fetchConfig();
@@ -434,6 +653,115 @@ const TutorialPage: React.FC = () => {
 
       {config && !loading && (
         <>
+          {/* One-click install section */}
+          {prefsLoaded && (
+            <div className="hub-card mb-6">
+              <div className="px-5 py-4 border-b border-[var(--hub-line)]">
+                <div className="flex items-center gap-2">
+                  <Zap size={16} className="text-[var(--hub-accent)]" />
+                  <span className="font-medium text-[14px] text-[var(--hub-ink)]">
+                    {t('tutorial.oneClickTitle', 'One-click Config')}
+                  </span>
+                </div>
+                <p className="mt-1 text-[12px] text-[var(--hub-ink-3)]">
+                  {t('tutorial.oneClickDescription', 'Select the AI tools, then click apply to write the AEK-MCP entry directly into each tool\'s config file. Your selection is remembered automatically.')}
+                </p>
+              </div>
+              <div className="px-5 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {AGENT_TOOLS.map((tool) => {
+                    const checked = selectedAgents.includes(tool.id);
+                    return (
+                      <label
+                        key={tool.id}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[13px] cursor-pointer select-none transition-colors ${
+                          checked
+                            ? 'border-[var(--hub-accent)] bg-[var(--hub-accent)]/10 text-[var(--hub-ink)]'
+                            : 'border-[var(--hub-line)] bg-[var(--hub-surface)] text-[var(--hub-ink-2)] hover:border-[var(--hub-line-strong)]'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-[var(--hub-accent)]"
+                          checked={checked}
+                          onChange={() => toggleAgent(tool.id)}
+                        />
+                        {tool.name}
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedAgents(AGENT_TOOLS.map((t) => t.id));
+                      savePrefs(AGENT_TOOLS.map((t) => t.id));
+                    }}
+                    className="px-2.5 py-1 text-[12px] rounded-md border border-[var(--hub-line)] hover:bg-[var(--hub-surface-hover)] text-[var(--hub-ink-2)]"
+                  >
+                    {t('tutorial.selectAll', 'Select All')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedAgents([]);
+                      savePrefs([]);
+                    }}
+                    className="px-2.5 py-1 text-[12px] rounded-md border border-[var(--hub-line)] hover:bg-[var(--hub-surface-hover)] text-[var(--hub-ink-2)]"
+                  >
+                    {t('tutorial.clearAll', 'Clear')}
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={applyToAgents}
+                    disabled={applying || selectedAgents.length === 0}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-medium rounded-lg text-white bg-[var(--hub-accent)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  >
+                    <Wrench size={13} />
+                    {applying
+                      ? t('tutorial.applying', 'Applying...')
+                      : t('tutorial.applySelected', 'Apply to selected ({{count}})', { count: selectedAgents.length })}
+                  </button>
+                </div>
+                {applyResults && (
+                  <div className="mt-3 border-t border-[var(--hub-line)] pt-3">
+                    <div className="flex flex-wrap gap-2">
+                      {applyResults.map((r) => (
+                        <div
+                          key={r.agentId}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] rounded-md border ${
+                            r.skipped
+                              ? 'border-[var(--hub-line)] text-[var(--hub-ink-3)]'
+                              : r.success
+                                ? 'border-emerald-600/30 text-emerald-600'
+                                : 'border-red-500/30 text-red-500'
+                          }`}
+                          title={r.message || r.path}
+                        >
+                          {r.skipped
+                            ? '⏭'
+                            : r.success
+                              ? '✓'
+                              : '✗'}
+                          <span>{r.name}</span>
+                          <span className="font-mono text-[11px] opacity-70">
+                            {r.skipped
+                              ? t('tutorial.resultSkipped', 'Skipped')
+                              : r.success
+                                ? t('tutorial.resultSuccess', 'OK')
+                                : t('tutorial.resultError', 'Failed')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] text-[var(--hub-ink-3)]">
+                      {t('tutorial.restartHint', 'Restart the tool after applying so it reloads the MCP entry.')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
             {filteredTools.length === 0 && (
               <div className="hub-card p-8 text-center text-[var(--hub-ink-3)]">

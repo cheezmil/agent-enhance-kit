@@ -13,6 +13,12 @@ import (
 )
 
 func main() {
+	// Non-server subcommands: aek mcp install|remove|list|prefs.
+	// Handle before flag.Parse so flags like -a are consumed by the CLI.
+	if args := os.Args[1:]; len(args) > 0 && runCLI(args) {
+		return
+	}
+
 	initFlag := flag.Bool("init", false, "Initialize directory structure and default config files, then exit")
 	flag.Parse()
 
