@@ -472,8 +472,8 @@ const LoginPage: React.FC = () => {
                 Register users in config file:
               </p>
               {[
-                { label: 'Linux/macOS', path: '~/.aek/mcp/db/system/user.jsonc' },
-                { label: 'Windows', path: String.raw`%userprofile%\.aek\mcp\db\system\user.jsonc` },
+                { label: 'Linux/macOS', path: '~/.aek/mcp/settings/system/user.jsonc' },
+                { label: 'Windows', path: String.raw`%userprofile%\.aek\mcp\settings\system\user.jsonc` },
               ].map(({ label, path }) => (
                 <div key={path} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontSize: 11, color: 'var(--hub-ink-3)', minWidth: 70 }}>{label}:</span>

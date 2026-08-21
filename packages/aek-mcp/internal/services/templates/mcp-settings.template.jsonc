@@ -1,0 +1,59 @@
+{
+  // ====== 服务器配置说明 ======
+  //
+  // 每个服务器配置为一个 key，key 名即服务器 ID。
+  //
+  // 支持的连接类型（type）：
+  //   "stdio"          — 通过命令行启动子进程
+  //   "http"           — 标准 HTTP 端点（不含 SSE）
+  //   "sse"            — SSE（Server-Sent Events）端点
+  //   "streamable-http" — Streamable HTTP 端点
+  //
+  // 可选字段：
+  //   enabled  (bool)  — 是否启用，默认 true
+  //   owner    (string) — 所属用户名，默认当前用户
+  //
+  // 示例 1: stdio 类型（本地命令行启动）
+  // "example-server-stdio": {
+  //   "example-server-stdio": {
+  //     "command": "npx",
+  //     "args": ["-y", "some-mcp-server"],
+  //     "env": {
+  //       "API_KEY": "your-api-key-here"
+  //     }
+  //   },
+  //   "enabled": true,
+  //   "owner": "admin"
+  // },
+  //
+  // 示例 2: streamable-http 类型
+  // "example-server-http": {
+  //   "example-server-http": {
+  //     "type": "streamable-http",
+  //     "url": "http://localhost:8080/mcp"
+  //   },
+  //   "enabled": true,
+  //   "owner": "admin"
+  // },
+  //
+  // 示例 3: sse 类型
+  // "example-server-sse": {
+  //   "example-server-sse": {
+  //     "type": "sse",
+  //     "url": "http://localhost:8051/sse"
+  //   },
+  //   "enabled": false,
+  //   "owner": "admin"
+  // },
+  //
+  // 以下为你的实际配置，可参考上面示例添加或修改。
+
+  "placeholder": {
+    "placeholder": {
+      "type": "http",
+      "url": "http://localhost:9999/mcp"
+    },
+    "enabled": false,
+    "owner": "admin"
+  }
+}

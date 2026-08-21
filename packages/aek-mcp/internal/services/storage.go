@@ -49,7 +49,7 @@ func getDataFilePath() string {
 }
 
 func getUserFilePath() string {
-	return filepath.Join(getDataDir(), "db", "system", "user.jsonc")
+	return filepath.Join(getDataDir(), "settings", "system", "user.jsonc")
 }
 
 func InitStore() {
@@ -305,9 +305,13 @@ type GroupFile struct {
 }
 
 // Group operations (per-user, stored in ~/.aek/mcp/settings/user-custom-configuration/<username>/groups.jsonc)
-func userCustomConfigDir(username string) string {
+func userCustomConfigRoot() string {
 	h, _ := os.UserHomeDir()
-	return filepath.Join(h, ".aek", "mcp", "settings", "user-custom-configuration", username)
+	return filepath.Join(h, ".aek", "mcp", "settings", "user-custom-configuration")
+}
+
+func userCustomConfigDir(username string) string {
+	return filepath.Join(userCustomConfigRoot(), username)
 }
 
 func userGroupsFilePath(username string) string {
