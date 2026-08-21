@@ -669,7 +669,12 @@ const TutorialPage: React.FC = () => {
               </div>
               <div className="px-5 py-4">
                 <div className="flex flex-wrap gap-2">
-                  {AGENT_TOOLS.map((tool) => {
+                  {filteredTools.length === 0 ? (
+                    <span className="text-[12px] text-[var(--hub-ink-3)]">
+                      {t('tutorial.noResults', 'No tools match your search')}
+                    </span>
+                  ) : (
+                    filteredTools.map((tool) => {
                     const checked = selectedAgents.includes(tool.id);
                     return (
                       <label
@@ -689,13 +694,14 @@ const TutorialPage: React.FC = () => {
                         {tool.name}
                       </label>
                     );
-                  })}
+                  })
+                  )}
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     onClick={() => {
-                      setSelectedAgents(AGENT_TOOLS.map((t) => t.id));
-                      savePrefs(AGENT_TOOLS.map((t) => t.id));
+                      setSelectedAgents(filteredTools.map((t) => t.id));
+                      savePrefs(filteredTools.map((t) => t.id));
                     }}
                     className="px-2.5 py-1 text-[12px] rounded-md border border-[var(--hub-line)] hover:bg-[var(--hub-surface-hover)] text-[var(--hub-ink-2)]"
                   >
