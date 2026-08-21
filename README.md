@@ -35,10 +35,10 @@ Agent Enhance Kit is a **monorepo**
    ```
 3. Open the project in your AI coding agent (Cursor, Claude Code, Hermes, etc.)
 4. Ask the agent:
-```plaintext
-What is this project? How do I use it? Help me install and use it.
-```
-The agent will handle the rest.
+   ```plaintext
+   What is this project? How do I use it? Help me install and use it.
+   ```
+   The agent will handle the rest.
 
 ---
 
