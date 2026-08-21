@@ -68,7 +68,7 @@ Providers with free tiers (API Key required):
 | Provider | Free quota | Credit card | Signup URL | Notes |
 |----------|-----------|-------------|-----------|-------|
 | Tavily | 1k/month | No | https://app.tavily.com/home | Ready to use after signup, no credit card |
-| Exa | 1k/month | No | https://exa.ai/pricing | Get API Key from Dashboard after signup |
+| Exa | 1k/month | No | https://dashboard.exa.ai/login | Get API Key from Dashboard after signup |
 | Serper | 2.5k one-time | No | https://serper.dev/signup | Ready to use after signup, no credit card |
 | You.com | $100 one-time | No | https://you.com/platform | $100 credit on signup |
 | Linkup | $20/month (≈4k queries) | No | https://www.linkup.so/ | $20 credit on signup, refreshed monthly |
