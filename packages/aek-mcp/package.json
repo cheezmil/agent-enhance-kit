@@ -1,10 +1,31 @@
 {
-  "name": "aek-mcp",
+  "name": "@cheezmil/aek-mcp",
   "version": "0.11.0",
-  "private": true,
-  "description": "AEK — Agent Enhance Kit (MCP Management module - internal)",
+  "type": "module",
+  "description": "AEK — Agent Enhance Kit (MCP Management module)",
+  "bin": {
+    "aek-mcp": "bin/aek-mcp.js",
+    "aek": "bin/aek-shim.cjs"
+  },
   "scripts": {
+    "build": "go build -o bin/aek-mcp ./cmd/aek-mcp/",
     "frontend:dev": "cd frontend && next dev -p 1352",
     "frontend:build": "cd frontend && next build"
-  }
+  },
+  "dependencies": {
+    "@cheezmil/aek-common": "workspace:*"
+  },
+  "optionalDependencies": {
+    "@cheezmil/aek-mcp-linux-x64": "workspace:*",
+    "@cheezmil/aek-mcp-linux-arm64": "workspace:*",
+    "@cheezmil/aek-mcp-darwin-x64": "workspace:*",
+    "@cheezmil/aek-mcp-darwin-arm64": "workspace:*",
+    "@cheezmil/aek-mcp-win32-x64": "workspace:*"
+  },
+  "files": [
+    "bin/aek-mcp.js",
+    "bin/aek-shim.cjs",
+    "package.json"
+  ],
+  "license": "MIT"
 }

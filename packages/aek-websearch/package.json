@@ -1,16 +1,36 @@
 {
-  "name": "aek-websearch",
+  "name": "@cheezmil/aek-websearch",
   "version": "0.2.0",
+  "type": "module",
   "description": "AEK — Agent Enhance Kit (Web Search module)",
   "bin": {
-    "aek": "bin/aek"
+    "aek-websearch": "bin/aek-websearch.js",
+    "aek": "bin/aek-shim.cjs"
   },
   "scripts": {
-    "build": "go build -o bin/aek ./cmd/aek/",
+    "build": "go build -o bin/aek-websearch ./cmd/aek/",
     "test": "go test ./...",
-    "start": "./bin/aek serve",
-    "postinstall": "node scripts/postinstall.mjs"
+    "start": "node bin/aek-websearch.js serve"
   },
-  "keywords": ["ai", "agent", "search"],
+  "dependencies": {
+    "@cheezmil/aek-common": "workspace:*"
+  },
+  "optionalDependencies": {
+    "@cheezmil/aek-websearch-linux-x64": "workspace:*",
+    "@cheezmil/aek-websearch-linux-arm64": "workspace:*",
+    "@cheezmil/aek-websearch-darwin-x64": "workspace:*",
+    "@cheezmil/aek-websearch-darwin-arm64": "workspace:*",
+    "@cheezmil/aek-websearch-win32-x64": "workspace:*"
+  },
+  "files": [
+    "bin/aek-websearch.js",
+    "bin/aek-shim.cjs",
+    "package.json"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "search"
+  ],
   "license": "MIT"
 }

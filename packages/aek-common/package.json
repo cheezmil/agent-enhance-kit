@@ -1,5 +1,5 @@
 {
-  "name": "aek-common",
+  "name": "@cheezmil/aek-common",
   "version": "0.1.0",
   "type": "module",
   "description": "AEK 各包共用代码（工具函数、类型、常量）",
@@ -7,6 +7,10 @@
     "aek": "bin/aek.js"
   },
   "main": "src/index.js",
+  "files": [
+    "bin/",
+    "src/"
+  ],
   "scripts": {
     "test": "node --test"
   }
