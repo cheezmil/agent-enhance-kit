@@ -2,7 +2,32 @@
   "$schema": "https://unpkg.com/@changesets/cli/schema.json",
   "changelog": "@changesets/changelog-git",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@cheezmil/aek-websearch",
+      "@cheezmil/aek-websearch-linux-x64",
+      "@cheezmil/aek-websearch-linux-arm64",
+      "@cheezmil/aek-websearch-darwin-x64",
+      "@cheezmil/aek-websearch-darwin-arm64",
+      "@cheezmil/aek-websearch-win32-x64"
+    ],
+    [
+      "@cheezmil/aek-task-manager",
+      "@cheezmil/aek-task-manager-linux-x64",
+      "@cheezmil/aek-task-manager-linux-arm64",
+      "@cheezmil/aek-task-manager-darwin-x64",
+      "@cheezmil/aek-task-manager-darwin-arm64",
+      "@cheezmil/aek-task-manager-win32-x64"
+    ],
+    [
+      "@cheezmil/aek-mcp",
+      "@cheezmil/aek-mcp-linux-x64",
+      "@cheezmil/aek-mcp-linux-arm64",
+      "@cheezmil/aek-mcp-darwin-x64",
+      "@cheezmil/aek-mcp-darwin-arm64",
+      "@cheezmil/aek-mcp-win32-x64"
+    ]
+  ],
   "linked": [],
   "ignore": [],
   "privatePackages": {

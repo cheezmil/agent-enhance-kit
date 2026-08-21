@@ -1,141 +1,67 @@
 #!/usr/bin/env python3
-"""Sync versions from package.json to Go source files."""
+"""sync-versions — 将主包版本同步到其平台子包，并保持 optionalDependencies 引用一致。
 
+esbuild 式平台分包：@cheezmil/<主包>-<platform>-<arch> 的版本必须与主包同步。
+changesets 只管 workspace 里的主包，平台子包版本由本脚本统一对齐。
+
+用法（每次 changeset version 之后、publish 之前执行）:
+    pnpm changeset version
+    python3 scripts/for-maintainers/sync-versions.py
+"""
 import json
-import re
-import sys
-from pathlib import Path
+import os
 
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PACKAGES = os.path.join(ROOT, "packages")
 
-def sync_go_version(pkg_dir: Path, version: str) -> bool:
-    """Update version in Go main.go file."""
-    # Try common locations
-    candidates = [
-        pkg_dir / "cmd" / "aek" / "main.go",
-        pkg_dir / "cmd" / "aek" / "root.go",
-        pkg_dir / "cmd" / "main" / "main.go",
-        pkg_dir / "src" / "cmd" / "aek-task-manager" / "main.go",
-        pkg_dir / "src" / "cmd" / "main" / "main.go",
-    ]
-    
-    for main_go in candidates:
-        if not main_go.exists():
-            continue
-        
-        content = main_go.read_text()
-        
-        # Pattern 1: const Version = "..."
-        new_content, n = re.subn(
-            r'const\s+Version\s*=\s*"[^"]+"',
-            f'const Version = "{version}"',
-            content
-        )
-        
-        # Pattern 2: var version = "..."
-        if n == 0:
-            new_content, n = re.subn(
-                r'var\s+version\s*=\s*"[^"]+"',
-                f'var version = "{version}"',
-                content
-            )
-        
-        # Pattern 3: version = "..." (exclude comments)
-        if n == 0:
-            lines = content.split('\n')
-            for i, line in enumerate(lines):
-                stripped = line.strip()
-                # Skip comment lines
-                if stripped.startswith('//'):
-                    continue
-                if re.match(r'version\s*=\s*"[^"]+"', stripped):
-                    lines[i] = re.sub(
-                        r'(version\s*=\s*)"[^"]+"',
-                        rf'\g<1>"{version}"',
-                        line
-                    )
-                    n += 1
-            if n > 0:
-                content = '\n'.join(lines)
-        
-        if n > 0:
-            main_go.write_text(new_content)
-            print(f"  ✓ Updated {main_go.relative_to(pkg_dir)}")
-            return True
-    
-    return False
+# 主包短名 → 平台子包目录
+PLATFORM_SUFFIXES = [
+    "-linux-x64",
+    "-linux-arm64",
+    "-darwin-x64",
+    "-darwin-arm64",
+    "-win32-x64",
+]
 
-
-def sync_plugin_yaml(pkg_dir: Path, version: str) -> bool:
-    """Update version in Hermes plugin.yaml."""
-    plugin_yaml = pkg_dir / "src" / "various_agents" / "hermes" / "plugin.yaml"
-    if not plugin_yaml.exists():
-        return False
-    
-    content = plugin_yaml.read_text()
-    new_content, n = re.subn(
-        r'^(version:\s*)\S+',
-        rf'\g<1>{version}',
-        content,
-        flags=re.MULTILINE
-    )
-    
-    if n > 0:
-        plugin_yaml.write_text(new_content)
-        print(f"  ✓ Updated {plugin_yaml.relative_to(pkg_dir)}")
-        return True
-    
-    return False
+MAIN_PACKAGES = [
+    "aek-websearch",
+    "aek-task-manager",
+    "aek-mcp",
+]
 
 
 def main():
-    print("Syncing versions from package.json to native manifests...\n")
-    
-    packages_dir = Path("packages")
-    updated = 0
-    
-    for pkg_dir in sorted(packages_dir.iterdir()):
-        if not pkg_dir.is_dir():
+    changed = []
+    for main_name in MAIN_PACKAGES:
+        main_json = os.path.join(PACKAGES, main_name, "package.json")
+        with open(main_json, encoding="utf-8") as f:
+            main_data = json.load(f)
+        main_version = main_data["version"]
+
+        platform_dir = os.path.join(PACKAGES, main_name, "platforms")
+        if not os.path.isdir(platform_dir):
             continue
-        # Skip node_modules
-        if "node_modules" in pkg_dir.parts:
-            continue
-        pkg_json = pkg_dir / "package.json"
-        if not pkg_json.exists():
-            continue
-        
-        try:
-            data = json.loads(pkg_json.read_text())
-        except json.JSONDecodeError as e:
-            print(f"  ✗ Failed to parse {pkg_json}: {e}")
-            continue
-        
-        version = data.get("version")
-        if not version or version in ("dev", "0.0.0-dev"):
-            continue
-        
-        # Skip private packages
-        if data.get("private", False):
-            continue
-        
-        name = data.get("name", pkg_dir.name)
-        print(f"{name} @ {version}")
-        
-        # Detect and sync based on language
-        has_go = (pkg_dir / "go.mod").exists()
-        has_plugin = (pkg_dir / "src" / "various_agents" / "hermes" / "plugin.yaml").exists()
-        
-        if has_go:
-            sync_go_version(pkg_dir, version)
-        
-        if has_plugin:
-            sync_plugin_yaml(pkg_dir, version)
-        
-        updated += 1
-        print()
-    
-    print(f"Synced {updated} package(s).")
-    return 0
+
+        for suffix in PLATFORM_SUFFIXES:
+            sub_json = os.path.join(platform_dir, suffix, "package.json")
+            if not os.path.exists(sub_json):
+                continue
+            with open(sub_json, encoding="utf-8") as f:
+                sub_data = json.load(f)
+            if sub_data["version"] != main_version:
+                sub_data["version"] = main_version
+                with open(sub_json, "w", encoding="utf-8") as f:
+                    json.dump(sub_data, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                changed.append(f"{sub_data['name']}: → {main_version}")
+
+    if changed:
+        print("平台子包版本已同步:")
+        for c in changed:
+            print("  ", c)
+    else:
+        print("平台子包版本已一致，无需同步。")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

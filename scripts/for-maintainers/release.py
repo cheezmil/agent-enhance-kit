@@ -166,8 +166,12 @@ def main():
     tags_created = []
 
     for pkg_name, info in versions.items():
+        if info["private"]:
+            continue
         pkg_version = info["version"]
-        tag_name = f"{pkg_name}@v{pkg_version}"
+        # scoped 名（@cheezmil/aek-websearch） → 短名（aek-websearch），tag 与 GitHub Release 下载 URL 用短名
+        short_name = pkg_name.split("/")[-1]
+        tag_name = f"{short_name}@v{pkg_version}"
         existing_tag = exec_command(f'git tag -l "{tag_name}"')
         if existing_tag == tag_name:
             log(f"  Tag {tag_name} already exists. Skipping.", Colors.YELLOW)

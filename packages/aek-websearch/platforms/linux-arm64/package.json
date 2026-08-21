@@ -1,0 +1,15 @@
+{
+  "name": "@cheezmil/aek-websearch-linux-arm64",
+  "version": "0.2.0",
+  "description": "AEK — Agent Enhance Kit (Web Search module) platform binary for linux-arm64",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT"
+}

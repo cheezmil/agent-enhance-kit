@@ -1,0 +1,15 @@
+{
+  "name": "@cheezmil/aek-task-manager-darwin-arm64",
+  "version": "0.0.1",
+  "description": "AEK — Agent Enhance Kit (Task Manager module) platform binary for darwin-arm64",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT"
+}
