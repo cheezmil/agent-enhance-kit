@@ -40,7 +40,14 @@ function runAekTaskManager(rest) {
 
 function main() {
   if (args.length === 0) {
-    runAekWebsearch(args);
+    console.log(`Usage: aek <command> [options]
+
+Available commands:
+  sm, skill-manager  Sync Agent Skills from central repo to agent tools
+  ws, websearch, web Web search and content tools (multi-provider)
+  mcp                MCP proxy gateway
+  task, tm           Task management (experimental)
+`);
     return;
   }
 
