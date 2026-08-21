@@ -1165,7 +1165,7 @@ func GetRuntimeConfig(c *gin.Context) {
 		Success: true,
 		Data: models.RuntimeConfig{
 			BasePath: config.AppConfig.BasePath,
-			Version:  "dev",
+			Version:  config.Version,
 			Name:     "mcphub",
 		},
 	})
