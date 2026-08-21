@@ -25,6 +25,7 @@ Agent Enhance Kit is a **monorepo**
 | [`aek-websearch`](packages/aek-websearch) | Multi-provider web search engine: CLI + HTTP API + MCP Server |
 | [`aek-mcp`](packages/aek-mcp) | MCP proxy gateway + Web management UI (Next.js frontend + Go backend) |
 | [`aek-skill-manager`](packages/aek-skill-manager) | Sync Agent Skills (SKILL.md folders) from a central repo (`~/.aek/skill-manager/skills/`) to every AI agent tool (Claude Code, Cursor, Codex, OpenCode, ...) via `aek sm` |
+| [`aek-task-manager`](packages/aek-task-manager) | Task Manager module — CLI for managing long-running agent tasks with approval gates, Git-backed persistence, and cross-session recovery |
 | [`aek-common`](packages/aek-common) | Shared code across all AEK packages; hosts the unified `aek` CLI entry that dispatches to each sub-package |
 
 ## 🚀 Quick Start
