@@ -32,9 +32,9 @@ func getMcpSettingsPathForUser(username string) string {
 	home, _ := os.UserHomeDir()
 	if username == "" {
 		// Fallback: return legacy path for backward compatibility
-		return filepath.Join(home, ".aek", "mcp", "db", "user-custom-configuration", "aekmcp", "mcp-settings.jsonc")
+		return filepath.Join(home, ".aek", "mcp", "settings", "user-custom-configuration", "aekmcp", "mcp-settings.jsonc")
 	}
-	return filepath.Join(home, ".aek", "mcp", "db", "user-custom-configuration", username, "mcp-settings.jsonc")
+	return filepath.Join(home, ".aek", "mcp", "settings", "user-custom-configuration", username, "mcp-settings.jsonc")
 }
 
 func LoadMcpSettings() {
