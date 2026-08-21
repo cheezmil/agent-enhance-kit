@@ -1,0 +1,3 @@
+// API key file. One key per line. Lines starting with // are ignored.
+// Replace the line below with your key.
+YOUR_API_KEY_HERE

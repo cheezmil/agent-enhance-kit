@@ -210,6 +210,30 @@ func Doctor(b *broker.SearchBroker) (string, error) {
 	return sb.String(), nil
 }
 
+// ── InitConfig ──────────────────────────────────────────────────────────────
+
+// InitConfig creates empty template files under ~/.aek/websearch/ (settings +
+// all provider key files). Existing files are NEVER overwritten.
+func InitConfig() (string, error) {
+	created, err := config.WriteTemplateFiles()
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	if len(created) == 0 {
+		sb.WriteString("All config files already exist, nothing created.\n")
+	} else {
+		sb.WriteString("Created template files:\n")
+		for path, kind := range created {
+			sb.WriteString(fmt.Sprintf("  [%s] %s\n", kind, path))
+		}
+	}
+	sb.WriteString("\nEdit these files to configure providers, then restart the server (aek serve / aek mcp).\n")
+	sb.WriteString("API keys go in <provider>.txt, one key per line (// lines are ignored).\n")
+	return sb.String(), nil
+}
+
 // ── Budgets ────────────────────────────────────────────────────────────────
 
 // Budgets returns provider budget summary.
