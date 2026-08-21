@@ -154,6 +154,23 @@ type ApiResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// TutorialPrefs is the per-user one-click install preferences (which agents
+// the user has selected for aek-mcp configuration).
+type TutorialPrefs struct {
+	SelectedAgents []string `json:"selectedAgents"`
+	AppliedAt      string   `json:"appliedAt,omitempty"`
+}
+
+// TutorialApplyResult is the outcome of writing aek-mcp config into one agent tool.
+type TutorialApplyResult struct {
+	AgentID string `json:"agentId"`
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Success bool   `json:"success"`
+	Skipped bool   `json:"skipped"`
+	Message string `json:"message,omitempty"`
+}
+
 type PaginatedResponse struct {
 	Success    bool        `json:"success"`
 	Data       interface{} `json:"data,omitempty"`
