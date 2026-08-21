@@ -44,8 +44,6 @@ Agent Enhance Kit is a **monorepo**
 
 ### 🔍 aek-websearch
 
-Usage: [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
-
 Multi-provider search aggregation with a unified interface and automatic failover.
 
 Supported search providers:
@@ -76,8 +74,6 @@ Based on actual usage testing (as of 2026-08-21):
 *This ranking reflects personal testing experience and is subject to change over time.*
 
  ### 🔌 aek-mcp
-
-Usage: [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
 MCP proxy gateway for centralized management of all MCP server connections.
 

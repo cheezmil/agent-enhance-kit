@@ -44,8 +44,6 @@ Agent Enhance Kit 是一个 **monorepo**
 
 ### 🔍 aek-websearch
 
-使用方法： [`skills/aek-websearch/SKILL.md`](skills/aek-websearch/SKILL.md)
-
 多提供商搜索聚合，统一接口，自动故障转移。
 
 支持的搜索提供商：
@@ -76,8 +74,6 @@ Agent Enhance Kit 是一个 **monorepo**
 *此排行反映个人实际测试体验，具有时效性，可能随时间变化。*
 
  ### 🔌 aek-mcp
-
-使用方法： [`skills/aek-mcp/SKILL.md`](skills/aek-mcp/SKILL.md)
 
 MCP 代理网关，集中管理所有 MCP 服务器的连接。
 
