@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { stat, cp, mkdir } from 'node:fs/promises';
+import { stat, cp, mkdir, rm } from 'node:fs/promises';
 
 import { checkbox, confirm, select } from '@inquirer/prompts';
 
@@ -35,6 +35,8 @@ async function main() {
       await runSync(scope, commandArgs);
     } else if (command === 'pull') {
       await runPull(scope, commandArgs);
+    } else if (command === 'remove') {
+      await runRemove(scope, commandArgs);
     } else if (command === null && commandArgs.length === 0) {
       await runInteractiveSync();
     } else if (command === null && commandArgs.length === 2) {
@@ -64,7 +66,7 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg.startsWith('--scope=')) {
       scope = arg.slice('--scope='.length);
-    } else if (command === null && (arg === 'init' || arg === 'sync' || arg === 'pull')) {
+    } else if (command === null && (arg === 'init' || arg === 'sync' || arg === 'pull' || arg === 'remove')) {
       command = arg;
     } else {
       commandArgs.push(arg);
@@ -83,6 +85,8 @@ function printUsage() {
   console.log('  aek sm sync                  从中心仓库同步 skill 到各工具');
   console.log('  aek sm sync --tools claude,cursor  同步到指定工具');
   console.log('  aek sm pull <source>         从某个工具拉取 skill 到中心仓库');
+  console.log('  aek sm remove <skill-name>   从各工具中移除指定 skill');
+  console.log('  aek sm remove <skill-name> --tools claude,cursor  只从指定工具移除');
   console.log('  aek sm init                  初始化中心仓库目录');
   console.log('');
   console.log('  aek sm <source> <target>     [--scope global|project] 直接复制');
@@ -199,6 +203,63 @@ async function runPull(scope, args) {
   if (result.skipped.length > 0) console.log(`  跳过: ${result.skipped.join(', ')}`);
   if (result.copied.length === 0 && result.overwritten.length === 0) {
     console.log('  无变更');
+  }
+}
+
+async function runRemove(scope, args) {
+  // Parse --tools flag
+  let tools = null;
+  let skillName = null;
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--tools') {
+      tools = args[i + 1].split(',').map((t) => t.trim());
+      i += 1;
+    } else if (args[i].startsWith('--tools=')) {
+      tools = args[i].slice('--tools='.length).split(',').map((t) => t.trim());
+    } else if (!args[i].startsWith('--')) {
+      skillName = args[i];
+    }
+  }
+
+  if (!skillName) {
+    throw new Error('请指定要移除的 skill 名称，例如: aek sm remove my-skill');
+  }
+
+  const platforms = tools
+    ? tools.map((t) => resolvePlatformByKeyword(t)).filter(Boolean)
+    : PLATFORMS;
+
+  if (platforms.length === 0) {
+    throw new Error(tools ? '未找到指定的工具' : '没有可用的工具');
+  }
+
+  let removed = 0;
+  let notFound = 0;
+
+  for (const platform of platforms) {
+    const targetDir = resolveSkillsDir(platform, { scope });
+    const skillPath = path.join(targetDir, skillName);
+    try {
+      const skillStat = await stat(skillPath);
+      if (skillStat.isDirectory()) {
+        await rm(skillPath, { recursive: true, force: true });
+        console.log(`[aek sm] 已移除: ${platform.name} (${skillName})`);
+        removed += 1;
+      } else {
+        notFound += 1;
+      }
+    } catch {
+      notFound += 1;
+    }
+  }
+
+  if (removed === 0) {
+    console.log(`[aek sm] 未在任何工具中找到 skill "${skillName}"`);
+  } else {
+    console.log(`[aek sm] 完成: 从 ${removed} 个工具中移除了 "${skillName}"`);
+    if (notFound > 0) {
+      console.log(`[aek sm] ${notFound} 个工具中不存在该 skill，已跳过`);
+    }
   }
 }
 
