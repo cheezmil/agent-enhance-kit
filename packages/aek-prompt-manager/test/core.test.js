@@ -58,10 +58,11 @@ test('patch + unpatch round-trip on a real target file', async () => {
   const prevHome = process.env.HOME;
   process.env.HOME = fakeHome;
   try {
-    await mkdir(join(fakeHome, '.aek', 'global-prompt-manager'), { recursive: true });
+    // Seed patch sources (mkdir directly to each source dir so writeFile works)
+    await mkdir(dirname(sharedPatchPath()), { recursive: true });
+    await mkdir(dirname(toolPatchPath('codex')), { recursive: true });
     await mkdir(join(fakeHome, '.codex'), { recursive: true });
 
-    // Seed patch sources
     await writeFile(sharedPatchPath(), '# shared\n', 'utf8');
     await writeFile(toolPatchPath('codex'), '# codex-tool\n', 'utf8');
 

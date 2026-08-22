@@ -1,4 +1,4 @@
-// aek-global-prompt-manager — platforms
+// aek-prompt-manager — platforms
 // Only platforms with a real global prompt file. Others are unsupported.
 
 const os = process.platform;
