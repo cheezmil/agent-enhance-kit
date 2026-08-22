@@ -15,10 +15,14 @@
 //     <tool_dir>/          dir name = tool id, hyphens -> underscores
 //       cross_platform_shared.md / linux.md / mac.md / windows.md / wsl.md
 //
-// Injected block (merged, in order: shared cross-platform, shared current-plat,
-// tool cross-platform, tool current-plat):
+// Injected block (merged, in order: system built-in prompt, then shared
+// cross-platform, shared current-plat, tool cross-platform, tool current-plat):
 //
 //   <!-- head-aek-pm-patch -->
+//   <!-- head-aek-system-built-in-prompt -->
+//     <system built-in prompt (only-patch/aek_system_prompt/all_agents_shared)>
+//   <!-- end-aek-system-built-in-prompt -->
+//
 //   <!-- head-aek-pm-patch-shared -->
 //     <shared cross-platform>
 //     <shared current-platform>
@@ -42,6 +46,13 @@ export const HEAD = '<!-- head-aek-pm-patch -->';
 export const HEAD_SHARED = '<!-- head-aek-pm-patch-shared -->';
 export const END_SHARED = '<!-- end-aek-pm-patch-shared -->';
 export const END = '<!-- end-aek-pm-patch -->';
+
+// System built-in prompt block (only-patch source only): injected right after
+// HEAD, before the shared block. Content comes from
+//   <aekDir>/only-patch/aek_system_prompt/all_agents_shared/<platform>.md
+export const HEAD_SYS = '<!-- head-aek-system-built-in-prompt -->';
+export const END_SYS = '<!-- end-aek-system-built-in-prompt -->';
+export const SYS_PROMPT_DIR_NAME = 'aek_system_prompt';
 
 export const PLATFORM_FILES = ['cross_platform_shared', 'linux', 'mac', 'windows', 'wsl'];
 export const PLATFORM_FILE = (name) => `${name}.md`;
@@ -72,6 +83,10 @@ export function sharedDir(source) {
 export function toolDir(source, toolId) {
   return join(sourceRoot(source), toolDirName(toolId));
 }
+export function sysPromptDir(source) {
+  // System prompt is only-patch source only
+  return join(sourceRoot(source), SYS_PROMPT_DIR_NAME, 'all_agents_shared');
+}
 
 export function currentPlatform() {
   if (isWSL()) return 'wsl';
@@ -99,14 +114,17 @@ function endTool(toolId) {
   return `<!-- end-aek-pm-patch-${toolId} -->`;
 }
 
-export function buildBlock(toolId, sharedContent = '', toolContent = '') {
+export function buildBlock(toolId, sharedContent = '', toolContent = '', sysPromptContent = '') {
+  const sysPromptPart = sysPromptContent
+    ? `${HEAD_SYS}\n${sysPromptContent.trimEnd()}\n${END_SYS}`
+    : '';
   const sharedPart = sharedContent
     ? `${HEAD_SHARED}\n${sharedContent.trimEnd()}\n${END_SHARED}`
     : '';
   const toolPart = toolContent
     ? `${headTool(toolId)}\n${toolContent.trimEnd()}\n${endTool(toolId)}`
     : '';
-  const inner = [sharedPart, toolPart].filter(Boolean).join('\n\n');
+  const inner = [sysPromptPart, sharedPart, toolPart].filter(Boolean).join('\n\n');
   return `${HEAD}\n${inner}\n${END}`;
 }
 
@@ -120,8 +138,8 @@ function findBlockEnd(text, start) {
 // the current content (replaced=false). This single function serves both
 // "patch" (replace) and "apply" (append) semantics: for "apply" the first
 // run appends, subsequent runs replace the existing block.
-export function mergeBlock(fileContent, toolId, sharedContent, toolContent, fileHeader = '') {
-  const block = buildBlock(toolId, sharedContent, toolContent);
+export function mergeBlock(fileContent, toolId, sharedContent, toolContent, fileHeader = '', sysPromptContent = '') {
+  const block = buildBlock(toolId, sharedContent, toolContent, sysPromptContent);
   const headIdx = fileContent.indexOf(HEAD);
   if (headIdx === -1) {
     const header = fileContent.length === 0 && fileHeader ? fileHeader : '';
@@ -200,7 +218,10 @@ async function writeDual(linuxPath, content, winPath) {
 async function gather(source, toolId, platform) {
   const sharedContent = await readPlatformBundle(sharedDir(source), platform);
   const toolContent = await readPlatformBundle(toolDir(source, toolId), platform);
-  return { sharedContent, toolContent };
+  // System built-in prompt (only-patch source): read from
+  // aek_system_prompt/all_agents_shared/<platform>.md
+  const sysPromptContent = await readPlatformBundle(sysPromptDir(source), platform);
+  return { sharedContent, toolContent, sysPromptContent };
 }
 
 export async function patch(tool, force = false) {
@@ -220,16 +241,18 @@ async function _applyBlock(source, tool, force = false) {
     throw new Error(`Platform "${toolId}" has no global prompt path.`);
   }
   const platform = currentPlatform();
-  const { sharedContent, toolContent } = await gather(source, toolId, platform);
+  const { sharedContent, toolContent, sysPromptContent } = await gather(source, toolId, platform);
 
-  if (!force && !sharedContent.trim() && !toolContent.trim()) {
+  if (!force && !sharedContent.trim() && !toolContent.trim() && !sysPromptContent.trim()) {
     throw new Error(
       `Nothing to ${source} for ${toolId} at platform "${platform}": all source files empty/missing.`
     );
   }
 
   const fileContent = (await readMaybe(target)) || '';
-  const { content, replaced } = mergeBlock(fileContent, toolId, sharedContent, toolContent, tool.fileHeader || '');
+  const { content, replaced } = mergeBlock(
+    fileContent, toolId, sharedContent, toolContent, tool.fileHeader || '', sysPromptContent
+  );
 
   const winPath = linuxToWinPath(target);
   const writes = await writeDual(target, content, winPath);
