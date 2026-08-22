@@ -11,7 +11,8 @@
     "@cheezmil/aek-websearch": "workspace:*",
     "@cheezmil/aek-skill-manager": "workspace:*",
     "@cheezmil/aek-task-manager": "workspace:*",
-    "@cheezmil/aek-mcp": "workspace:*"
+    "@cheezmil/aek-mcp": "workspace:*",
+    "@cheezmil/aek-prompt-manager": "workspace:*"
   },
   "files": [
     "bin/",
