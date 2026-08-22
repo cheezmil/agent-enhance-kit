@@ -122,3 +122,6 @@ node_modules/
 # cqg-gitea-this-project-ignore-head
 # cqg-gitea-this-project-ignore-end
 # cqg-end
+
+# npm pack 产物
+*.tgz
