@@ -1,10 +1,11 @@
-// aek-global-prompt-manager — CLI
+// aek-prompt-manager — CLI
 import process from 'node:process';
 
 import { PLATFORMS, SUPPORTED_IDS } from './platforms.js';
 import {
   AEEK_DIR,
-  SHARED_DIR,
+  aekDir,
+  sharedDir,
   toolPatchPath,
   sharedPatchPath,
   patch,
@@ -65,7 +66,7 @@ async function runInit() {
   const { mkdir, writeFile } = await import('node:fs/promises');
   const { dirname } = await import('node:path');
 
-  const dirs = [SHARED_DIR, ...PLATFORMS.map((p) => dirname(toolPatchPath(p.id)))];
+  const dirs = [sharedDir(), ...PLATFORMS.map((p) => dirname(toolPatchPath(p.id)))];
   for (const d of dirs) await mkdir(d, { recursive: true });
 
   const sharedContent = `# Aek Global Prompt (shared)

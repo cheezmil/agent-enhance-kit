@@ -1,4 +1,4 @@
-// aek-global-prompt-manager — core
+// aek-prompt-manager — core
 // Inject a nested managed block into a platform's global prompt file.
 //
 // Managed block structure (injected / appended):
@@ -32,9 +32,18 @@ export const HEAD_SHARED = '<!-- head-aek-gpm-shared -->';
 export const END_SHARED = '<!-- end-aek-gpm-shared -->';
 export const END = '<!-- end-aek-gpm -->';
 
-export const AEEK_DIR = join(process.env.HOME || '', '.aek', 'global-prompt-manager');
-export const PATCH_DIR = join(AEEK_DIR, 'patch');
-export const SHARED_DIR = join(PATCH_DIR, 'all-agents-share');
+export function aekDir() {
+  return join(process.env.HOME || '', '.aek', 'global-prompt-manager');
+}
+export function patchDir() {
+  return join(aekDir(), 'patch');
+}
+export function sharedDir() {
+  return join(patchDir(), 'all-agents-share');
+}
+export const AEEK_DIR = aekDir();
+export const PATCH_DIR = patchDir();
+export const SHARED_DIR = sharedDir();
 export const PATCH_FILENAME = 'patch.md';
 
 function headTool(toolId) {
@@ -45,10 +54,10 @@ function endTool(toolId) {
 }
 
 export function toolPatchPath(toolId) {
-  return join(PATCH_DIR, toolId, 'patch.md');
+  return join(patchDir(), toolId, 'patch.md');
 }
 export function sharedPatchPath() {
-  return join(SHARED_DIR, 'patch.md');
+  return join(sharedDir(), 'patch.md');
 }
 
 export function buildBlock(toolId, sharedContent = '', toolContent = '') {
