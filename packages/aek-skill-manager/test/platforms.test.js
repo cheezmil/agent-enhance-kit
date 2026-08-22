@@ -52,6 +52,19 @@ test('windows opencode resolves under LOCALAPPDATA', () => {
   );
 });
 
+test('windows hermes resolves under LOCALAPPDATA', () => {
+  const opts = {
+    scope: 'global',
+    platformOS: 'win32',
+    home: 'C:\\Users\\u',
+    env: { LOCALAPPDATA: 'C:\\Users\\u\\AppData\\Local' },
+  };
+  assert.equal(
+    resolveSkillsDir(platform('hermes'), opts),
+    'C:\\Users\\u\\AppData\\Local\\hermes\\skills',
+  );
+});
+
 test('project scope resolves under the working directory', () => {
   const opts = { scope: 'project', platformOS: 'linux', cwd: '/work/proj' };
   assert.equal(resolveSkillsDir(platform('claude'), opts), '/work/proj/.claude/skills');
