@@ -103,7 +103,7 @@ MCP 代理网关，集中管理所有 MCP 服务器的连接。
 
 ![aek-mcp server management](static/aek-mcp/1.jpg)
 
-**配置生成器** — 针对不同 AI 工具（如 Claude Code）自动生成并一键复制 MCP 配置，支持完整配置与内部片段两种 JSON 格式。
+**配置生成器与一键配置** — 针对不同 AI 工具（如 Claude Code）自动生成 MCP 配置，支持一键安装：在 Web 界面勾选所需工具，点击 Apply，AEK-MCP 条目直接写入各工具的配置文件。支持完整配置与内部片段两种 JSON 格式。
 
 ![aek-mcp tutorial config](static/aek-mcp/2.jpg)
 
