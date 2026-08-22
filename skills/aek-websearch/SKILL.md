@@ -66,38 +66,6 @@ aek serve
 aek mcp
 ```
 
-### MCP 服务器
-
-基于 `mark3labs/mcp-go` v0.55.0 实现 Streamable HTTP 传输。
-
-架构：CLI 和 MCP 共享 `internal/commands/` 包，MCP 工具与 CLI 子命令一一对应：
-
-| MCP 工具 | 对应 CLI | 底层调用 |
-|---|---|---|
-| `web_search` | `aek websearch "query"` | `commands.Search()` |
-| `web_extract` | `aek websearch extract "url"` | `commands.Extract()` |
-| `web_code_search` | `aek websearch code-search "q"` | `commands.CodeSearch()` |
-| `web_doctor` | `aek websearch doctor` | `commands.Doctor()` |
-| `web_budgets` | `aek websearch budgets` | `commands.Budgets()` |
-| `web_test_provider` | `aek websearch test-provider p` | `commands.TestProvider()` |
-| `web_key_pool_status` | `aek websearch key-pool-status` | `commands.KeyPoolStatus()` |
-| `web_key_pool_disable` | `aek websearch key-pool-disable` | `commands.KeyPoolDisable()` |
-| `web_key_pool_enable` | `aek websearch key-pool-enable` | `commands.KeyPoolEnable()` |
-
-Agent 客户端配置（Hermes / Cursor / Claude Desktop 等）：
-
-```json
-{
-  "mcpServers": {
-    "aek-websearch": {
-      "url": "http://127.0.0.1:1350/mcp"
-    }
-  }
-}
-```
-
-Health check: `GET /health`
-
 ### 配置文件
 - 配置: `~/.aek/settings.jsonc`
 - API Keys: `~/.aek/web-search/<provider>.txt`
