@@ -86,6 +86,7 @@ function printUsage() {
   console.log('  aek sm sync --tools claude,cursor  同步到指定工具');
   console.log('  aek sm pull <source>         从某个工具拉取 skill 到中心仓库');
   console.log('  aek sm remove <skill-name>...   从各工具中移除指定 skill（支持多个名称）');
+  console.log('  aek sm remove --all             从各工具中移除全部 skill');
   console.log('  aek sm remove <skill-name>... --tools claude,cursor  只从指定工具移除');
   console.log('  aek sm init                  初始化中心仓库目录');
   console.log('');
@@ -207,8 +208,9 @@ async function runPull(scope, args) {
 }
 
 async function runRemove(scope, args) {
-  // Parse --tools flag and collect skill names
+  // Parse --tools flag, --all flag, and collect skill names
   let tools = null;
+  let removeAll = false;
   const skillNames = [];
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === '--tools') {
@@ -216,13 +218,15 @@ async function runRemove(scope, args) {
       i += 1;
     } else if (args[i].startsWith('--tools=')) {
       tools = args[i].slice('--tools='.length).split(',').map((t) => t.trim());
+    } else if (args[i] === '--all') {
+      removeAll = true;
     } else if (!args[i].startsWith('--')) {
       skillNames.push(args[i]);
     }
   }
 
-  if (skillNames.length === 0) {
-    throw new Error('请指定要移除的 skill 名称，例如: aek sm remove my-skill-1 my-skill-2');
+  if (skillNames.length === 0 && !removeAll) {
+    throw new Error('请指定要移除的 skill 名称，例如: aek sm remove my-skill-1 my-skill-2，或使用 --all 移除全部');
   }
 
   const platforms = tools
@@ -234,6 +238,27 @@ async function runRemove(scope, args) {
   }
 
   let totalRemoved = 0;
+
+  if (removeAll) {
+    // Remove all skills from each platform
+    for (const platform of platforms) {
+      const targetDir = resolveSkillsDir(platform, { scope });
+      const skills = await listSkillFolders(targetDir);
+      if (skills.length === 0) continue;
+      for (const skill of skills) {
+        await rm(skill.path, { recursive: true, force: true });
+        console.log(`[aek sm] 已移除: ${platform.name} (${skill.name})`);
+        totalRemoved += 1;
+      }
+    }
+    if (totalRemoved === 0) {
+      console.log('[aek sm] 各工具中均无 skill 可移除');
+    } else {
+      console.log(`[aek sm] 完成: 共移除 ${totalRemoved} 个 skill`);
+    }
+    return;
+  }
+
   let totalNotFound = 0;
 
   for (const skillName of skillNames) {
