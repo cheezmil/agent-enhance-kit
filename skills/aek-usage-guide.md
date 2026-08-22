@@ -22,6 +22,7 @@ aek websearch doctor         # 诊断
 aek tm <command> [json]      # 任务管理器
 aek mcp                      # MCP 服务器（启动后提供给 agent）
 aek sm                       # Skill 同步工具（交互式，从中心仓库同步 skills 到 agent）
+aek pm                       # 全局提示词管理（注入/移除/查看各 agent 的全局提示词）
 ```
 
 ## 常用场景
