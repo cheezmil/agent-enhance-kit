@@ -219,6 +219,13 @@ var AgentTools = []AgentTool{
 			return map[string]interface{}{"transport": "streamable-http", "url": mcpURL, "lifecycle": "eager"}
 		},
 	},
+	{
+		ID: "deepseek-harness", Name: "DeepSeek Harness", Format: "json", ServersKey: "mcpServers", ServerName: "aek_mcp",
+		ConfigPath: homeJoin(".dsh", "mcp.json"),
+		EntryOverride: func(mcpURL, key string) map[string]interface{} {
+			return map[string]interface{}{"url": mcpURL, "type": "http"}
+		},
+	},
 }
 
 // GetAgentTool returns the agent definition by id.
