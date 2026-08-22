@@ -1,0 +1,35 @@
+{
+  "name": "@cheezmil/aek-global-prompt-manager",
+  "version": "0.1.0",
+  "description": "向各 AI Agent 工具的全局提示词文件注入可管理的 patch 块",
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "agent-prompt",
+    "global-prompt",
+    "patch",
+    "codex",
+    "claude",
+    "opencode",
+    "hermes"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "src/cli.js",
+  "bin": {
+    "aek-global-prompt-manager": "./bin/aek-global-prompt-manager.js",
+    "aek": "bin/aek-shim.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@cheezmil/aek-common": "workspace:*"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "package.json"
+  ]
+}
