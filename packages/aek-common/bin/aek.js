@@ -57,6 +57,12 @@ function runAekTaskManager(rest) {
   execTool('node', [bin, ...rest]);
 }
 
+function runPromptManager(rest) {
+  const bin = findSubBin('aek-prompt-manager', 'bin/aek-prompt-manager.js');
+  if (!bin) return missingTip('@cheezmil/aek-prompt-manager', '@cheezmil/aek-prompt-manager');
+  execTool('node', [bin, ...rest]);
+}
+
 function main() {
   if (args.length === 0) {
     console.log(`Usage: aek <command> [options]
@@ -66,6 +72,7 @@ Available commands:
   ws, websearch, web Web search and content tools (multi-provider)
   mcp                MCP proxy gateway
   task, tm           Task management (experimental)
+  gpm, pgm, prompt-manager  Global prompt patch manager
 `);
     return;
   }
@@ -91,6 +98,11 @@ Available commands:
     case 'tm':
     case 'task-manager':
       runAekTaskManager(rest);
+      break;
+    case 'gpm':
+    case 'pgm':
+    case 'prompt-manager':
+      runPromptManager(rest);
       break;
     default:
       runAekWebsearch(args);
