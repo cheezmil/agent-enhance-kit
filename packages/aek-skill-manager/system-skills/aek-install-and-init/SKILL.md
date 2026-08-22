@@ -28,7 +28,7 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 - **源码开发**（clone 本项目）：`aek sm init` / `aek sm sync` 从 `skills/aek-system/` 复制到 `~/.aek/skill-manager/skills/.system/`
 - **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了 `system-skills/`，`aek sm init` / `aek sm sync` 自动从包内读取
 
-## 初始化
+## 初始化（npm 安装后完整流程）
 
 ### 1. 初始化中心仓库 + 安装系统 skill
 
@@ -38,47 +38,40 @@ aek sm init
 
 自动创建 `~/.aek/skill-manager/skills/` 并复制 6 个系统 skill 到 `.system/` 子目录。
 
-### 2. 添加其他 skill 并同步到所有工具
+- **npm 安装**：从 `node_modules/@cheezmil/aek-skill-manager/system-skills/` 读取（包内已捆绑）
+- **源码开发**：从 `skills/aek-system/` 读取（当前目录下）
 
-把自行编写的 SKILL.md 文件夹放到 `~/.aek/skill-manager/skills/` 下，然后：
-
-```bash
-aek sm sync
-```
-
-同步到所有已安装的 AI 工具（Claude Code、Codex、OpenCode、Cursor、Hermes 等）。
-
-### 3. 初始化系统提示词注入源
+### 2. 初始化系统提示词注入源
 
 ```bash
 aek pm init
 ```
 
-创建 `~/.aek/prompt-manager/` 下的提示词源目录，包括 `only-patch/aek_system_prompt/all_agents_shared/`（系统内置提示词）。
+创建 `~/.aek/prompt-manager/` 下的提示词源目录，包括 `only-patch/aek_system_prompt/all_agents_shared/`。
 
-### 4. 写入系统提示词内容
+`aek_system_prompt/all_agents_shared/cross_platform_shared.md` 已有默认内容（AEK 各工具使用规则），**开箱即用**，无需手动编辑。按需可补充 `linux.md` / `mac.md` / `windows.md` / `wsl.md` 平台差异化内容。
 
-编辑 `~/.aek/prompt-manager/only-patch/aek_system_prompt/all_agents_shared/cross_platform_shared.md`，写入全局生效的系统提示词。
-
-按需补充 `linux.md` / `mac.md` / `windows.md` / `wsl.md` 平台差异化内容。
-
-### 5. 注入系统提示词到所有工具
+### 3. 注入系统提示词到所有工具
 
 ```bash
 aek pm patch all    # 末尾追加（only-patch 源），幂等
 ```
 
-或：
+从 `only-patch/aek_system_prompt/all_agents_shared/` 读取默认 AEK 系统提示词，注入到所有 17 个工具的全局提示词文件。
+
+### 4. 同步 skill 到所有工具
 
 ```bash
-aek pm apply all    # patch 的别名
+aek sm sync
 ```
 
-### 6. 验证状态
+同步 6 个系统 skill + 其他自定义 skill 到所有已安装的 AI 工具。
+
+### 5. 验证状态
 
 ```bash
 aek pm status       # 各工具 patched / not-patched
-aek pm status hermes  # 查看单个工具
+aek sm sync --tools hermes  # 查看同步结果
 ```
 
 ## 生效条件
@@ -97,6 +90,8 @@ aek pm status hermes  # 查看单个工具
 | 提示词源（only-patch） | `~/.aek/prompt-manager/only-patch/` |
 | 系统内置提示词 | `~/.aek/prompt-manager/only-patch/aek_system_prompt/all_agents_shared/` |
 | 提示词源（mapping） | `~/.aek/prompt-manager/global-prompt-mapping/` |
+| 包内捆绑系统 skill（npm） | `node_modules/@cheezmil/aek-skill-manager/system-skills/` |
+| 系统提示词模板（npm） | `node_modules/@cheezmil/aek-prompt-manager/templates/only-patch/aek_system_prompt/all_agents_shared/` |
 
 ## 升级
 
@@ -104,7 +99,7 @@ aek pm status hermes  # 查看单个工具
 npm update -g @cheezmil/aek
 ```
 
-升级后重新运行 `aek sm sync` 以确保系统 skill 为最新版本。
+升级后重新运行 `aek sm sync` 以确保系统 skill 为最新版本，运行 `aek pm patch all` 更新系统提示词。
 
 ## 平台支持
 
