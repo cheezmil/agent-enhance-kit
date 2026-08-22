@@ -29,6 +29,15 @@ test('buildBlock works with empty shared or tool content', () => {
   assert.equal(onlyShared.includes('head-aek-pm-patch-codex'), false);
 });
 
+test('buildBlock puts system built-in prompt first, before shared', () => {
+  const block = buildBlock('codex', 'SHARED LINE', 'TOOL LINE', 'SYS PROMPT');
+  assert.match(block, /head-aek-system-built-in-prompt[\s\S]*SYS PROMPT[\s\S]*end-aek-system-built-in-prompt/);
+  assert.match(block, /end-aek-system-built-in-prompt[\s\S]*head-aek-pm-patch-shared/);
+  assert.match(block, /SHARED LINE[\s\S]*TOOL LINE/);
+  const emptySys = buildBlock('codex', 'SHARED LINE', 'TOOL LINE', '');
+  assert.equal(emptySys.includes('head-aek-system-built-in-prompt'), false);
+});
+
 test('mergeBlock appends when no existing block', () => {
   const { content, replaced } = mergeBlock('', 'codex', 'SH', 'TO');
   assert.equal(replaced, false);
@@ -47,6 +56,20 @@ test('mergeBlock replaces existing block in place', () => {
   assert.match(content, /^# user top/);
   assert.match(content, /# user bottom$/);
   assert.match(content, /NEW SH[\s\S]*NEW TO/);
+});
+
+test('mergeBlock preserves sysPromptContent in replacement', () => {
+  const old = buildBlock('codex', 'OLD SH', 'OLD TO', 'OLD SYS');
+  const prefix = '# top\n\n';
+  const suffix = '\n\n# bottom';
+  const { content, replaced } = mergeBlock(
+    prefix + old + suffix, 'codex', 'NEW SH', 'NEW TO', '', 'NEW SYS',
+  );
+  assert.equal(replaced, true);
+  assert.match(content, /NEW SYS/);
+  assert.equal(content.includes('OLD SYS'), false);
+  assert.match(content, /NEW SH[\s\S]*NEW TO/);
+  assert.match(content, /NEW SYS[\s\S]*NEW SH/);
 });
 
 test('source dir layout resolves under HOME and tool dir uses underscores', () => {
