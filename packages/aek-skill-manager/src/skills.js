@@ -243,6 +243,16 @@ export const PLATFORMS = [
     winBase: 'home',
     projectPath: ['.pi', 'skills'],
   },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
+    keywords: ['deepseek-harness', 'deepseek harness', 'dsh'],
+    docs: 'https://skillvetai.com/deepseek-harness/skill-compatibility/',
+    unixPath: ['.dsh', 'skills'],
+    winPath: ['.dsh', 'skills'],
+    winBase: 'home',
+    projectPath: ['.dsh', 'skills'],
+  },
 ];
 
 // Frontmatter fields that bind a skill to a specific model/inference behaviour.

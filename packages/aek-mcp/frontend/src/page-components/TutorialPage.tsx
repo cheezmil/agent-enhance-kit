@@ -374,6 +374,21 @@ const AGENT_TOOLS: AgentTool[] = [
       };
     },
   },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
+    description: '~/.dsh/mcp.json',
+    configPath: { win: '%USERPROFILE%\\.dsh\\mcp.json', mac: '~/.dsh/mcp.json', linux: '~/.dsh/mcp.json' },
+    docUrl: 'https://skillvetai.com/deepseek-harness/skill-compatibility/',
+    buildConfig: (cfg) => {
+      const obj = { url: mcpUrl(cfg), type: 'http' };
+      const full = { mcpServers: { aek_mcp: obj } };
+      return {
+        inner: JSON.stringify(obj, null, 2),
+        full: JSON.stringify(full, null, 2),
+      };
+    },
+  },
 ];
 
 // Tools whose config is accessed through a GUI dialog rather than an editable file.
