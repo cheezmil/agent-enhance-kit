@@ -25,6 +25,7 @@ Agent Enhance Kit 是一个 **monorepo**
 | [`aek`](packages/aek) | 全家桶 CLI——统一的 `aek` 入口，聚合所有模块（网页搜索、MCP、Skill 同步、任务管理） |
 | [`aek-websearch`](packages/aek-websearch) | 多提供商网页搜索聚合引擎：CLI + HTTP API + MCP Server |
 | [`aek-mcp`](packages/aek-mcp) | MCP 代理网关 + Web 管理界面（Next.js 前端 + Go 后端） |
+| [`aek-prompt-manager`](packages/aek-prompt-manager) | 向 AI coding agent 的全局提示词文件注入平台化提示词片段（Claude Code、Codex、OpenCode、Hermes、Cursor、Cline 等），双源（patch/map）支持 17 个工具，通过 `aek pm` 命令 |
 | [`aek-skill-manager`](packages/aek-skill-manager) | 从中心仓库（`~/.aek/skill-manager/skills/`）同步 Agent Skills（SKILL.md 文件夹）到各 AI 工具（Claude Code、Cursor、Codex、OpenCode 等），通过 `aek sm` 命令 |
 | [`aek-task-manager`](packages/aek-task-manager) | 任务管理器模块——管理长时间运行的任务，支持审批门控、Git 持久化、跨会话恢复 |
 | [`aek-common`](packages/aek-common) | 各包共享代码；承载统一的 `aek` CLI 入口，派发到各子包 |
