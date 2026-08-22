@@ -3,13 +3,15 @@
 //   patch  -> global-prompt-mapping   (managed block replaced in place)
 //   apply  -> only-patch              (appended to end; replaces block on repeat)
 import process from 'node:process';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { PLATFORMS, SUPPORTED_IDS } from './platforms.js';
 import {
   aekDir,
   sharedDir,
   toolDir,
+  sysPromptDir,
   toolDirNameFor,
   MAPPING_SOURCE,
   ONLY_PATCH_SOURCE,
@@ -66,41 +68,41 @@ function findTool(id) {
 }
 
 async function runInit() {
-  const { mkdir, writeFile } = await import('node:fs/promises');
+  const { mkdir, writeFile, readFile, access } = await import('node:fs/promises');
   const platformFiles = PLATFORM_FILES.map((n) => PLATFORM_FILE(n));
+
+  // Source templates live in <pkg>/templates — copied into the user dir only
+  // when a file is missing, so the user's own edits are never overwritten.
+  const pkgRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const tplOnlyPatch = join(pkgRoot, 'templates', ONLY_PATCH_SOURCE, 'aek_system_prompt', 'all_agents_shared');
 
   for (const source of SOURCES) {
     const dirs = [sharedDir(source), ...PLATFORMS.map((p) => toolDir(source, p.id))];
     for (const d of dirs) await mkdir(d, { recursive: true });
 
-    await writeFile(
-      join(sharedDir(source), PLATFORM_FILE('cross_platform_shared')),
-      `# Aek shared prompt (cross-platform)\n\nShared cross-platform instructions.\n`,
-      'utf8'
-    );
+    // Create empty (not placeholder-filled) files for every platform file.
+    // Existing files are never overwritten — init only fills in what's missing.
     for (const pf of platformFiles) {
-      if (pf === PLATFORM_FILE('cross_platform_shared')) continue;
-      await writeFile(
-        join(sharedDir(source), pf),
-        `# Aek shared prompt (${pf.replace(/\.md$/, '')})\n\nShared instructions for this platform.\n`,
-        'utf8'
-      );
+      await writeIfMissing(join(sharedDir(source), pf), '', access, writeFile);
     }
     for (const p of PLATFORMS) {
       for (const pf of platformFiles) {
-        if (pf === PLATFORM_FILE('cross_platform_shared')) {
-          await writeFile(
-            join(toolDir(source, p.id), pf),
-            `# ${p.name} prompt (cross-platform)\n\nTool-specific instructions for ${p.name}.\n`,
-            'utf8'
-          );
-        } else {
-          await writeFile(
-            join(toolDir(source, p.id), pf),
-            `# ${p.name} prompt (${pf.replace(/\.md$/, '')})\n\nTool-specific instructions for ${p.name} on this platform.\n`,
-            'utf8'
-          );
+        await writeIfMissing(join(toolDir(source, p.id), pf), '', access, writeFile);
+      }
+    }
+    // System built-in prompt source (only-patch): seed from templates.
+    if (source === ONLY_PATCH_SOURCE) {
+      const sysDir = sysPromptDir(source);
+      await mkdir(sysDir, { recursive: true });
+      for (const pf of platformFiles) {
+        const tpl = join(tplOnlyPatch, pf);
+        let content = '';
+        try {
+          content = await readFile(tpl, 'utf8');
+        } catch {
+          // template missing -> empty file
         }
+        await writeIfMissing(join(sysDir, pf), content, access, writeFile);
       }
     }
   }
@@ -112,6 +114,15 @@ async function runInit() {
   }
   for (const p of PLATFORMS) {
     console.log(`[${CMD}]   tool ${toolDirNameFor(p.id)}`);
+  }
+}
+
+async function writeIfMissing(filePath, content, access, writeFile) {
+  try {
+    await access(filePath);
+    // already exists -> keep user content untouched
+  } catch {
+    await writeFile(filePath, content, 'utf8');
   }
 }
 

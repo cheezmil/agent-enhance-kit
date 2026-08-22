@@ -30,6 +30,7 @@
   "files": [
     "bin/",
     "src/",
+    "templates/",
     "package.json"
   ]
 }
