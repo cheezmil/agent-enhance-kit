@@ -277,7 +277,13 @@ export async function syncFromCenterRepo(options = {}) {
   } = options;
 
   const centerDir = resolveCenterRepoDir({ scope });
-  const centerSkills = await listSkillFolders(centerDir);
+  let centerSkills = await listSkillFolders(centerDir);
+
+  // Also scan the .system/ sub-directory for system-bundled skills.
+  const systemDir = path.join(centerDir, '.system');
+  const systemSkills = await listSkillFolders(systemDir);
+  centerSkills = [...centerSkills, ...systemSkills];
+
   if (centerSkills.length === 0) {
     return { centerDir, results: [] };
   }
