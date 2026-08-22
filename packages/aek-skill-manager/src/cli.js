@@ -94,12 +94,12 @@ function printUsage() {
 
 // ====== 子命令实现 ======
 
-async function runInit(scope) {
-  const dir = await initCenterRepo({ scope });
-
-  // Auto-copy project-bundled system skills (aek-mcp, aek-websearch, aek-skill-manager)
-  // from the project's skills/ directory to .system/.
-  const systemDir = path.join(dir, '.system');
+// Ensure the three project-bundled system skills (aek-mcp, aek-websearch, aek-skill-manager)
+// exist in the .system/ sub-directory of the center repo. Copies them from the project's
+// skills/ directory if missing. Called by both runInit and runSync.
+async function ensureSystemSkills(scope) {
+  const centerDir = resolveCenterRepoDir({ scope });
+  const systemDir = path.join(centerDir, '.system');
   const projectSkillsDir = path.join(process.cwd(), 'skills');
   const SYSTEM_SKILL_NAMES = ['aek-mcp', 'aek-websearch', 'aek-skill-manager'];
 
@@ -117,7 +117,11 @@ async function runInit(scope) {
       // skill not found in project, skip silently
     }
   }
+}
 
+async function runInit(scope) {
+  const dir = await initCenterRepo({ scope });
+  await ensureSystemSkills(scope);
   console.log(`[aek sm] 中心仓库已初始化: ${formatPathForDisplay(dir)}`);
   console.log(`[aek sm] 将 skill 目录放到 ${formatPathForDisplay(dir)}/ 下，`);
   console.log(`[aek sm] 然后运行 "aek sm sync" 同步到各工具。`);
@@ -138,6 +142,7 @@ async function runSync(scope, args) {
   }
 
   const centerDir = resolveCenterRepoDir({ scope });
+  await ensureSystemSkills(scope);
   const centerSkills = await listSkillFolders(centerDir);
 
   if (centerSkills.length === 0) {
