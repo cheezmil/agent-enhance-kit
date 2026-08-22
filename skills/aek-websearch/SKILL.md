@@ -85,5 +85,4 @@ python3 packages/aek-websearch/scripts/start_aek-websearch.py             # 启�
 ### 注意事项
 
 - **禁止使用 `| head` 或其他管道截断搜索结果**：搜索结果必须完整返回，由 agent 自己处理筛选。使用 `| head` 会丢失重要信息。
-- **写代码时不会或不清楚就上网搜**：不要卡住或瞎编，直接搜官方文档、GitHub issues、社区讨论。
-- **搜索必须用 `aek websearch`**：禁止用 browser 工具搜索。browser 只用于需要交互的网页操作（点击、填表单、动态内容），不是用来搜索的。
+- **写代码时不会或不清楚就上网搜**：不要卡住或瞎编，直接上网搜。
