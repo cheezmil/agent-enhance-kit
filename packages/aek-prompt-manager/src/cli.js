@@ -33,6 +33,7 @@ async function main() {
 
     if (command === 'init') await runInit();
     else if (command === 'patch') await runPatch(commandArgs);
+    else if (command === 'map') await runMap(commandArgs);
     else if (command === 'apply') await runApply(commandArgs);
     else if (command === 'remove') await runRemove(commandArgs);
     else if (command === 'status') await runStatus(commandArgs);
@@ -50,7 +51,7 @@ function parseArgs(argv) {
   let help = false;
   for (const arg of argv) {
     if (arg === '--help' || arg === '-h') help = true;
-    else if (command === null && ['init', 'patch', 'apply', 'remove', 'status'].includes(arg)) command = arg;
+    else if (command === null && ['init', 'patch', 'map', 'apply', 'remove', 'status'].includes(arg)) command = arg;
     else commandArgs.push(arg);
   }
   return { command, commandArgs, help };
@@ -120,9 +121,29 @@ async function runPatch(args) {
   let failed = 0;
   for (const t of targetTools) {
     try {
+      const r = await apply(t);
+      const verb = r.replaced ? 'updated' : 'patched';
+      console.log(`[${CMD}] ${t.id}: ${verb} -> ${r.target}`);
+      if (r.writes && r.writes.length > 1) {
+        console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
+      }
+    } catch (e) {
+      console.error(`[${CMD}] ${t.id}: ${e.message}`);
+      failed += 1;
+    }
+  }
+  if (failed) process.exitCode = 1;
+}
+
+async function runMap(args) {
+  const tool = args[0] || 'all';
+  const targetTools = tool === 'all' ? PLATFORMS : [findTool(tool)];
+  let failed = 0;
+  for (const t of targetTools) {
+    try {
       const r = await patch(t);
       const verb = r.replaced ? 'updated' : 'patched';
-      console.log(`[${CMD}] ${t.id}: ${verb} (${r.source}) -> ${r.target}`);
+      console.log(`[${CMD}] ${t.id}: ${verb} (global-prompt-mapping) -> ${r.target}`);
       if (r.writes && r.writes.length > 1) {
         console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
       }
@@ -198,10 +219,12 @@ function printUsage() {
 
 Commands:
   init            Create source dirs with empty platform files for both sources
-  patch <tool>    Inject global-prompt-mapping fragments into one tool's global prompt
-  patch all       Inject into every supported tool
-  apply <tool>    Append only-patch fragments to one tool's global prompt
-  apply all       Append into every supported tool
+  patch <tool>    Append only-patch fragments to one tool's global prompt (末尾追加)
+  patch all       Append to every supported tool
+  map <tool>      Inject global-prompt-mapping fragments (原地替换)
+  map all         Map into every supported tool
+  apply <tool>    Append only-patch fragments (alias for patch)
+  apply all       Append to every supported tool
   remove <tool>   Remove the managed block from one tool's global prompt
   remove all      Remove from every supported tool
   status <tool>   Show whether a tool's global prompt file is patched
@@ -213,8 +236,8 @@ Supported tools (${supported}):
 ${PLATFORMS.map((p) => `  ${p.id.padEnd(14)} ${p.globalPromptLabel(p.id)}`).join('\n')}
 
 Two sources (~/.aek/prompt-manager/):
-  global-prompt-mapping/   "patch" source   (managed block replaced in place)
-  only-patch/              "apply" source   (appended to end; replaces block on repeat)
+  global-prompt-mapping/   "map" source     (managed block replaced in place)
+  only-patch/              "patch"/"apply" source   (appended to end; replaces block on repeat)
 
 Layout inside each source:
   all_agents_shared/           shared across every tool
