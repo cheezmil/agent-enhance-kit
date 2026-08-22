@@ -1,5 +1,5 @@
 {
-  "name": "@cheezmil/aek-global-prompt-manager",
+  "name": "@cheezmil/aek-prompt-manager",
   "version": "0.1.0",
   "description": "向各 AI Agent 工具的全局提示词文件注入可管理的 patch 块",
   "scripts": {
@@ -18,7 +18,7 @@
   "type": "module",
   "main": "src/cli.js",
   "bin": {
-    "aek-global-prompt-manager": "./bin/aek-global-prompt-manager.js",
+    "aek-prompt-manager": "./bin/aek-prompt-manager.js",
     "aek": "bin/aek-shim.cjs"
   },
   "engines": {
