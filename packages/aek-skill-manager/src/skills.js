@@ -279,7 +279,9 @@ export async function syncFromCenterRepo(options = {}) {
   const centerDir = resolveCenterRepoDir({ scope });
   let centerSkills = await listSkillFolders(centerDir);
 
-  // Also scan the .system/ sub-directory for system-bundled skills.
+  // Also scan the .system/ sub-directory for project-bundled system skills.
+  // The system skills (aek-mcp, aek-websearch, aek-skill-manager) are defined in
+  // the project's skills/ directory and auto-copied to .system/ by `aek sm init`.
   const systemDir = path.join(centerDir, '.system');
   const systemSkills = await listSkillFolders(systemDir);
   centerSkills = [...centerSkills, ...systemSkills];
