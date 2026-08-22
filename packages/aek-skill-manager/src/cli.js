@@ -1,7 +1,9 @@
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { stat, cp, mkdir, rm } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { stat, cp, mkdir, rm, readdir } from 'node:fs/promises';
 
 import { checkbox, confirm, select } from '@inquirer/prompts';
 
@@ -99,17 +101,29 @@ function printUsage() {
 
 // ====== 子命令实现 ======
 
-// Ensure the three project-bundled system skills (aek-mcp, aek-websearch, aek-skill-manager)
-// exist in the .system/ sub-directory of the center repo. Copies them from the project's
-// skills/ directory if missing. Called by both runInit and runSync.
+// Ensure the four must-install system skills (aek-install-and-init, aek-prompt-manager,
+// aek-skill-manager, aek-task-manager) exist in the .system/ sub-directory of the center repo.
+// Sources (tried in order, first one that has the skill wins):
+//   源码仓库: <cwd>/skills/aek-system/（source of truth，开发时优先）
+//   npm 安装: <包内>/system-skills/（随 @cheezmil/aek-skill-manager 发布捆绑）
+const SYSTEM_SKILL_NAMES = ['aek-install-and-init', 'aek-mcp', 'aek-prompt-manager', 'aek-skill-manager', 'aek-task-manager', 'aek-websearch'];
+
 async function ensureSystemSkills(scope) {
   const centerDir = resolveCenterRepoDir({ scope });
   const systemDir = path.join(centerDir, '.system');
-  const projectSkillsDir = path.join(process.cwd(), 'skills');
-  const SYSTEM_SKILL_NAMES = ['aek-mcp', 'aek-websearch', 'aek-skill-manager'];
+
+  // 候选源：源码仓库 CWD/skills/aek-system/（开发时 source of truth）或 npm 包内 system-skills/
+  const pkgDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'system-skills');
+  const repoDir = path.join(process.cwd(), 'skills', 'aek-system');
+  const candidates = [repoDir, pkgDir];
 
   for (const name of SYSTEM_SKILL_NAMES) {
-    const src = path.join(projectSkillsDir, name);
+    const srcDir = candidates.find((dir) => existsSync(path.join(dir, name)));
+    if (!srcDir) {
+      console.log(`[aek sm] 系统 skill 源未找到: ${name}（仅在源码仓库或 npm 安装后可用）`);
+      continue;
+    }
+    const src = path.join(srcDir, name);
     const dest = path.join(systemDir, name);
     try {
       const srcStat = await stat(src);
@@ -118,9 +132,27 @@ async function ensureSystemSkills(scope) {
         await cp(src, dest, { recursive: true, force: true });
         console.log(`[aek sm] 系统 skill 已安装: ${name}`);
       }
-    } catch {
-      // skill not found in project, skip silently
+    } catch (err) {
+      console.log(`[aek sm] 系统 skill 安装失败: ${name} (${err.message})`);
     }
+  }
+
+  // 清理 .system/ 中已不在 SYSTEM_SKILL_NAMES 的旧条目（如旧版 aek-mcp/aek-websearch）
+  await removeStaleSystemSkills(systemDir);
+}
+
+async function removeStaleSystemSkills(systemDir) {
+  let entries;
+  try {
+    entries = await readdir(systemDir, { withFileTypes: true });
+  } catch {
+    return; // .system 不存在，无需清理
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) continue;
+    if (SYSTEM_SKILL_NAMES.includes(ent.name)) continue;
+    await rm(path.join(systemDir, ent.name), { recursive: true, force: true });
+    console.log(`[aek sm] 清理过期系统 skill: ${ent.name}`);
   }
 }
 
@@ -149,8 +181,9 @@ async function runSync(scope, args) {
   const centerDir = resolveCenterRepoDir({ scope });
   await ensureSystemSkills(scope);
   const centerSkills = await listSkillFolders(centerDir);
+  const systemSkills = await listSkillFolders(path.join(centerDir, '.system'));
 
-  if (centerSkills.length === 0) {
+  if (centerSkills.length === 0 && systemSkills.length === 0) {
     console.log(`[aek sm] 中心仓库为空: ${formatPathForDisplay(centerDir)}`);
     console.log(`[aek sm] 先放 skill 进去，或运行 "aek sm pull <source>" 拉取。`);
     return;

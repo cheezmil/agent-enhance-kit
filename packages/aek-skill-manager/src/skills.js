@@ -313,6 +313,7 @@ export async function syncFromCenterRepo(options = {}) {
       sourceDir: centerDir,
       targetDir,
       onConflict,
+      extraSkills: systemSkills,
     });
     result.platform = platform;
     results.push(result);
@@ -504,12 +505,14 @@ export async function syncSkillFolders(options) {
     targetDir,
     selected = null,
     onConflict = null,
+    extraSkills = null,
   } = options;
 
   const sourceSkills = await listSkillFolders(sourceDir);
+  const allSkills = extraSkills ? [...sourceSkills, ...extraSkills] : sourceSkills;
   const chosen = selected
-    ? sourceSkills.filter((skill) => selected.includes(skill.name))
-    : sourceSkills;
+    ? allSkills.filter((skill) => selected.includes(skill.name))
+    : allSkills;
 
   await mkdir(targetDir, { recursive: true });
 
