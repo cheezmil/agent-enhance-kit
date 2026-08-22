@@ -18,17 +18,17 @@
 // Injected block (merged, in order: shared cross-platform, shared current-plat,
 // tool cross-platform, tool current-plat):
 //
-//   <!-- head-aek-gpm -->
-//   <!-- head-aek-gpm-shared -->
+//   <!-- head-aek-pm-patch -->
+//   <!-- head-aek-pm-patch-shared -->
 //     <shared cross-platform>
 //     <shared current-platform>
-//   <!-- end-aek-gpm-shared -->
+//   <!-- end-aek-pm-patch-shared -->
 //
-//   <!-- head-aek-gpm-<tool> -->
+//   <!-- head-aek-pm-patch-<tool> -->
 //     <tool cross-platform>
 //     <tool current-platform>
-//   <!-- end-aek-gpm-<tool> -->
-//   <!-- end-aek-gpm -->
+//   <!-- end-aek-pm-patch-<tool> -->
+//   <!-- end-aek-pm-patch -->
 //
 // WSL: Linux path and Windows UNC are the same file (same inode). We write the
 // Linux path; the UNC path is recorded for display only. On native Windows we
@@ -38,10 +38,10 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-export const HEAD = '<!-- head-aek-gpm -->';
-export const HEAD_SHARED = '<!-- head-aek-gpm-shared -->';
-export const END_SHARED = '<!-- end-aek-gpm-shared -->';
-export const END = '<!-- end-aek-gpm -->';
+export const HEAD = '<!-- head-aek-pm-patch -->';
+export const HEAD_SHARED = '<!-- head-aek-pm-patch-shared -->';
+export const END_SHARED = '<!-- end-aek-pm-patch-shared -->';
+export const END = '<!-- end-aek-pm-patch -->';
 
 export const PLATFORM_FILES = ['cross_platform_shared', 'linux', 'mac', 'windows', 'wsl'];
 export const PLATFORM_FILE = (name) => `${name}.md`;
@@ -93,10 +93,10 @@ export async function readPlatformBundle(dir, platform) {
 }
 
 function headTool(toolId) {
-  return `<!-- head-aek-gpm-${toolId} -->`;
+  return `<!-- head-aek-pm-patch-${toolId} -->`;
 }
 function endTool(toolId) {
-  return `<!-- end-aek-gpm-${toolId} -->`;
+  return `<!-- end-aek-pm-patch-${toolId} -->`;
 }
 
 export function buildBlock(toolId, sharedContent = '', toolContent = '') {
@@ -129,7 +129,7 @@ export function mergeBlock(fileContent, toolId, sharedContent, toolContent) {
   }
   const endIdx = findBlockEnd(fileContent, headIdx);
   if (endIdx === -1) {
-    throw new Error('Malformed managed block: head-aek-gpm found without matching end-aek-gpm.');
+    throw new Error('Malformed managed block: head-aek-pm-patch found without matching end-aek-pm-patch.');
   }
   return { content: fileContent.slice(0, headIdx) + block + fileContent.slice(endIdx), replaced: true };
 }
@@ -256,7 +256,7 @@ export async function unpatch(tool) {
   }
   const endIdx = findBlockEnd(fileContent, headIdx);
   if (endIdx === -1) {
-    throw new Error('Malformed managed block: head-aek-gpm found without matching end-aek-gpm.');
+    throw new Error('Malformed managed block: head-aek-pm-patch found without matching end-aek-pm-patch.');
   }
   const cleaned = fileContent.slice(0, headIdx).trimEnd() + fileContent.slice(endIdx).trimStart();
   const trimmed = cleaned.replace(/^\n+/, '').replace(/\n+$/, '');
