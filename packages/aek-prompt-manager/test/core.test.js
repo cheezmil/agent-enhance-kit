@@ -15,24 +15,24 @@ import {
 
 test('buildBlock wraps shared before tool-specific content', () => {
   const block = buildBlock('codex', 'SHARED LINE', 'TOOL LINE');
-  assert.match(block, /<!-- head-aek-gpm -->[\s\S]*<!-- head-aek-gpm-shared -->/);
+  assert.match(block, /<!-- head-aek-pm-patch -->[\s\S]*<!-- head-aek-pm-patch-shared -->/);
   assert.match(block, /SHARED LINE[\s\S]*TOOL LINE/);
-  assert.match(block, /<!-- end-aek-gpm-shared -->[\s\S]*<!-- end-aek-gpm-codex -->[\s\S]*<!-- end-aek-gpm -->/);
+  assert.match(block, /<!-- end-aek-pm-patch-shared -->[\s\S]*<!-- end-aek-pm-patch-codex -->[\s\S]*<!-- end-aek-pm-patch -->/);
 });
 
 test('buildBlock works with empty shared or tool content', () => {
   const onlyTool = buildBlock('codex', '', 'TOOL LINE');
   assert.equal(onlyTool.includes('SHARED'), false);
-  assert.match(onlyTool, /<!-- head-aek-gpm-codex -->/);
+  assert.match(onlyTool, /<!-- head-aek-pm-patch-codex -->/);
   const onlyShared = buildBlock('codex', 'SHARED LINE', '');
-  assert.match(onlyShared, /<!-- head-aek-gpm-shared -->/);
-  assert.equal(onlyShared.includes('head-aek-gpm-codex'), false);
+  assert.match(onlyShared, /<!-- head-aek-pm-patch-shared -->/);
+  assert.equal(onlyShared.includes('head-aek-pm-patch-codex'), false);
 });
 
 test('mergeBlock appends when no existing block', () => {
   const { content, replaced } = mergeBlock('', 'codex', 'SH', 'TO');
   assert.equal(replaced, false);
-  assert.match(content, /<!-- head-aek-gpm -->/);
+  assert.match(content, /<!-- head-aek-pm-patch -->/);
 });
 
 test('mergeBlock replaces existing block in place', () => {
@@ -102,11 +102,11 @@ test('patch (mapping source) round-trip on a real target file', async () => {
     assert.equal(r.source, MAPPING_SOURCE);
     let content = await readFile(target, 'utf8');
     assert.match(content, /# My rules/);
-    assert.match(content, /<!-- head-aek-gpm -->/);
+    assert.match(content, /<!-- head-aek-pm-patch -->/);
     assert.match(content, /# shared-cross/);
     // WSL host loads wsl fragment
     assert.match(content, /# codex-wsl/);
-    assert.match(content, /<!-- end-aek-gpm -->/);
+    assert.match(content, /<!-- end-aek-pm-patch -->/);
 
     await writeFile(join(toolDir(MAPPING_SOURCE, 'codex'), PLATFORM_FILE('linux')), '# codex-linux-v2\n', 'utf8');
     await writeFile(join(toolDir(MAPPING_SOURCE, 'codex'), PLATFORM_FILE('wsl')), '# codex-wsl-v2\n', 'utf8');
@@ -120,7 +120,7 @@ test('patch (mapping source) round-trip on a real target file', async () => {
     const u = await unpatch(tool);
     assert.equal(u.removed, true);
     content = await readFile(target, 'utf8');
-    assert.equal(content.includes('<!-- head-aek-gpm -->'), false);
+    assert.equal(content.includes('<!-- head-aek-pm-patch -->'), false);
     assert.match(content, /# My rules/);
   } finally {
     process.env.HOME = prevHome;
@@ -144,7 +144,7 @@ test('apply (only-patch source) appends block, repeat replaces in place', async 
     assert.equal(r.source, ONLY_PATCH_SOURCE);
     let content = await readFile(target, 'utf8');
     assert.match(content, /# Existing prompt/);
-    assert.match(content, /<!-- head-aek-gpm -->/);
+    assert.match(content, /<!-- head-aek-pm-patch -->/);
     assert.match(content, /# shared-cross/);
     assert.match(content, /# codex-wsl/);
 

@@ -205,7 +205,7 @@ async function toolState(p) {
   try {
     const { readFile } = await import('node:fs/promises');
     const content = await readFile(target, 'utf8');
-    const patched = content.includes('<!-- head-aek-gpm -->');
+    const patched = content.includes('<!-- head-aek-pm-patch -->');
     return { status: patched ? 'patched' : 'not-patched', target };
   } catch {
     return { status: 'file-missing', target };
