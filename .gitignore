@@ -121,3 +121,5 @@ node_modules/
 # cqg-github-this-project-ignore-head
 # cqg-github-this-project-ignore-end
 # cqg-end
+# npm pack 产物
+*.tgz
