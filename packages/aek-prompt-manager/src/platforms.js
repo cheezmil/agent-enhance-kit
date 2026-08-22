@@ -19,6 +19,32 @@ function globalPromptPath(id) {
   switch (id) {
     case 'claude-code':
       return joinPath(home, '.claude', 'CLAUDE.md');
+    case 'claude-desktop':
+      return joinPath(home, '.claude', 'CLAUDE.md');
+    case 'cline':
+      return joinPath(home, '.agents', 'AGENTS.md');
+    case 'cursor':
+      return joinPath(home, '.cursor', 'rules', 'aek-pm.mdc');
+    case 'vscode':
+      return joinPath(home, '.copilot', 'instructions', 'aek-pm.instructions.md');
+    case 'windsurf':
+      return joinPath(home, '.codeium', 'windsurf', 'memories', 'global_rules.md');
+    case 'openclaw':
+      return joinPath(home, '.openclaw', 'AGENTS.md');
+    case 'qoder':
+      return joinPath(home, '.qoder', 'AGENTS.md');
+    case 'qwencode':
+      return joinPath(home, '.qwen', 'AGENTS.md');
+    case 'antigravity':
+      return joinPath(home, '.gemini', 'AGENTS.md');
+    case 'kiro':
+      return joinPath(home, '.kiro', 'steering', 'AGENTS.md');
+    case 'kilocode':
+      return joinPath(home, '.config', 'kilo', 'AGENTS.md');
+    case 'pi':
+      return joinPath(home, '.pi', 'agent', 'AGENTS.md');
+    case 'deepseek-harness':
+      return joinPath(home, '.dsh', 'AGENTS.md');
     case 'opencode': {
       const cfg = process.env.XDG_CONFIG_HOME || joinPath(home, '.config');
       return joinPath(cfg, 'opencode', 'AGENTS.md');
@@ -35,6 +61,19 @@ function globalPromptPath(id) {
 function globalPromptLabel(id) {
   switch (id) {
     case 'claude-code': return 'global CLAUDE.md';
+    case 'claude-desktop': return 'global CLAUDE.md (shared with Claude Code)';
+    case 'cline': return '~/.agents/AGENTS.md (cross-tool global AGENTS)';
+    case 'cursor': return '~/.cursor/rules/aek-pm.mdc';
+    case 'vscode': return '~/.copilot/instructions/aek-pm.instructions.md';
+    case 'windsurf': return 'global_rules.md (Windsurf global rules)';
+    case 'openclaw': return 'workspace AGENTS.md';
+    case 'qoder': return '~/.qoder/AGENTS.md (user-level)';
+    case 'qwencode': return '~/.qwen/AGENTS.md';
+    case 'antigravity': return '~/.gemini/AGENTS.md (cross-tool)';
+    case 'kiro': return '~/.kiro/steering/AGENTS.md';
+    case 'kilocode': return '~/.config/kilo/AGENTS.md';
+    case 'pi': return '~/.pi/agent/AGENTS.md';
+    case 'deepseek-harness': return '~/.dsh/AGENTS.md (user-global)';
     case 'opencode': return 'global AGENTS.md';
     case 'codex': return 'global AGENTS.md';
     case 'hermes': return 'SOUL.md (global identity)';
@@ -42,12 +81,94 @@ function globalPromptLabel(id) {
   }
 }
 
-// The full list of AgentTools from aek-mcp; only the four with real global
-// prompt files are supported here. Everything else is reported as unsupported.
+// The full list of AgentTools from aek-mcp. Every tool with a real global
+// prompt file is supported here; the rest (GUI-only apps like Cherry Studio /
+// Chatbox, or tools whose global rules live in a UI or config field like
+// Continue / WorkBuddy) are reported as unsupported.
 export const PLATFORMS = [
   {
     id: 'claude-code',
     name: 'Claude Code',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'claude-desktop',
+    name: 'Claude Desktop',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'cline',
+    name: 'Cline',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    globalPromptPath,
+    globalPromptLabel,
+    fileHeader: '---\ndescription: aek-prompt-manager managed rules\nglobs: **\nalwaysApply: true\n---\n\n',
+  },
+  {
+    id: 'vscode',
+    name: 'VS Code (Copilot)',
+    globalPromptPath,
+    globalPromptLabel,
+    fileHeader: '---\napplyTo: \"**\"\n---\n\n',
+  },
+  {
+    id: 'windsurf',
+    name: 'Windsurf',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'openclaw',
+    name: 'OpenClaw',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'qoder',
+    name: 'Qoder',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'qwencode',
+    name: 'QWencode',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'antigravity',
+    name: 'Antigravity',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'kiro',
+    name: 'Kiro',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'kilocode',
+    name: 'Kilo Code',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'pi',
+    name: 'Pi Agent',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
+    id: 'deepseek-harness',
+    name: 'DeepSeek Harness',
     globalPromptPath,
     globalPromptLabel,
   },

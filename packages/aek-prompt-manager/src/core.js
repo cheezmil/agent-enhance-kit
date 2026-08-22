@@ -120,12 +120,14 @@ function findBlockEnd(text, start) {
 // the current content (replaced=false). This single function serves both
 // "patch" (replace) and "apply" (append) semantics: for "apply" the first
 // run appends, subsequent runs replace the existing block.
-export function mergeBlock(fileContent, toolId, sharedContent, toolContent) {
+export function mergeBlock(fileContent, toolId, sharedContent, toolContent, fileHeader = '') {
   const block = buildBlock(toolId, sharedContent, toolContent);
   const headIdx = fileContent.indexOf(HEAD);
   if (headIdx === -1) {
-    const suffix = fileContent.length > 0 ? '\n\n' + block : block;
-    return { content: fileContent + suffix, replaced: false };
+    const header = fileContent.length === 0 && fileHeader ? fileHeader : '';
+    const content = header + fileContent;
+    const suffix = content.length > 0 ? '\n\n' + block : block;
+    return { content: content + suffix, replaced: false };
   }
   const endIdx = findBlockEnd(fileContent, headIdx);
   if (endIdx === -1) {
@@ -227,7 +229,7 @@ async function _applyBlock(source, tool, force = false) {
   }
 
   const fileContent = (await readMaybe(target)) || '';
-  const { content, replaced } = mergeBlock(fileContent, toolId, sharedContent, toolContent);
+  const { content, replaced } = mergeBlock(fileContent, toolId, sharedContent, toolContent, tool.fileHeader || '');
 
   const winPath = linuxToWinPath(target);
   const writes = await writeDual(target, content, winPath);
