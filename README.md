@@ -103,7 +103,7 @@ MCP proxy gateway for centralized management of all MCP server connections.
 
 ![aek-mcp server management](static/aek-mcp/1.jpg)
 
-**Config generator** — Auto-generate and copy-ready MCP configurations for various AI tools (e.g. Claude Code), supporting both full and inner JSON snippets.
+**Config generator & one-click install** — Auto-generate MCP configurations for various AI tools (e.g. Claude Code) with a one-click install feature: select your tools from the web UI, click apply, and the AEK-MCP entry is written directly into each tool's config file. Supports both full and inner JSON snippets.
 
 ![aek-mcp tutorial config](static/aek-mcp/2.jpg)
 
