@@ -107,6 +107,25 @@ MCP proxy gateway for centralized management of all MCP server connections.
 
 ![aek-mcp tutorial config](static/aek-mcp/2.jpg)
 
+### 🛠️ aek-skill-manager
+
+Sync Agent Skills (SKILL.md folders) from a central repository to every AI coding tool's global or project directory.
+
+- **CLI**: `aek sm sync` — sync skills to all configured tools (Claude Code, Cursor, Codex, Gemini, Copilot, OpenCode, etc.)
+- **Bi-directional**: `aek sm pull` — pull skills from a tool back to the central repo
+- **Two scopes**: global (`~/.aek/skill-manager/skills/`) and project (`.aek/skill-manager/skills/`)
+- **Interactive wizard**: run without arguments for a guided setup
+
+### 📋 aek-task-manager
+
+Task Manager for managing long-running agent tasks with approval gates, Git-backed persistence, and cross-session recovery.
+
+- **CLI**: `aek tm` — task management commands
+- **Approval gates**: pause tasks for human approval before proceeding
+- **Git-backed persistence**: task state stored in Git for traceability and recovery
+- **Cross-session recovery**: resume tasks seamlessly across agent sessions
+- **Compiled Go binary**: high performance, minimal footprint, platform-bundled (linux/macOS/Windows)
+
 ---
 
 <!-- Links -->
