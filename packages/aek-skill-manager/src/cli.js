@@ -1,6 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { stat, cp, mkdir } from 'node:fs/promises';
 
 import { checkbox, confirm, select } from '@inquirer/prompts';
 
@@ -95,6 +96,28 @@ function printUsage() {
 
 async function runInit(scope) {
   const dir = await initCenterRepo({ scope });
+
+  // Auto-copy project-bundled system skills (aek-mcp, aek-websearch, aek-skill-manager)
+  // from the project's skills/ directory to .system/.
+  const systemDir = path.join(dir, '.system');
+  const projectSkillsDir = path.join(process.cwd(), 'skills');
+  const SYSTEM_SKILL_NAMES = ['aek-mcp', 'aek-websearch', 'aek-skill-manager'];
+
+  for (const name of SYSTEM_SKILL_NAMES) {
+    const src = path.join(projectSkillsDir, name);
+    const dest = path.join(systemDir, name);
+    try {
+      const srcStat = await stat(src);
+      if (srcStat.isDirectory()) {
+        await mkdir(systemDir, { recursive: true });
+        await cp(src, dest, { recursive: true, force: true });
+        console.log(`[aek sm] 系统 skill 已安装: ${name}`);
+      }
+    } catch {
+      // skill not found in project, skip silently
+    }
+  }
+
   console.log(`[aek sm] 中心仓库已初始化: ${formatPathForDisplay(dir)}`);
   console.log(`[aek sm] 将 skill 目录放到 ${formatPathForDisplay(dir)}/ 下，`);
   console.log(`[aek sm] 然后运行 "aek sm sync" 同步到各工具。`);
