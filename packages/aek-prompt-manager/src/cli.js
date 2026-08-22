@@ -123,7 +123,7 @@ async function runPatch(args) {
     try {
       const r = await apply(t);
       const verb = r.replaced ? 'updated' : 'patched';
-      console.log(`[${CMD}] ${t.id}: ${verb} -> ${r.target}`);
+      console.log(`[${CMD}] ${t.id}: ${verb} (only-patch) -> ${r.target}`);
       if (r.writes && r.writes.length > 1) {
         console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
       }
