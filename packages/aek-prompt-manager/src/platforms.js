@@ -52,6 +52,10 @@ function globalPromptPath(id) {
     case 'codex':
       return joinPath(home, '.codex', 'AGENTS.md');
     case 'hermes':
+      if (isWindows) {
+        const local = process.env.LOCALAPPDATA || joinPath(home, 'AppData', 'Local');
+        return joinPath(local, 'hermes', 'SOUL.md');
+      }
       return joinPath(home, '.hermes', 'SOUL.md');
     default:
       return '';

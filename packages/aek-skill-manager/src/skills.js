@@ -109,8 +109,8 @@ export const PLATFORMS = [
     keywords: ['hermes', 'hermes agent', 'nous'],
     docs: 'https://hermes-agent.nousresearch.com/docs/user-guide/features/skills',
     unixPath: ['.hermes', 'skills'],
-    winPath: ['.hermes', 'skills'],
-    winBase: 'home',
+    winPath: ['hermes', 'skills'],
+    winBase: 'localappdata',
     projectPath: ['.hermes', 'skills'],
   },
   {
