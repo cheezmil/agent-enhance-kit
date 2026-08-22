@@ -72,7 +72,7 @@ Available commands:
   ws, websearch, web Web search and content tools (multi-provider)
   mcp                MCP proxy gateway
   task, tm           Task management (experimental)
-  gpm, pgm, prompt-manager  Global prompt patch manager
+  pm, gpm, pgm, prompt-manager  Global prompt patch manager
 `);
     return;
   }
@@ -99,6 +99,7 @@ Available commands:
     case 'task-manager':
       runAekTaskManager(rest);
       break;
+    case 'pm':
     case 'gpm':
     case 'pgm':
     case 'prompt-manager':

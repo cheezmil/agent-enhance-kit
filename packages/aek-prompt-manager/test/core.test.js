@@ -1,13 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import {
   HEAD, HEAD_SHARED, END_SHARED, END,
-  AEEK_DIR, PATCH_DIR, SHARED_DIR, PATCH_FILENAME,
-  toolPatchPath, sharedPatchPath, buildBlock, mergeBlock, patch, unpatch,
+  aekDir, sharedDir, toolDir,
+  MAPPING_SOURCE, ONLY_PATCH_SOURCE,
+  PLATFORM_FILES, PLATFORM_FILE,
+  currentPlatform, isWSL,
+  readPlatformBundle, buildBlock, mergeBlock, patch, apply, unpatch,
 } from '../src/core.js';
 
 test('buildBlock wraps shared before tool-specific content', () => {
@@ -46,59 +49,111 @@ test('mergeBlock replaces existing block in place', () => {
   assert.match(content, /NEW SH[\s\S]*NEW TO/);
 });
 
-test('platform paths resolve under HOME', () => {
-  assert.equal(process.env.HOME, undefined || process.env.HOME);
-  // Shared and tool paths reference the AEEK patch dir.
-  assert.ok(sharedPatchPath().startsWith(AEEK_DIR));
-  assert.ok(toolPatchPath('codex').includes('codex'));
+test('source dir layout resolves under HOME and tool dir uses underscores', () => {
+  assert.ok(sharedDir(MAPPING_SOURCE).includes('all_agents_shared'));
+  assert.ok(sharedDir(ONLY_PATCH_SOURCE).includes('all_agents_shared'));
+  assert.ok(toolDir(MAPPING_SOURCE, 'claude-code').endsWith('claude_code'));
+  assert.ok(toolDir(ONLY_PATCH_SOURCE, 'opencode').endsWith('opencode'));
+  assert.ok(aekDir().endsWith('prompt-manager'));
 });
 
-test('patch + unpatch round-trip on a real target file', async () => {
-  const fakeHome = join(tmpdir(), 'gpm-test-' + Date.now());
+test('readPlatformBundle merges cross-platform + current platform, skips empty', async () => {
+  const tmp = join(tmpdir(), 'gpm-bundle-' + Date.now());
+  try {
+    await mkdir(tmp, { recursive: true });
+    await writeFile(join(tmp, PLATFORM_FILE('cross_platform_shared')), '# cross\n', 'utf8');
+    await writeFile(join(tmp, PLATFORM_FILE('linux')), '# linux\n', 'utf8');
+    const plat = process.platform === 'darwin' ? 'mac' : (process.platform === 'win32' ? 'windows' : (isWSL() ? 'wsl' : 'linux'));
+    const bundle = await readPlatformBundle(tmp, plat);
+    assert.match(bundle, /# cross/);
+    if (plat === 'linux') assert.match(bundle, /# linux/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('platform_files is exactly the five platform fragments', () => {
+  assert.deepEqual(PLATFORM_FILES, ['cross_platform_shared', 'linux', 'mac', 'windows', 'wsl']);
+});
+
+function seedSource(source) {
+  return async () => {
+    await mkdir(sharedDir(source), { recursive: true });
+    await mkdir(toolDir(source, 'codex'), { recursive: true });
+    await writeFile(join(sharedDir(source), PLATFORM_FILE('cross_platform_shared')), '# shared-cross\n', 'utf8');
+    await writeFile(join(toolDir(source, 'codex'), PLATFORM_FILE('linux')), '# codex-linux\n', 'utf8');
+    await writeFile(join(toolDir(source, 'codex'), PLATFORM_FILE('wsl')), '# codex-wsl\n', 'utf8');
+  };
+}
+
+test('patch (mapping source) round-trip on a real target file', async () => {
+  const fakeHome = join(tmpdir(), 'gpm-map-' + Date.now());
   const prevHome = process.env.HOME;
   process.env.HOME = fakeHome;
   try {
-    // Seed patch sources (mkdir directly to each source dir so writeFile works)
-    await mkdir(dirname(sharedPatchPath()), { recursive: true });
-    await mkdir(dirname(toolPatchPath('codex')), { recursive: true });
+    await seedSource(MAPPING_SOURCE)();
     await mkdir(join(fakeHome, '.codex'), { recursive: true });
-
-    await writeFile(sharedPatchPath(), '# shared\n', 'utf8');
-    await writeFile(toolPatchPath('codex'), '# codex-tool\n', 'utf8');
-
-    const tool = {
-      id: 'codex', name: 'Codex',
-      globalPromptPath: () => join(fakeHome, '.codex', 'AGENTS.md'),
-    };
-
-    // Create a target file with existing user content
+    const tool = { id: 'codex', name: 'Codex', globalPromptPath: () => join(fakeHome, '.codex', 'AGENTS.md') };
     const target = tool.globalPromptPath();
-    await writeFile(target, '# My existing rules\n\nRule A', 'utf8');
+    await writeFile(target, '# My rules\n\nRule A', 'utf8');
 
     const r = await patch(tool);
     assert.equal(r.replaced, false);
+    assert.equal(r.source, MAPPING_SOURCE);
     let content = await readFile(target, 'utf8');
-    assert.match(content, /# My existing rules/);
+    assert.match(content, /# My rules/);
     assert.match(content, /<!-- head-aek-gpm -->/);
-    assert.match(content, /# shared/);
-    assert.match(content, /# codex-tool/);
+    assert.match(content, /# shared-cross/);
+    // WSL host loads wsl fragment
+    assert.match(content, /# codex-wsl/);
     assert.match(content, /<!-- end-aek-gpm -->/);
 
-    // Re-patch should replace in place, preserving user content
-    await writeFile(toolPatchPath('codex'), '# codex-v2\n', 'utf8');
+    await writeFile(join(toolDir(MAPPING_SOURCE, 'codex'), PLATFORM_FILE('linux')), '# codex-linux-v2\n', 'utf8');
+    await writeFile(join(toolDir(MAPPING_SOURCE, 'codex'), PLATFORM_FILE('wsl')), '# codex-wsl-v2\n', 'utf8');
     const r2 = await patch(tool);
     assert.equal(r2.replaced, true);
     content = await readFile(target, 'utf8');
-    assert.match(content, /# My existing rules/);
-    assert.match(content, /# codex-v2/);
-    assert.equal(content.includes('codex-tool\n'), false);
+    assert.match(content, /# My rules/);
+    assert.match(content, /# codex-wsl-v2/);
+    assert.equal(content.includes('codex-wsl\n'), false);
 
-    // Unpatch removes the managed block, keeps user content
     const u = await unpatch(tool);
     assert.equal(u.removed, true);
     content = await readFile(target, 'utf8');
     assert.equal(content.includes('<!-- head-aek-gpm -->'), false);
-    assert.match(content, /# My existing rules/);
+    assert.match(content, /# My rules/);
+  } finally {
+    process.env.HOME = prevHome;
+    await rm(fakeHome, { recursive: true, force: true });
+  }
+});
+
+test('apply (only-patch source) appends block, repeat replaces in place', async () => {
+  const fakeHome = join(tmpdir(), 'gpm-app-' + Date.now());
+  const prevHome = process.env.HOME;
+  process.env.HOME = fakeHome;
+  try {
+    await seedSource(ONLY_PATCH_SOURCE)();
+    await mkdir(join(fakeHome, '.codex'), { recursive: true });
+    const tool = { id: 'codex', name: 'Codex', globalPromptPath: () => join(fakeHome, '.codex', 'AGENTS.md') };
+    const target = tool.globalPromptPath();
+    await writeFile(target, '# Existing prompt\n', 'utf8');
+
+    const r = await apply(tool);
+    assert.equal(r.replaced, false);
+    assert.equal(r.source, ONLY_PATCH_SOURCE);
+    let content = await readFile(target, 'utf8');
+    assert.match(content, /# Existing prompt/);
+    assert.match(content, /<!-- head-aek-gpm -->/);
+    assert.match(content, /# shared-cross/);
+    assert.match(content, /# codex-wsl/);
+
+    await writeFile(join(toolDir(ONLY_PATCH_SOURCE, 'codex'), PLATFORM_FILE('wsl')), '# codex-wsl-updated\n', 'utf8');
+    const r2 = await apply(tool);
+    assert.equal(r2.replaced, true);
+    content = await readFile(target, 'utf8');
+    assert.match(content, /# codex-wsl-updated/);
+    assert.equal(content.includes('codex-wsl\n'), false);
   } finally {
     process.env.HOME = prevHome;
     await rm(fakeHome, { recursive: true, force: true });
