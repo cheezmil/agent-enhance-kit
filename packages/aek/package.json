@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "AEK — Agent Enhance Kit (All-in-one CLI)",
   "type": "module",
   "bin": {
