@@ -165,6 +165,9 @@ async function readMaybe(filePath) {
 
 // ---------- WSL detection & dual-write (Linux path is authoritative) ----------
 export function isWSL() {
+  // 双保险：只有 Linux 平台上才可能处于 WSL；Windows/macOS 直接 false，
+  // 避免某些 Windows 环境存在 /proc 映射（如 WSL 工具）导致误判
+  if (process.platform !== 'linux') return false;
   try {
     if (!existsSync('/proc/version')) return false;
     return readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
