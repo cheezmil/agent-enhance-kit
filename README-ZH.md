@@ -6,7 +6,7 @@
 
 # Agent Enhance Kit (AEK)
 
-AI Agent 增强提效工具
+AI Agent 增强提效工具 — **跨平台支持**：Windows · Linux · macOS
 
 [![Go version][go_version_img]][go_dev_url]
 [![Go report][go_report_img]][go_report_url]
