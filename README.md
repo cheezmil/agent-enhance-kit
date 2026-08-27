@@ -90,7 +90,9 @@ Based on actual usage testing (as of 2026-08-21), rankings differ by scenario:
 
 So combining **Tavily** + **Exa** gives the best overall coverage. The `aek websearch` command can always take a flag to pick a different provider.
 
-*This ranking reflects personal testing experience and is subject to change over time.*
+*This ranking only covers providers that are worth ranking. Providers not listed here are excluded because their results are poor for agent use, waste tokens and time — no need to rank them.*
+
+*The full ranking reflects personal testing experience and is subject to change over time.*
 
  ### 🔌 aek-mcp
 
