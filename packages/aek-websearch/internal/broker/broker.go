@@ -176,27 +176,32 @@ func (b *SearchBroker) Sessions() *sessions.Store { return b.sessions }
 
 // resolveRouting determines the order of providers to try.
 func (b *SearchBroker) resolveRouting(query models.SearchQuery) []models.ProviderName {
-	// If providers are explicitly specified via -p, use them.
+	// If providers are explicitly specified via -p, use them (may be multiple = fusion).
 	if len(query.Providers) > 0 {
 		return query.Providers
 	}
 
-	// Use all registered providers that have default=true in settings.jsonc.
-	var order []models.ProviderName
-	for name := range b.providers {
-		if config.IsProviderDefault(string(name)) {
-			order = append(order, name)
+	// No -p: use ONLY the single primary default provider (priority order).
+	// This intentionally does NOT fuse all default=true providers together.
+	for _, name := range config.PrimaryProviderOrder() {
+		pn := models.ProviderName(name)
+		if _, ok := b.providers[pn]; ok && config.IsProviderDefault(name) {
+			return []models.ProviderName{pn}
 		}
 	}
-	if len(order) > 0 {
-		return order
+
+	// Fallback: first default=true provider.
+	for name := range b.providers {
+		if config.IsProviderDefault(string(name)) {
+			return []models.ProviderName{name}
+		}
 	}
 
-	// Fallback: all registered providers.
+	// Fallback: first registered provider.
 	for name := range b.providers {
-		order = append(order, name)
+		return []models.ProviderName{name}
 	}
-	return order
+	return nil
 }
 
 // applyRRF applies Reciprocal Rank Fusion to merge results.

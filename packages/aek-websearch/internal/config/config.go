@@ -15,6 +15,13 @@ func SupportedProviders() []string {
 	return []string{"context7", "duckduckgo", "exa", "linkup", "parallel", "serper", "tavily", "wolfram", "yahoo", "you"}
 }
 
+// PrimaryProviderOrder returns provider names in primary-default priority order.
+// When no -p flag is given, only the first provider whose default=true is used
+// (single-provider search, no fusion).
+func PrimaryProviderOrder() []string {
+	return []string{"tavily", "exa", "serper", "you", "parallel", "linkup", "wolfram", "context7", "duckduckgo", "yahoo"}
+}
+
 // ProviderConfig holds per-provider settings.
 type ProviderConfig struct {
 	Default        bool   `json:"default"`

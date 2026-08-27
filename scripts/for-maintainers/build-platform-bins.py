@@ -49,6 +49,12 @@ def build_one(go_cmd, short, goos, goarch, platform_key):
     env["CGO_ENABLED"] = "0"
 
     cmd = [go_cmd, "build", "-ldflags=-s -w", "-o", out_path, GO_ENTRY[short]]
+    # Go 1.24+ 缓存：输出路径已存在且非对象文件时，go build 会报
+    # "already exists and is not an object file"，先清掉目标再编译
+    try:
+        os.remove(out_path)
+    except FileNotFoundError:
+        pass
     print(f"[build] {short} {goos}/{goarch} → {os.path.relpath(out_path, ROOT)}")
     r = subprocess.run(cmd, cwd=src_dir, env=env, capture_output=True, text=True)
     if r.returncode != 0:

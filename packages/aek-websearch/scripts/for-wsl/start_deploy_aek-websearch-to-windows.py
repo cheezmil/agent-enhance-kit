@@ -103,8 +103,10 @@ $ErrorActionPreference = 'Stop'
 $src = "{src}"
 $dest = Join-Path $env:TEMP "aek-websearch"
 if (Test-Path $dest) {{ Remove-Item $dest -Recurse -Force }}
-Write-Host "[2/5] 复制包到 Windows 临时目录..."
-Copy-Item $src $dest -Recurse
+Write-Host "[2/5] 复制 Windows 二进制到临时目录..."
+# 只复制 bin 目录（含 aek.exe），避免整包复制时被 node_modules 的坏符号链接(平台子包)阻断
+New-Item -ItemType Directory -Path $dest -Force | Out-Null
+Copy-Item (Join-Path $src "bin") $dest -Recurse -Force
 
 Write-Host "[3/5] 卸载旧版全局包(如存在)..."
 npm uninstall -g aek-websearch 2>$null
