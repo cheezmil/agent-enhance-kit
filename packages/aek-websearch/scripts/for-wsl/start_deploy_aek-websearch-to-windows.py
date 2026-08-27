@@ -123,7 +123,10 @@ if (Test-Path $aekExe) {{
 Write-Host "[5/5] 确保 %USERPROFILE%\\bin 在当前用户 PATH 中..."
 $userBin = Join-Path $env:USERPROFILE "bin"
 # 用微软 pave 管理 PATH；未安装则自动 winget 安装
-if (!(Get-Command pave -ErrorAction SilentlyContinue)) {{\n    Write-Host "  pave 未安装，通过 winget 安装..."\n    winget install Microsoft.Pave --accept-source-agreements 2>&1 | Write-Host\n}}
+if (!(Get-Command pave -ErrorAction SilentlyContinue)) {{
+    Write-Host "  pave 未安装，通过 winget 安装..."
+    winget install Microsoft.Pave --accept-source-agreements 2>&1 | Write-Host
+}}
 pave add $userBin 2>&1 | Write-Host
 # 更新当前会话 PATH，方便本轮验证
 $env:Path = $userBin + ';' + $env:Path
