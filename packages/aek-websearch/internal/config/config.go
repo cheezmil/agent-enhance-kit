@@ -120,9 +120,9 @@ func defaultConfig() Config {
 		BindHost: "127.0.0.1",
 		RRF:      false,
 		Providers: map[string]ProviderConfig{
-			"serper":     {Default: true, TimeoutSeconds: 60, MaxResults: 100},
+			"serper":     {Default: false, TimeoutSeconds: 60, MaxResults: 100},
 			"tavily":     {Default: true, TimeoutSeconds: 60, MaxResults: 20},
-			"exa":        {Default: true, TimeoutSeconds: 60, MaxResults: 100},
+			"exa":        {Default: false, TimeoutSeconds: 60, MaxResults: 100},
 			"you":        {Default: false, TimeoutSeconds: 60, MaxResults: 100},
 			"parallel":   {Default: false, TimeoutSeconds: 60, MaxResults: 20},
 			"linkup":     {Default: false, TimeoutSeconds: 60, MaxResults: 20},

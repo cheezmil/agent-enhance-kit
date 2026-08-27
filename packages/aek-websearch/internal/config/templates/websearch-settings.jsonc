@@ -11,7 +11,7 @@
   "providers": {
     "serper": {
       // include this provider in default (no -p flag) searches
-      "default": true,
+      "default": false,
       "timeout_seconds": 60,
       "max_results": 100
     },
@@ -21,7 +21,7 @@
       "max_results": 20
     },
     "exa": {
-      "default": true,
+      "default": false,
       "timeout_seconds": 60,
       "max_results": 100,
       // search_type: auto, fast, instant, deep-lite, deep, deep-reasoning
