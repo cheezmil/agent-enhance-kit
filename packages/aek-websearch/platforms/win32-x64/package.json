@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-websearch-win32-x64",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "AEK — Agent Enhance Kit (Web Search module) platform binary for win32-x64",
   "os": [
     "win32"
