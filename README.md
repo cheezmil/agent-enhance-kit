@@ -82,13 +82,13 @@ Providers with free tiers (API Key required):
 
 #### Search provider ranking
 
-Based on actual usage testing (as of 2026-08-21):
+Based on actual usage testing (as of 2026-08-21), rankings differ by scenario:
 
-**Exa** > **Serper** > **Tavily** > Others
+- **Chinese-only content**: **Tavily** > **Exa** ≈ **Serper**
+- **International-only content**: **Exa** > **Tavily** ≈ **Serper**
+- **Both Chinese and international content**: **Tavily** > **Exa** ≈ **Serper**
 
-> If you want to save time, just use **Exa** directly — it delivers the best overall search quality and experience.
-
-**Serper** and **Tavily** work well as backup providers; the others are not needed for now.
+So combining **Tavily** + **Exa** gives the best overall coverage. The `aek websearch` command can always take a flag to pick a different provider.
 
 *This ranking reflects personal testing experience and is subject to change over time.*
 
