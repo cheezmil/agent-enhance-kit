@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-websearch",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "type": "module",
   "description": "AEK — Agent Enhance Kit (Web Search module)",
   "bin": {
