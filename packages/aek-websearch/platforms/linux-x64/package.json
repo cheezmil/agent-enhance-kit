@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-websearch-linux-x64",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AEK — Agent Enhance Kit (Web Search module) platform binary for linux-x64",
   "os": [
     "linux"
