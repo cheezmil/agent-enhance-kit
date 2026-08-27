@@ -84,6 +84,14 @@ func Search(b *broker.SearchBroker, input SearchInput) (*SearchOutput, error) {
 		}
 	}
 
+	// Fusion search (explicit multiple providers via -p): show ALL results, no truncation.
+	// Single-provider / default search keeps a sane default cap of 10.
+	if len(providersList) > 1 {
+		input.MaxResults = 0
+	} else if input.MaxResults <= 0 {
+		input.MaxResults = 10
+	}
+
 	sq := models.SearchQuery{
 		Query:      input.Query,
 		Mode:       models.SearchMode(input.Mode),
