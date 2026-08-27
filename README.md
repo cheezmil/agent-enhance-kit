@@ -88,7 +88,7 @@ Based on actual usage testing (as of 2026-08-21), rankings differ by scenario:
 - **International-only content**: **Exa** > **Tavily** ≈ **Serper**
 - **Both Chinese and international content**: **Tavily** > **Exa** ≈ **Serper**
 
-So combining **Tavily** + **Exa** gives the best overall coverage. The `aek websearch` command can always take a flag to pick a different provider.
+So **Tavily**, **Exa** and **Serper** can all be used together at any time. Different agents prefer different providers, and different search keywords yield different results across providers — either way, all three belong to the T0 tier.
 
 *This ranking only covers providers that are worth ranking. Providers not listed here are excluded because their results are poor for agent use, waste tokens and time — no need to rank them.*
 
