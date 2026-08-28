@@ -1,5 +1,12 @@
 # @cheezmil/aek
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @cheezmil/aek-prompt-manager@0.1.2
+
 ## 0.1.4
 
 ### Patch Changes
