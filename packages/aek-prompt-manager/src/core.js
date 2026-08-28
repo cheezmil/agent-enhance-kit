@@ -212,8 +212,13 @@ function writeOne(filePath, content) {
 
 async function writeDual(linuxPath, content, winPath) {
   const writes = [{ path: linuxPath }];
-  if (winPath) writes.push({ path: winPath });
   await writeOne(linuxPath, content);
+  if (winPath) {
+    // Fix mixed separators: UNC paths should use backslashes consistently
+    const normalizedWinPath = winPath.replace(/\//g, '\\');
+    await writeOne(normalizedWinPath, content);
+    writes.push({ path: normalizedWinPath });
+  }
   return writes;
 }
 
