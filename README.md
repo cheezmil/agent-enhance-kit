@@ -33,7 +33,7 @@ Agent Enhance Kit is a **monorepo**
 ## 🚀 Quick Start
 
 1. [Fork](https://github.com/cheezmil/agent-enhance-kit/fork) this repo on GitHub (Convenient for you to submit PR, improve this project in a timely manner, thank you for using)
-2. Clone your fork:
+2. Clone your fork: (The package is already published on npm, but once the AI reads the source code it can give you a better, more customized usage tutorial, because the source ships with preset skills and prompts.)
 
    ```bash
    git clone https://github.com/<YOUR_USERNAME>/agent-enhance-kit.git
