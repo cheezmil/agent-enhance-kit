@@ -2,10 +2,12 @@
 // up Agent Skills (SKILL.md folders). Everything here is injectable (home, OS,
 // cwd, env) so the logic can be unit-tested without touching the real machine.
 
-import { access, cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek-common';
 
 // Registry of supported platforms and where each one stores its skills.
 //
@@ -305,6 +307,7 @@ export async function syncFromCenterRepo(options = {}) {
     : PLATFORMS;
 
   const results = [];
+  const winRoot = isWSL() ? getWindowsNativeRoot() : null;
   for (const platform of platforms) {
     const targetDir = resolveSkillsDir(platform, { scope });
     if (path.resolve(centerDir) === path.resolve(targetDir)) continue;
@@ -317,6 +320,20 @@ export async function syncFromCenterRepo(options = {}) {
     });
     result.platform = platform;
     results.push(result);
+
+    // WSL 下额外同步一份到 Windows 原生 profile（若可解析）。
+    const winTargetDir = resolveWindowsNativeSkillsDir(platform, { scope, winRoot });
+    if (winTargetDir && path.resolve(centerDir) !== path.resolve(winTargetDir)) {
+      const winResult = await syncSkillFolders({
+        sourceDir: centerDir,
+        targetDir: winTargetDir,
+        onConflict,
+        extraSkills: systemSkills,
+      });
+      winResult.platform = platform;
+      winResult.winTarget = winTargetDir;
+      results.push(winResult);
+    }
   }
 
   return { centerDir, results };
@@ -380,6 +397,25 @@ export function resolveSkillsDir(platform, options = {}) {
     : platform.unixPath;
 
   return p.resolve(p.join(home, ...segments));
+}
+
+// 在 WSL 下，把某工具的 skill 目录解析到 Windows 原生 profile（/mnt/c/Users/<user>/...）。
+// 返回 WSL 侧可直接写入的正斜杠路径；无法解析（无 winRoot / 项目范围 / 无 winPath）时返回 ''。
+// 项目范围（project）不映射到 Windows 原生，因为 /mnt/ 布局只有全局 profile 才有意义。
+export function resolveWindowsNativeSkillsDir(platform, options = {}) {
+  const { scope = 'global', winRoot = '', env = process.env } = options;
+  if (!winRoot) return '';
+  if (scope === 'project') return '';
+  const p = path.posix;
+  let base;
+  if (platform.winBase === 'localappdata') {
+    base = p.join(winRoot, 'AppData', 'Local');
+  } else if (platform.winBase === 'appdata') {
+    base = p.join(winRoot, 'AppData', 'Roaming');
+  } else {
+    base = winRoot;
+  }
+  return p.resolve(p.join(base, ...platform.winPath));
 }
 
 // Minimal YAML frontmatter reader: returns top-level scalar key/value pairs
@@ -485,8 +521,25 @@ export function collectModelFields(skillFolders) {
 }
 
 // Recursively copy a single skill folder.
+//
+// 不使用 fs.cp / copyFile：它们在目标上设置 Unix 文件 mode（chmod），在 WSL2 的
+// drvfs 挂载（/mnt/c，即 Windows 原生盘）上不兼容该语义，会抛 EPERM。改用逐文件
+// readFile -> writeFile 的字节复制，跨 ext4/drvfs/本地边界都稳定（skill 均为纯文本，
+// 无需保留 mode/时间戳）。
 export async function copySkillFolder(srcDir, destDir) {
-  await cp(srcDir, destDir, { recursive: true });
+  await mkdir(destDir, { recursive: true });
+  const entries = await readdir(srcDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const src = path.join(srcDir, entry.name);
+    const dest = path.join(destDir, entry.name);
+    if (entry.isDirectory()) {
+      await copySkillFolder(src, dest);
+    } else if (entry.isFile()) {
+      const content = await readFile(src);
+      await writeFile(dest, content);
+    }
+    // 忽略符号链接等特殊条目（skill 目录内无需跟随）
+  }
 }
 
 // Core sync routine (pure of any console I/O so it can be unit-tested):
