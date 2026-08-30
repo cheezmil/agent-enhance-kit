@@ -196,7 +196,8 @@ async function runSync(scope, args) {
   for (const r of results) {
     if (r.copied.length > 0 || r.overwritten.length > 0) {
       const label = r.platform ? `${r.platform.name} (${r.platform.id})` : '?';
-      console.log(`[aek sm] → ${label}: ${r.copied.length} 新增, ${r.overwritten.length} 更新`);
+      const side = r.winTarget ? ` [Windows 原生 -> ${formatPathForDisplay(r.winTarget)}]` : '';
+      console.log(`[aek sm] → ${label}: ${r.copied.length} 新增, ${r.overwritten.length} 更新${side}`);
       totalCopy += r.copied.length;
       totalOverwrite += r.overwritten.length;
     }

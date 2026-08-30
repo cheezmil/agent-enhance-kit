@@ -34,13 +34,15 @@
 //   <!-- end-aek-pm-patch-<tool> -->
 //   <!-- end-aek-pm-patch -->
 //
-// WSL: Linux path and Windows UNC are the same file (same inode). We write the
-// Linux path; the UNC path is recorded for display only. On native Windows we
-// never mkdir/write a UNC.
+// WSL: 在 WSL 内运行时，除了写入 Linux 侧目标，还会把内容双写到 Windows 原生 profile
+// (/mnt/c/Users/<user>/...，通过 pwsh 动态确认 %USERPROFILE%)。并非 UNC 别名——那只是
+// WSL 文件系统自身，不是 Windows 原生 tools 的配置目录。非 WSL 场景无双写。
 
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+
+import { getWindowsNativeRoot } from '@cheezmil/aek-common';
 
 export const HEAD = '<!-- head-aek-pm-patch -->';
 export const HEAD_SHARED = '<!-- head-aek-pm-patch-shared -->';
@@ -163,7 +165,7 @@ async function readMaybe(filePath) {
   return readFile(filePath, 'utf8');
 }
 
-// ---------- WSL detection & dual-write (Linux path is authoritative) ----------
+// ---------- WSL detection & dual-write (Windows native profile) ----------
 export function isWSL() {
   // 双保险：只有 Linux 平台上才可能处于 WSL；Windows/macOS 直接 false，
   // 避免某些 Windows 环境存在 /proc 映射（如 WSL 工具）导致误判
@@ -176,48 +178,32 @@ export function isWSL() {
   }
 }
 
-const DEFAULT_WSL_DISTRO = 'Ubuntu-22.04';
-let cachedWslHomeWin = null;
-let hasResolvedWslHomeWin = false;
-
-export function getWslHomeWin() {
-  if (hasResolvedWslHomeWin) return cachedWslHomeWin;
-  hasResolvedWslHomeWin = true;
-  const username = process.env.USERNAME?.trim() || process.env.USER?.trim();
-  if (username) {
-    const distro = process.env.ASG_WSL_DISTRO?.trim() || DEFAULT_WSL_DISTRO;
-    cachedWslHomeWin = `\\\\wsl.localhost\\${distro}\\home\\${username}`;
-  }
-  return cachedWslHomeWin;
-}
-
-function mapLinuxHomeToWin(rel) {
-  const winHome = getWslHomeWin();
-  if (!winHome) return '';
-  if (!rel) return winHome;
-  return winHome + '\\' + rel.replace(/^\//, '');
-}
-
-export function linuxToWinPath(linuxPath) {
+// 计算某工具在 Windows 原生 profile 下的全局提示词路径（WSL 侧可访问的 /mnt/ 路径）。
+// 仅当处于 WSL 且能解析到 Windows 原生 profile 时返回非空；否则返回 ''（跳过双写）。
+export function windowsNativeTarget(tool, toolId) {
   if (!isWSL()) return '';
-  const home = process.env.HOME || '';
-  if (!linuxPath.startsWith(home)) return '';
-  const rel = linuxPath.slice(home.length).replace(/^\//, '');
-  return mapLinuxHomeToWin(rel);
+  const winRoot = getWindowsNativeRoot();
+  if (!winRoot) return '';
+  try {
+    const p = tool.globalPromptPath(toolId, { home: winRoot, os: 'win32' });
+    return p || '';
+  } catch {
+    return '';
+  }
 }
 
 function writeOne(filePath, content) {
   return mkdir(dirname(filePath), { recursive: true }).then(() => writeFile(filePath, content, 'utf8'));
 }
 
-async function writeDual(linuxPath, content, winPath) {
-  const writes = [{ path: linuxPath }];
-  await writeOne(linuxPath, content);
-  if (winPath) {
-    // Fix mixed separators: UNC paths should use backslashes consistently
-    const normalizedWinPath = winPath.replace(/\//g, '\\');
-    await writeOne(normalizedWinPath, content);
-    writes.push({ path: normalizedWinPath });
+// 主路径为 Linux 侧，副路径为 Windows 原生 profile 的 /mnt/ 路径（若可用）。
+// 两者不同文件时各自写入；相同或为空则只写主路径。
+async function writeDual(primaryPath, content, secondaryPath) {
+  const writes = [{ path: primaryPath }];
+  await writeOne(primaryPath, content);
+  if (secondaryPath && secondaryPath !== primaryPath) {
+    await writeOne(secondaryPath, content);
+    writes.push({ path: secondaryPath });
   }
   return writes;
 }
@@ -262,8 +248,8 @@ async function _applyBlock(source, tool, force = false) {
     fileContent, toolId, sharedContent, toolContent, tool.fileHeader || '', sysPromptContent
   );
 
-  const winPath = linuxToWinPath(target);
-  const writes = await writeDual(target, content, winPath);
+  const winTarget = windowsNativeTarget(tool, toolId);
+  const writes = await writeDual(target, content, winTarget);
 
   return {
     toolId,
@@ -272,6 +258,7 @@ async function _applyBlock(source, tool, force = false) {
     replaced,
     writes,
     platform,
+    winTarget,
     shared: !!sharedContent.trim(),
     tool: !!toolContent.trim(),
   };
@@ -293,7 +280,7 @@ export async function unpatch(tool) {
   }
   const cleaned = fileContent.slice(0, headIdx).trimEnd() + fileContent.slice(endIdx).trimStart();
   const trimmed = cleaned.replace(/^\n+/, '').replace(/\n+$/, '');
-  const winPath = linuxToWinPath(target);
-  await writeDual(target, trimmed, winPath);
+  const winTarget = windowsNativeTarget(tool, tool.id);
+  await writeDual(target, trimmed, winTarget);
   return { toolId: tool.id, target, removed: true };
 }

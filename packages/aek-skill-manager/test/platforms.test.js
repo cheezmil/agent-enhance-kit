@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PLATFORMS, resolveSkillsDir } from '../src/skills.js';
+import { PLATFORMS, resolveSkillsDir, resolveWindowsNativeSkillsDir } from '../src/skills.js';
 
 function platform(id) {
   const found = PLATFORMS.find((entry) => entry.id === id);
@@ -71,4 +71,29 @@ test('project scope resolves under the working directory', () => {
   assert.equal(resolveSkillsDir(platform('codex'), opts), '/work/proj/.agents/skills');
   assert.equal(resolveSkillsDir(platform('copilot'), opts), '/work/proj/.github/skills');
   assert.equal(resolveSkillsDir(platform('opencode'), opts), '/work/proj/.opencode/skills');
+});
+
+test('resolveWindowsNativeSkillsDir maps home-based platforms under winRoot', () => {
+  const opts = { scope: 'global', winRoot: '/mnt/c/Users/xdx' };
+  assert.equal(resolveWindowsNativeSkillsDir(platform('claude'), opts), '/mnt/c/Users/xdx/.claude/skills');
+  assert.equal(resolveWindowsNativeSkillsDir(platform('codex'), opts), '/mnt/c/Users/xdx/.codex/skills');
+  assert.equal(resolveWindowsNativeSkillsDir(platform('vscode'), opts), '/mnt/c/Users/xdx/.copilot/skills');
+});
+
+test('resolveWindowsNativeSkillsDir maps localappdata platforms (hermes/opencode)', () => {
+  const opts = { scope: 'global', winRoot: '/mnt/c/Users/xdx' };
+  // hermes / opencode 在 win 布局用 LOCALAPPDATA
+  assert.equal(
+    resolveWindowsNativeSkillsDir(platform('hermes'), opts),
+    '/mnt/c/Users/xdx/AppData/Local/hermes/skills',
+  );
+  assert.equal(
+    resolveWindowsNativeSkillsDir(platform('opencode'), opts),
+    '/mnt/c/Users/xdx/AppData/Local/opencode/skills',
+  );
+});
+
+test('resolveWindowsNativeSkillsDir returns empty for project scope or no winRoot', () => {
+  assert.equal(resolveWindowsNativeSkillsDir(platform('claude'), { scope: 'project', winRoot: '/mnt/c/Users/xdx' }), '');
+  assert.equal(resolveWindowsNativeSkillsDir(platform('claude'), { scope: 'global', winRoot: '' }), '');
 });

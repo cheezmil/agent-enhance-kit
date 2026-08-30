@@ -14,8 +14,14 @@ function joinPath(base, ...parts) {
 
 const isWindows = os === 'win32';
 
-function globalPromptPath(id) {
-  const home = homeDir();
+function globalPromptPath(id, options = {}) {
+  const home = options.home ?? homeDir();
+  const win = options.os === 'win32';
+  // 分隔符选择：仅当目标 home 是 Windows 原生驱动符路径(C:\...)才用 win32 分隔符；
+  // WSL 双写 /mnt/c/Users/... 或测试用的 /tmp 等正斜杠路径，必须保持 posix 以便 node fs 直接写入。
+  const useWin32 = win && /^[A-Za-z]:[\\/]/.test(home);
+  const pathModule = useWin32 ? path.win32 : path;
+  const joinPath = (base, ...parts) => pathModule.join(base, ...parts);
   switch (id) {
     case 'claude-code':
       return joinPath(home, '.claude', 'CLAUDE.md');
@@ -46,13 +52,15 @@ function globalPromptPath(id) {
     case 'deepseek-harness':
       return joinPath(home, '.dsh', 'AGENTS.md');
     case 'opencode': {
-      const cfg = process.env.XDG_CONFIG_HOME || joinPath(home, '.config');
+      const cfg = win
+        ? (process.env.LOCALAPPDATA ? process.env.LOCALAPPDATA.replace(/\\/g, '/') : joinPath(home, 'AppData', 'Local'))
+        : (process.env.XDG_CONFIG_HOME || joinPath(home, '.config'));
       return joinPath(cfg, 'opencode', 'AGENTS.md');
     }
     case 'codex':
       return joinPath(home, '.codex', 'AGENTS.md');
     case 'hermes':
-      if (isWindows) {
+      if (win) {
         const local = process.env.LOCALAPPDATA || joinPath(home, 'AppData', 'Local');
         return joinPath(local, 'hermes', 'SOUL.md');
       }
