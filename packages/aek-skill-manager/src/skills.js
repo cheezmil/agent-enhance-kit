@@ -111,9 +111,16 @@ export const PLATFORMS = [
     keywords: ['hermes', 'hermes agent', 'nous'],
     docs: 'https://hermes-agent.nousresearch.com/docs/user-guide/features/skills',
     unixPath: ['.hermes', 'skills'],
-    winPath: ['hermes', 'skills'],
-    winBase: 'localappdata',
+    winPath: ['.hermes', 'skills'],
+    winBase: 'home',
     projectPath: ['.hermes', 'skills'],
+    // Hermes 在 Windows 原生除 %USERPROFILE%\.hermes\ 外，历史安装也可能落在
+    // %USERPROFILE%\AppData\Local\hermes\。此处提供主目录之外的候选 winBase/winPath，
+    // 同步时一并写入。
+    altWinTargets: (winRoot) => [{
+      winBase: 'localappdata',
+      winPath: ['hermes', 'skills'],
+    }],
   },
   {
     id: 'windsurf',
@@ -321,9 +328,10 @@ export async function syncFromCenterRepo(options = {}) {
     result.platform = platform;
     results.push(result);
 
-    // WSL 下额外同步一份到 Windows 原生 profile（若可解析）。
-    const winTargetDir = resolveWindowsNativeSkillsDir(platform, { scope, winRoot });
-    if (winTargetDir && path.resolve(centerDir) !== path.resolve(winTargetDir)) {
+    // WSL 下额外同步一份（或多份候选）到 Windows 原生 profile。
+    const winDirs = resolveWindowsNativeSkillsDirs(platform, { scope, winRoot });
+    for (const winTargetDir of winDirs) {
+      if (path.resolve(centerDir) === path.resolve(winTargetDir)) continue;
       const winResult = await syncSkillFolders({
         sourceDir: centerDir,
         targetDir: winTargetDir,
@@ -399,23 +407,40 @@ export function resolveSkillsDir(platform, options = {}) {
   return p.resolve(p.join(home, ...segments));
 }
 
-// 在 WSL 下，把某工具的 skill 目录解析到 Windows 原生 profile（/mnt/c/Users/<user>/...）。
-// 返回 WSL 侧可直接写入的正斜杠路径；无法解析（无 winRoot / 项目范围 / 无 winPath）时返回 ''。
-// 项目范围（project）不映射到 Windows 原生，因为 /mnt/ 布局只有全局 profile 才有意义。
-export function resolveWindowsNativeSkillsDir(platform, options = {}) {
-  const { scope = 'global', winRoot = '', env = process.env } = options;
-  if (!winRoot) return '';
-  if (scope === 'project') return '';
+// 计算单个 winBase/winPath 组合在 WSL 侧可访问的正斜杠路径。
+function resolveOneWindowsNativeSkillsDir(winRoot, winBase, winPath) {
   const p = path.posix;
   let base;
-  if (platform.winBase === 'localappdata') {
+  if (winBase === 'localappdata') {
     base = p.join(winRoot, 'AppData', 'Local');
-  } else if (platform.winBase === 'appdata') {
+  } else if (winBase === 'appdata') {
     base = p.join(winRoot, 'AppData', 'Roaming');
   } else {
     base = winRoot;
   }
-  return p.resolve(p.join(base, ...platform.winPath));
+  return p.resolve(p.join(base, ...winPath));
+}
+
+// 在 WSL 下，把某工具的 skill 目录解析到 Windows 原生 profile（/mnt/c/Users/<user>/...）。
+// 返回 WSL 侧可直接写入的正斜杠路径；无法解析（无 winRoot / 项目范围 / 无 winPath）时返回 ''。
+// 项目范围（project）不映射到 Windows 原生，因为 /mnt/ 布局只有全局 profile 才有意义。
+export function resolveWindowsNativeSkillsDir(platform, options = {}) {
+  const all = resolveWindowsNativeSkillsDirs(platform, options);
+  return all[0] || '';
+}
+
+// 同上，但返回全部候选路径（含平台声明的 altWinTargets，如 hermes 的历史安装位置）。
+// 空数组表示无法解析/无双写目标。
+export function resolveWindowsNativeSkillsDirs(platform, options = {}) {
+  const { scope = 'global', winRoot = '', env = process.env } = options;
+  if (!winRoot) return [];
+  if (scope === 'project') return [];
+  const primary = resolveOneWindowsNativeSkillsDir(winRoot, platform.winBase, platform.winPath);
+  const alts = (typeof platform.altWinTargets === 'function')
+    ? platform.altWinTargets(winRoot).map((alt) => resolveOneWindowsNativeSkillsDir(winRoot, alt.winBase, alt.winPath))
+    : [];
+  const all = [primary, ...alts].filter(Boolean);
+  return [...new Set(all)];
 }
 
 // Minimal YAML frontmatter reader: returns top-level scalar key/value pairs

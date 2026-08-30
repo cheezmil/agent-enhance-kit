@@ -180,16 +180,25 @@ export function isWSL() {
 
 // 计算某工具在 Windows 原生 profile 下的全局提示词路径（WSL 侧可访问的 /mnt/ 路径）。
 // 仅当处于 WSL 且能解析到 Windows 原生 profile 时返回非空；否则返回 ''（跳过双写）。
-export function windowsNativeTarget(tool, toolId) {
-  if (!isWSL()) return '';
+// 返回值始终为数组：默认单元素；有额外候选（如 hermes）则含多个。空数组表示无双写。
+export function windowsNativeTargets(tool, toolId) {
+  if (!isWSL()) return [];
   const winRoot = getWindowsNativeRoot();
-  if (!winRoot) return '';
+  if (!winRoot) return [];
   try {
-    const p = tool.globalPromptPath(toolId, { home: winRoot, os: 'win32' });
-    return p || '';
+    const primary = tool.globalPromptPath(toolId, { home: winRoot, os: 'win32' });
+    const alts = tool.winAltTargets ? tool.winAltTargets(winRoot) : [];
+    const all = [primary, ...(Array.isArray(alts) ? alts : [])].filter(Boolean);
+    return [...new Set(all)];
   } catch {
-    return '';
+    return [];
   }
+}
+
+// 向后兼容：返回主目标路径（首个候选）或 ''。
+export function windowsNativeTarget(tool, toolId) {
+  const all = windowsNativeTargets(tool, toolId);
+  return all[0] || '';
 }
 
 function writeOne(filePath, content) {
@@ -197,13 +206,16 @@ function writeOne(filePath, content) {
 }
 
 // 主路径为 Linux 侧，副路径为 Windows 原生 profile 的 /mnt/ 路径（若可用）。
-// 两者不同文件时各自写入；相同或为空则只写主路径。
-async function writeDual(primaryPath, content, secondaryPath) {
+// 两者不同文件时各自写入；相同或为空则只写主路径。（secondaryPaths 可以为数组或单个字符串）
+async function writeDual(primaryPath, content, secondaryPaths) {
   const writes = [{ path: primaryPath }];
   await writeOne(primaryPath, content);
-  if (secondaryPath && secondaryPath !== primaryPath) {
-    await writeOne(secondaryPath, content);
-    writes.push({ path: secondaryPath });
+  const paths = Array.isArray(secondaryPaths) ? secondaryPaths : [secondaryPaths];
+  for (const sp of paths) {
+    if (sp && sp !== primaryPath) {
+      await writeOne(sp, content);
+      writes.push({ path: sp });
+    }
   }
   return writes;
 }
@@ -248,8 +260,8 @@ async function _applyBlock(source, tool, force = false) {
     fileContent, toolId, sharedContent, toolContent, tool.fileHeader || '', sysPromptContent
   );
 
-  const winTarget = windowsNativeTarget(tool, toolId);
-  const writes = await writeDual(target, content, winTarget);
+  const winTs = windowsNativeTargets(tool, toolId);
+  const writes = await writeDual(target, content, winTs);
 
   return {
     toolId,
@@ -258,7 +270,8 @@ async function _applyBlock(source, tool, force = false) {
     replaced,
     writes,
     platform,
-    winTarget,
+    winTarget: winTs[0] || '',
+    winTargets: winTs,
     shared: !!sharedContent.trim(),
     tool: !!toolContent.trim(),
   };
@@ -280,7 +293,7 @@ export async function unpatch(tool) {
   }
   const cleaned = fileContent.slice(0, headIdx).trimEnd() + fileContent.slice(endIdx).trimStart();
   const trimmed = cleaned.replace(/^\n+/, '').replace(/\n+$/, '');
-  const winTarget = windowsNativeTarget(tool, tool.id);
-  await writeDual(target, trimmed, winTarget);
-  return { toolId: tool.id, target, removed: true };
+  const winTs = windowsNativeTargets(tool, tool.id);
+  await writeDual(target, trimmed, winTs);
+  return { toolId: tool.id, target, removed: true, winTargets: winTs };
 }
