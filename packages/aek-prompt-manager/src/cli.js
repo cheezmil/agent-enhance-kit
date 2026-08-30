@@ -22,6 +22,7 @@ import {
   apply,
   unpatch,
   isWSL,
+  windowsNativeTarget,
 } from './core.js';
 
 const CMD = 'aek pm';
@@ -135,8 +136,8 @@ async function runPatch(args) {
       const r = await apply(t);
       const verb = r.replaced ? 'updated' : 'patched';
       console.log(`[${CMD}] ${t.id}: ${verb} (only-patch) -> ${r.target}`);
-      if (r.writes && r.writes.length > 1) {
-        console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
+      if (r.winTarget) {
+        console.log(`[${CMD}]   dual-write -> ${r.winTarget}`);
       }
     } catch (e) {
       console.error(`[${CMD}] ${t.id}: ${e.message}`);
@@ -155,8 +156,8 @@ async function runMap(args) {
       const r = await patch(t);
       const verb = r.replaced ? 'updated' : 'patched';
       console.log(`[${CMD}] ${t.id}: ${verb} (global-prompt-mapping) -> ${r.target}`);
-      if (r.writes && r.writes.length > 1) {
-        console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
+      if (r.winTarget) {
+        console.log(`[${CMD}]   dual-write -> ${r.winTarget}`);
       }
     } catch (e) {
       console.error(`[${CMD}] ${t.id}: ${e.message}`);
@@ -175,8 +176,8 @@ async function runApply(args) {
       const r = await apply(t);
       const verb = r.replaced ? 'updated' : 'applied';
       console.log(`[${CMD}] ${t.id}: ${verb} (${r.source}) -> ${r.target}`);
-      if (r.writes && r.writes.length > 1) {
-        console.log(`[${CMD}]   dual-write: ${r.writes.map((w) => w.path).join('  &  ')}`);
+      if (r.winTarget) {
+        console.log(`[${CMD}]   dual-write -> ${r.winTarget}`);
       }
     } catch (e) {
       console.error(`[${CMD}] ${t.id}: ${e.message}`);
@@ -202,24 +203,31 @@ async function runStatus(args) {
     console.log(`[${CMD}] current platform: ${currentPlatform()}   WSL: ${isWSL() ? 'yes' : 'no'}`);
     for (const p of PLATFORMS) {
       const state = await toolState(p);
-      console.log(`[${CMD}] ${p.id}: ${state.status}  ${state.target}`);
+      printState(p.id, state);
     }
     return;
   }
   const t = findTool(tool);
   const state = await toolState(t);
-  console.log(`[${CMD}] ${t.id}: ${state.status}  ${state.target}`);
+  printState(t.id, state);
+}
+
+function printState(id, state) {
+  let line = `[${CMD}] ${id}: ${state.status}  ${state.target}`;
+  if (state.winTarget) line += `\n[${CMD}]    Windows 原生: ${state.winTarget}`;
+  console.log(line);
 }
 
 async function toolState(p) {
   const target = p.globalPromptPath(p.id);
+  const winTarget = windowsNativeTarget(p, p.id);
   try {
     const { readFile } = await import('node:fs/promises');
     const content = await readFile(target, 'utf8');
     const patched = content.includes('<!-- head-aek-pm-patch -->');
-    return { status: patched ? 'patched' : 'not-patched', target };
+    return { status: patched ? 'patched' : 'not-patched', target, winTarget };
   } catch {
-    return { status: 'file-missing', target };
+    return { status: 'file-missing', target, winTarget };
   }
 }
 
