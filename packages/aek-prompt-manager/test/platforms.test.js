@@ -37,13 +37,8 @@ test('globalPromptPath supports Windows-native layout via options (WSL /mnt styl
   } finally {
     clearEnv('LOCALAPPDATA');
   }
-  // hermes 在 win 布局用 LOCALAPPDATA
-  setEnv('LOCALAPPDATA', '/mnt/c/Users/xdx/AppData/Local');
-  try {
-    assert.equal(platform('hermes').globalPromptPath('hermes', { home: winRoot, os: 'win32' }), '/mnt/c/Users/xdx/AppData/Local/hermes/SOUL.md');
-  } finally {
-    clearEnv('LOCALAPPDATA');
-  }
+  // hermes 在 win 布局用 %USERPROFILE%\.hermes\（与 unix ~/.hermes 一致，不用 LOCALAPPDATA）
+  assert.equal(platform('hermes').globalPromptPath('hermes', { home: winRoot, os: 'win32' }), '/mnt/c/Users/xdx/.hermes/SOUL.md');
 });
 
 // 原生 Windows home（C:\Users\...）仍应走 win32 分隔符。
@@ -52,7 +47,7 @@ test('globalPromptPath native Windows home keeps backslash separators', () => {
   process.env.HOME = 'C:\\Users\\xdx';
   try {
     assert.equal(platform('claude-code').globalPromptPath('claude-code', { header: false, os: 'win32' }), 'C:\\Users\\xdx\\.claude\\CLAUDE.md');
-    assert.equal(platform('hermes').globalPromptPath('hermes', { os: 'win32' }), 'C:\\Users\\xdx\\AppData\\Local\\hermes\\SOUL.md');
+    assert.equal(platform('hermes').globalPromptPath('hermes', { os: 'win32' }), 'C:\\Users\\xdx\\.hermes\\SOUL.md');
   } finally {
     process.env.HOME = prevHome;
   }

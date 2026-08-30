@@ -52,7 +52,7 @@ test('windows opencode resolves under LOCALAPPDATA', () => {
   );
 });
 
-test('windows hermes resolves under LOCALAPPDATA', () => {
+test('windows hermes resolves under user home (.hermes)', () => {
   const opts = {
     scope: 'global',
     platformOS: 'win32',
@@ -61,7 +61,7 @@ test('windows hermes resolves under LOCALAPPDATA', () => {
   };
   assert.equal(
     resolveSkillsDir(platform('hermes'), opts),
-    'C:\\Users\\u\\AppData\\Local\\hermes\\skills',
+    'C:\\Users\\u\\.hermes\\skills',
   );
 });
 
@@ -80,13 +80,9 @@ test('resolveWindowsNativeSkillsDir maps home-based platforms under winRoot', ()
   assert.equal(resolveWindowsNativeSkillsDir(platform('vscode'), opts), '/mnt/c/Users/xdx/.copilot/skills');
 });
 
-test('resolveWindowsNativeSkillsDir maps localappdata platforms (hermes/opencode)', () => {
+test('resolveWindowsNativeSkillsDir maps localappdata platforms (opencode)', () => {
   const opts = { scope: 'global', winRoot: '/mnt/c/Users/xdx' };
-  // hermes / opencode 在 win 布局用 LOCALAPPDATA
-  assert.equal(
-    resolveWindowsNativeSkillsDir(platform('hermes'), opts),
-    '/mnt/c/Users/xdx/AppData/Local/hermes/skills',
-  );
+  // opencode 在 win 布局用 LOCALAPPDATA
   assert.equal(
     resolveWindowsNativeSkillsDir(platform('opencode'), opts),
     '/mnt/c/Users/xdx/AppData/Local/opencode/skills',
