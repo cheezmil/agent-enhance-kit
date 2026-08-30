@@ -60,14 +60,18 @@ function globalPromptPath(id, options = {}) {
     case 'codex':
       return joinPath(home, '.codex', 'AGENTS.md');
     case 'hermes':
-      if (win) {
-        const local = process.env.LOCALAPPDATA || joinPath(home, 'AppData', 'Local');
-        return joinPath(local, 'hermes', 'SOUL.md');
-      }
+      // Hermes 配置目录在 %USERPROFILE%\.hermes\（skills/config/SOUL.md 均在此），
+      // 与 Linux/macOS 的 ~/.hermes 布局一致，并不用 LOCALAPPDATA。
       return joinPath(home, '.hermes', 'SOUL.md');
     default:
       return '';
   }
+}
+
+// Hermes 在 Windows 原生除 %USERPROFILE%\.hermes\ 外，历史安装也可能落在
+// %USERPROFILE%\AppData\Local\hermes\。这里返回主路径之外的额外候选，部署时一并写入。
+function hermesWinAltTargets(winRoot) {
+  return [joinPath(winRoot, 'AppData', 'Local', 'hermes', 'SOUL.md')];
 }
 
 function globalPromptLabel(id) {
@@ -201,6 +205,8 @@ export const PLATFORMS = [
     name: 'Hermes Agent',
     globalPromptPath,
     globalPromptLabel,
+    // Hermes 在 Windows 原生可能有多个配置位置，全部写入以确保生效。
+    winAltTargets: hermesWinAltTargets,
   },
 ];
 
