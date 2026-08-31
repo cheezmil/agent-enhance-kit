@@ -71,6 +71,7 @@ packages/aek-mcp/bin/
 packages/aek-mcp/aek-mcp
 packages/aek-mcp/tmp/
 packages/aek-task-manager/bin/
+bin/
 
 # Platform subpackage binaries (esbuild-style, built by CI, not committed)
 packages/*/platforms/*/bin/
