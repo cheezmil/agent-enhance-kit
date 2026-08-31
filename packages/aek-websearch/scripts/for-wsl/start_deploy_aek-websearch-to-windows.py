@@ -9,7 +9,13 @@
   3. 直接把交叉编译好的 aek.exe 复制到 %USERPROFILE%\bin\（不依赖 npm postinstall，
      因为 npm 的 allow-scripts 机制会拦截 postinstall，导致 platforms/ 里的 Windows
      二进制从未被使用）
-  4. 确保 %USERPROFILE%\bin 已加入当前用户 PATH（持久化 + 当前会话）
+  4. 搜索 npm 全局 node_modules 下所有 aek-websearch.exe（平台子包二进制）并更新，
+     以及同步到 %USERPROFILE%\.aek\windows-bin\aek-websearch.exe。
+     这一步至关重要：aek 命令通过 JS wrapper 链（aek.ps1 → aek.js → aek-common →
+     aek-websearch.js → resolveBin → 平台子包 aek-websearch.exe）调用的是 npm 全局
+     安装的平台子包二进制，而非 %USERPROFILE%\bin\aek.exe。若不更新此处，aek 命令
+     仍会使用旧二进制。
+  5. 确保 %USERPROFILE%\bin 已加入当前用户 PATH（持久化 + 当前会话）
 """
 
 import subprocess
@@ -83,7 +89,7 @@ def main():
     print(f"  UNC源: {src}")
 
     # 1. 交叉编译 Windows 二进制（GOOS=windows 是关键，否则产出 Linux ELF）
-    print("[1/5] 交叉编译 Windows 版 aek.exe (GOOS=windows GOARCH=amd64)...")
+    print("[1/6] 交叉编译 Windows 版 aek.exe (GOOS=windows GOARCH=amd64)...")
     env = os.environ.copy()
     env["GOOS"] = "windows"
     env["GOARCH"] = "amd64"
@@ -97,21 +103,21 @@ def main():
     shutil.copy2(PKG_DIR / "bin" / "aek.exe", platforms_dir / "aek.exe")
     print("  已编译，并同步到 platforms/win32-x64/aek.exe")
 
-    # 2-5. 在 Windows 上复制、安装、配置 PATH
+    # 2-6. 在 Windows 上复制、安装、配置 PATH
     ps_script = f"""
 $ErrorActionPreference = 'Stop'
 $src = "{src}"
 $dest = Join-Path $env:TEMP "aek-websearch"
 if (Test-Path $dest) {{ Remove-Item $dest -Recurse -Force }}
-Write-Host "[2/5] 复制 Windows 二进制到临时目录..."
+Write-Host "[2/6] 复制 Windows 二进制到临时目录..."
 # 只复制 bin 目录（含 aek.exe），避免整包复制时被 node_modules 的坏符号链接(平台子包)阻断
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
 Copy-Item (Join-Path $src "bin") $dest -Recurse -Force
 
-Write-Host "[3/5] 卸载旧版全局包(如存在)..."
+Write-Host "[3/6] 卸载旧版全局包(如存在)..."
 npm uninstall -g aek-websearch 2>$null
 
-Write-Host "[4/5] 复制 aek.exe 到 %USERPROFILE%\\bin..."
+Write-Host "[4/6] 复制 aek.exe 到 %USERPROFILE%\\bin..."
 $userBin = Join-Path $env:USERPROFILE "bin"
 if (!(Test-Path $userBin)) {{ New-Item -ItemType Directory -Path $userBin | Out-Null }}
 $aekExe = Join-Path $dest "bin" "aek.exe"
@@ -122,7 +128,28 @@ if (Test-Path $aekExe) {{
     throw "未找到 Windows 二进制: $aekExe"
 }}
 
-Write-Host "[5/5] 确保 %USERPROFILE%\\bin 在当前用户 PATH 中..."
+Write-Host "[5/6] 同步到 npm 全局平台子包和 .aek\\windows-bin..."
+# 搜索 npm 全局 node_modules 下所有 aek-websearch.exe（平台子包二进制），全部更新。
+# aek 命令通过 JS wrapper 链最终调用的是平台子包里的 aek-websearch.exe，
+# 而非 %USERPROFILE%\\bin\\aek.exe，因此必须同步此处。
+$npmRoot = npm root -g 2>$null
+if ($npmRoot -and (Test-Path $npmRoot)) {{
+    $binExes = Get-ChildItem $npmRoot -Recurse -Filter "aek-websearch.exe" -File -ErrorAction SilentlyContinue
+    foreach ($binExe in $binExes) {{
+        Copy-Item $aekExe $binExe.FullName -Force
+        Write-Host "  已更新 npm 全局: $($binExe.FullName)"
+    }}
+    if (-not $binExes) {{ Write-Host "  未找到 npm 全局平台子包二进制（跳过）" }}
+}} else {{
+    Write-Host "  未找到 npm 全局目录（跳过）"
+}}
+# 同步到 .aek\\windows-bin（Hermes 同步目录）
+$aekWinBin = Join-Path $env:USERPROFILE ".aek\\windows-bin"
+if (!(Test-Path $aekWinBin)) {{ New-Item -ItemType Directory -Path $aekWinBin -Force | Out-Null }}
+Copy-Item $aekExe (Join-Path $aekWinBin "aek-websearch.exe") -Force
+Write-Host "  已更新: $aekWinBin\\aek-websearch.exe"
+
+Write-Host "[6/6] 确保 %USERPROFILE%\\bin 在当前用户 PATH 中..."
 $userBin = Join-Path $env:USERPROFILE "bin"
 # 用微软 pave 管理 PATH；未安装则自动 winget 安装
 if (!(Get-Command pave -ErrorAction SilentlyContinue)) {{
