@@ -1,0 +1,30 @@
+import { cli, Strategy } from '@cheezmil/aek-browser/registry';
+import { EmptyResultError } from '@cheezmil/aek-browser/errors';
+import { NOTEBOOKLM_DOMAIN, NOTEBOOKLM_SITE } from './shared.js';
+import { getNotebooklmPageState, getNotebooklmSummaryViaRpc, readNotebooklmSummaryFromPage, requireNotebooklmSession, } from './utils.js';
+cli({
+    site: NOTEBOOKLM_SITE,
+    name: 'summary',
+    access: 'read',
+    description: 'Get the summary block from the currently opened NotebookLM notebook',
+    domain: NOTEBOOKLM_DOMAIN,
+    strategy: Strategy.COOKIE,
+    browser: true,
+    navigateBefore: false,
+    args: [],
+    columns: ['title', 'summary', 'source', 'url'],
+    func: async (page) => {
+        await requireNotebooklmSession(page);
+        const state = await getNotebooklmPageState(page);
+        if (state.kind !== 'notebook') {
+            throw new EmptyResultError('AEK Browser notebooklm summary', 'No NotebookLM notebook is open in the adapter session. Run `aekb notebooklm open <notebook>` first.');
+        }
+        const domSummary = await readNotebooklmSummaryFromPage(page);
+        if (domSummary)
+            return [domSummary];
+        const rpcSummary = await getNotebooklmSummaryViaRpc(page).catch(() => null);
+        if (rpcSummary)
+            return [rpcSummary];
+        throw new EmptyResultError('AEK Browser notebooklm summary', 'NotebookLM summary was not found on the current page.');
+    },
+});
