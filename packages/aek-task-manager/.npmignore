@@ -1,0 +1,66 @@
+# Source code (only dist/ gets published)
+src/
+build.js
+tsconfig.json
+
+# Secrets / env
+.env
+.env.*
+.env*
+**/.env*
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# OpenCode
+.opencode/
+opencode.json
+
+# Git
+.git/
+.gitignore
+
+# Test / coverage
+coverage/
+*.test.ts
+*.spec.ts
+__tests__/
+eval/**/.pytest*/
+eval/**/.pytest-*/
+eval/**/.pytest_*/
+eval/.pytest-basetemp-*/
+eval/.pytest-tmp-*/
+eval/**/.tmp/
+eval/**/.cache/
+eval/**/.ruff_cache/
+eval/**/__pycache__/
+eval/**/logs/
+
+# Lock files
+pnpm-lock.yaml
+skills-lock.json
+
+# Logs
+*.log
+npm-debug.log*
+
+.agents/
+
+# Repository maintainer Skills are tracked under assets but are not part of the npm package
+assets/skills-maintainer/

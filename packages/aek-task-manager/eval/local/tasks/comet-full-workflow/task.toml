@@ -1,0 +1,24 @@
+[metadata]
+name = "comet-full-workflow"
+description = "Test Claude's ability to follow the full comet workflow (open → design → build → verify → archive)"
+difficulty = "hard"
+category = "comet"
+tags = ["comet", "workflow", "openspec", "full-cycle"]
+default_treatments = [
+    "CONTROL",
+    "COMET_FULL_040_BETA",
+    "COMET_FULL_039",
+]
+
+[template]
+required = []
+
+[environment]
+description = "Python workspace with openspec CLI and comet scripts pre-installed. Claude must execute a full comet workflow for a sample feature request."
+dockerfile = "environment/Dockerfile"
+timeout_sec = 900
+
+[validation]
+test_scripts = "test_full_workflow.py"
+target_artifacts = []
+timeout = 120

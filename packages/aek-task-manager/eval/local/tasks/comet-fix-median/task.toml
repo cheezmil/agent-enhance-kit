@@ -1,0 +1,24 @@
+[metadata]
+name = "comet-fix-median"
+description = "Fix a bug in the median() function of a stats library (even-length lists return the wrong value)"
+difficulty = "medium"
+category = "comet"
+tags = ["comet", "workflow", "bugfix", "debugging"]
+default_treatments = [
+    "CONTROL",
+    "COMET_FULL_040_BETA",
+    "COMET_FULL_039",
+]
+
+[template]
+required = []
+
+[environment]
+description = "Python stats library with a median bug. Claude must diagnose, fix, and verify via the comet workflow."
+dockerfile = "environment/Dockerfile"
+timeout_sec = 900
+
+[validation]
+test_scripts = "test_fix_median.py"
+target_artifacts = []
+timeout = 120

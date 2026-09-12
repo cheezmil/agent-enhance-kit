@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@cheezmil/aek-common": "workspace:*",
+    "@cheezmil/aek-browser": "workspace:*",
     "@cheezmil/aek-websearch": "workspace:*",
     "@cheezmil/aek-skill-manager": "workspace:*",
     "@cheezmil/aek-task-manager": "workspace:*",

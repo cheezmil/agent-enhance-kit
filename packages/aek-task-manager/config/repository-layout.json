@@ -1,0 +1,143 @@
+{
+  "assetsRoot": "assets",
+  "manifestPath": "assets/manifest.json",
+  "skillsRoots": {
+    "en": "assets/skills",
+    "zh": "assets/skills-zh"
+  },
+  "classicRuntime": {
+    "entries": {
+      "runtime": "domains/comet-classic/classic-cli.ts",
+      "state": "domains/comet-classic/classic-state-entry.ts",
+      "validate": "domains/comet-classic/classic-validate-entry.ts",
+      "guard": "domains/comet-classic/classic-guard-entry.ts",
+      "handoff": "domains/comet-classic/classic-handoff-entry.ts",
+      "archive": "domains/comet-classic/classic-archive-entry.ts",
+      "hookGuard": "domains/comet-classic/classic-hook-guard-entry.ts",
+      "intent": "domains/comet-classic/classic-intent-entry.ts",
+      "resume-probe": "domains/comet-classic/classic-resume-probe-entry.ts"
+    },
+    "outputs": {
+      "runtime": "assets/skills/comet/scripts/comet-runtime.mjs",
+      "state": "assets/skills/comet/scripts/comet-state.mjs",
+      "validate": "assets/skills/comet/scripts/comet-yaml-validate.mjs",
+      "guard": "assets/skills/comet/scripts/comet-guard.mjs",
+      "handoff": "assets/skills/comet/scripts/comet-handoff.mjs",
+      "archive": "assets/skills/comet/scripts/comet-archive.mjs",
+      "hookGuard": "assets/skills/comet/scripts/comet-hook-guard.mjs",
+      "intent": "assets/skills/comet/scripts/comet-intent.mjs",
+      "resume-probe": "assets/skills/comet/scripts/comet-resume-probe.mjs"
+    }
+  },
+  "nativeRuntime": {
+    "entries": {
+      "runtime": "domains/comet-native/native-cli-entry.ts",
+      "hookGuard": "domains/comet-native/native-hook-guard-entry.ts",
+      "init": "domains/comet-native/native-init-entry.ts",
+      "root": "domains/comet-native/native-root-entry.ts",
+      "new": "domains/comet-native/native-new-entry.ts",
+      "spec": "domains/comet-native/native-spec-entry.ts",
+      "show": "domains/comet-native/native-show-entry.ts",
+      "status": "domains/comet-native/native-status-entry.ts",
+      "select": "domains/comet-native/native-select-entry.ts",
+      "next": "domains/comet-native/native-next-entry.ts",
+      "archive": "domains/comet-native/native-archive-entry.ts",
+      "doctor": "domains/comet-native/native-doctor-entry.ts"
+    },
+    "outputs": {
+      "runtime": "assets/skills/comet-native/scripts/comet-native-runtime.mjs",
+      "hookGuard": "assets/skills/comet-native/scripts/comet-native-hook-guard.mjs",
+      "init": "assets/skills/comet-native/scripts/comet-native-init.mjs",
+      "root": "assets/skills/comet-native/scripts/comet-native-root.mjs",
+      "new": "assets/skills/comet-native/scripts/comet-native-new.mjs",
+      "spec": "assets/skills/comet-native/scripts/comet-native-spec.mjs",
+      "show": "assets/skills/comet-native/scripts/comet-native-show.mjs",
+      "status": "assets/skills/comet-native/scripts/comet-native-status.mjs",
+      "select": "assets/skills/comet-native/scripts/comet-native-select.mjs",
+      "next": "assets/skills/comet-native/scripts/comet-native-next.mjs",
+      "archive": "assets/skills/comet-native/scripts/comet-native-archive.mjs",
+      "doctor": "assets/skills/comet-native/scripts/comet-native-doctor.mjs"
+    }
+  },
+  "entryRuntime": {
+    "entries": {
+      "runtime": "domains/comet-entry/entry-runtime-entry.ts",
+      "hookRouter": "domains/comet-entry/hook-router-entry.ts"
+    },
+    "outputs": {
+      "runtime": "assets/skills/comet/scripts/comet-entry-runtime.mjs",
+      "hookRouter": "assets/skills/comet/scripts/comet-hook-router.mjs"
+    }
+  },
+  "allowedTopLevelEntries": [
+    ".agents",
+    ".claude",
+    ".codegraph",
+    ".codex",
+    ".comet",
+    ".git",
+    ".gitattributes",
+    ".github",
+    ".gitignore",
+    ".gitmodules",
+    ".husky",
+    ".idea",
+    ".npmignore",
+    ".prettierignore",
+    ".prettierrc",
+    ".superpowers",
+    ".tmp",
+    "AGENTS.md",
+    "app",
+    "assets",
+    "bin",
+    "build.js",
+    "CHANGELOG.md",
+    "CLAUDE.md",
+    "codecov.yml",
+    "config",
+    "CONTRIBUTING-zh.md",
+    "CONTRIBUTING.md",
+    "coverage",
+    "dist",
+    "docs",
+    "domains",
+    "eslint.config.js",
+    "eval",
+    "img",
+    "LICENSE",
+    "node_modules",
+    "nul",
+    "package-lock.json",
+    "package.json",
+    "platform",
+    "pnpm-lock.yaml",
+    "README-zh.md",
+    "README.md",
+    "scripts",
+    "skills-lock.json",
+    "test",
+    "tsconfig.json",
+    "website",
+    "vitest.config.ts"
+  ],
+  "sourceRoots": ["app", "domains", "platform"],
+  "appModules": ["cli", "commands"],
+  "domainModules": [
+    "bundle",
+    "comet-classic",
+    "comet-entry",
+    "comet-native",
+    "dashboard",
+    "engine",
+    "eval",
+    "factory",
+    "integrations",
+    "skill",
+    "workflow-contract"
+  ],
+  "platformModules": ["fs", "install", "paths", "process", "version"],
+  "scriptModules": ["benchmark", "build", "install", "lib", "lint", "release"],
+  "allowedCodeFiles": ["bin/fast-runtime-router.js"],
+  "testRoots": ["test"]
+}
