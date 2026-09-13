@@ -164,3 +164,38 @@ test('syncSkillFolders honours the selected subset', async (t) => {
   assert.deepEqual(result.copied, ['two']);
   assert.deepEqual((await readdir(targetDir)).sort(), ['two']);
 });
+
+test('listSkillFolders excludes .venv and node_modules directories', async (t) => {
+  const dir = await tmp('aek-skill-manager-exclude-');
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  // 写两个 skill
+  await writeSkill(dir, 'beta', { name: 'beta', description: 'Beta skill' });
+  await writeSkill(dir, 'alpha', { name: 'alpha', description: 'Alpha skill' });
+
+  // 在 skill 内嵌一个 .venv（应被忽略）
+  const venvDir = path.join(dir, 'beta', '.venv');
+  await mkdir(path.join(venvDir, 'lib', 'python3.11'), { recursive: true });
+  await writeFile(path.join(venvDir, 'lib', 'python3.11', 'test.py'), 'import sys');
+  await writeFile(path.join(venvDir, 'pyvenv.cfg'), 'version = 3.11.0');
+
+  // 在 skill 内嵌一个 node_modules（应被忽略）
+  const nmDir = path.join(dir, 'alpha', 'node_modules');
+  await mkdir(nmDir, { recursive: true });
+  await writeFile(path.join(nmDir, 'package.json'), '{"name":"foo"}');
+
+  const skills = await listSkillFolders(dir);
+  assert.deepEqual(skills.map((s) => s.name), ['alpha', 'beta']);
+
+  // .venv 和 node_modules 不应出现在目标目录中
+  const targetDir = await tmp('aek-skill-manager-exclude-tgt-');
+  t.after(() => rm(targetDir, { recursive: true, force: true }));
+  await syncSkillFolders({ sourceDir: dir, targetDir });
+
+  const betaEntries = await readdir(path.join(targetDir, 'beta'));
+  assert.ok(!betaEntries.includes('.venv'));
+  assert.ok(!betaEntries.includes('lib'));
+
+  const alphaEntries = await readdir(path.join(targetDir, 'alpha'));
+  assert.ok(!alphaEntries.includes('node_modules'));
+});

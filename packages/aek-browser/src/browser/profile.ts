@@ -11,7 +11,7 @@ export type ProfileConfig = {
 };
 
 function profileConfigPath(): string {
-  const baseDir = process.env.AEKB_CONFIG_DIR || path.join(os.homedir(), '.aekb');
+  const baseDir = process.env.AEKB_CONFIG_DIR || path.join(os.homedir(), '.aek/browser/system');
   return path.join(baseDir, 'browser-profiles.json');
 }
 

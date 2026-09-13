@@ -19,11 +19,11 @@ import { log } from './logger.js';
 import type { ManifestEntry } from './manifest-types.js';
 import { findPackageRoot, getCliManifestPath } from './package-paths.js';
 
-/** User runtime directory: ~/.aekb */
-export const USER_AEKB_DIR = path.join(os.homedir(), '.aekb');
-/** User CLIs directory: ~/.aekb/clis */
+/** User runtime directory: ~/.aek/browser/system */
+export const USER_AEKB_DIR = path.join(os.homedir(), '.aek/browser/system');
+/** User CLIs directory: ~/.aek/browser/system/clis */
 export const USER_CLIS_DIR = path.join(USER_AEKB_DIR, 'clis');
-/** Plugins directory: ~/.aekb/plugins/ */
+/** Plugins directory: ~/.aek/browser/system/plugins/ */
 export const PLUGINS_DIR = path.join(USER_AEKB_DIR, 'plugins');
 /** Matches files that register commands via cli() or lifecycle hooks */
 const PLUGIN_MODULE_PATTERN = /\b(?:cli|registerSiteAuthCommands|onStartup|onBeforeExecute|onAfterExecute)\s*\(/;
@@ -40,8 +40,8 @@ function parseStrategy(rawStrategy: string | undefined, fallback: Strategy = Str
 const PACKAGE_ROOT = findPackageRoot(fileURLToPath(import.meta.url));
 
 /**
- * Ensure ~/.aekb/node_modules/@cheezmil/aek-browser symlink exists so that
- * user CLIs in ~/.aekb/clis/ can `import { cli } from '@cheezmil/aek-browser/registry'`.
+ * Ensure ~/.aek/browser/system/node_modules/@cheezmil/aek-browser symlink exists so that
+ * user CLIs in ~/.aek/browser/system/clis/ can `import { cli } from '@cheezmil/aek-browser/registry'`.
  *
  * This is the sole resolution mechanism — adapters use package exports
  * (e.g. `@cheezmil/aek-browser/registry`, `@cheezmil/aek-browser/errors`) and
@@ -50,7 +50,7 @@ const PACKAGE_ROOT = findPackageRoot(fileURLToPath(import.meta.url));
 export async function ensureUserCliCompatShims(baseDir: string = USER_AEKB_DIR): Promise<void> {
   await fs.promises.mkdir(baseDir, { recursive: true });
 
-  // package.json for ESM resolution in ~/.aekb/
+  // package.json for ESM resolution in ~/.aek/browser/system/
   const pkgJsonPath = path.join(baseDir, 'package.json');
   const pkgJsonContent = `${JSON.stringify({ name: 'aekb-user-runtime', private: true, type: 'module' }, null, 2)}\n`;
   try {
@@ -84,7 +84,7 @@ export async function ensureUserCliCompatShims(baseDir: string = USER_AEKB_DIR):
 /**
  * Ensure the user adapters directory exists.
  *
- * With smart sync, ~/.aekb/clis/ only holds files that differ from the
+ * With smart sync, ~/.aek/browser/system/clis/ only holds files that differ from the
  * package baseline (upstream-synced cache + autofix output + user overrides).
  * Built-in adapters are loaded directly from the installed package.
  */
@@ -194,7 +194,7 @@ async function discoverClisFromFs(dir: string): Promise<void> {
 }
 
 /**
- * Discover and register plugins from ~/.aekb/plugins/.
+ * Discover and register plugins from ~/.aek/browser/system/plugins/.
  * Each subdirectory is treated as a plugin (site = directory name).
  * Files inside are scanned flat (no nested site subdirs).
  */

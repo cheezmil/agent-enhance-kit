@@ -1,0 +1,21 @@
+{
+  "args": { "limit": 3 },
+  "expect": {
+    "rowCount": { "min": 1, "max": 3 },
+    "columns": ["rank", "tid", "title", "url"],
+    "types": {
+      "rank": "number",
+      "tid": "string|null",
+      "title": "string",
+      "url": "string"
+    },
+    "patterns": {
+      "url": "^https://www\\\\.example\\\\.com/thread-"
+    },
+    "notEmpty": ["title", "url"],
+    "mustNotContain": {
+      "title": ["address:", "category:"]
+    },
+    "mustBeTruthy": ["rank"]
+  }
+}

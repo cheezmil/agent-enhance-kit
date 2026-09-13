@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- *.aekb — Make any website your CLI. AI-powered.
+ *.aek/browser/system — Make any website your CLI. AI-powered.
  */
 
 // Ensure standard system paths are available for child processes.
@@ -28,7 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 // Adapters are JS-first and live at <package-root>/clis/.
 // Use findPackageRoot so the path works both in dev (src/main.ts) and prod (dist/src/main.js).
 const BUILTIN_CLIS = path.join(findPackageRoot(__filename), 'clis');
-const USER_CLIS = path.join(os.homedir(), '.aekb', 'clis');
+const USER_CLIS = path.join(os.homedir(), '.aek/browser/system', 'clis');
 
 // ── Ultra-fast path: lightweight commands bypass full discovery ──────────
 // These are high-frequency or trivial paths that must not pay the startup tax.
@@ -52,7 +52,7 @@ if (!isIgnorableDaemonPortEnv(process.env.AEKB_DAEMON_PORT)) {
 }
 
 // Fast path: --version (only when it's the top-level intent, not passed to a subcommand)
-// e.g. .aekb --version` or .aekb -V`, but NOT .aekb gh --version`
+// e.g. .aek/browser/system --version` or .aek/browser/system -V`, but NOT .aek/browser/system gh --version`
 if (argv[0] === '--version' || argv[0] === '-V') {
   process.stdout.write(PKG_VERSION + '\n');
   process.exit(EXIT_CODES.SUCCESS);
@@ -110,7 +110,7 @@ installNodeNetwork();
 // Parallelise independent startup I/O:
 //  - Built-in adapter discovery has no dependency on user-dir setup.
 //  - ensureUserCliCompatShims and ensureUserAdapters operate on different paths
-//    (~/.aekb/node_modules/ vs ~/.aekb/clis/ + adapter-manifest.json).
+//    (~/.aek/browser/system/node_modules/ vs ~/.aek/browser/system/clis/ + adapter-manifest.json).
 //  - registerCommand() overwrites on name collision (see registry.ts), so
 //    user-CLI discovery MUST run after built-in discovery to preserve the
 //    intended override order (user adapters override built-in ones).
@@ -152,9 +152,9 @@ if (getCompIdx !== -1) {
   process.exit(EXIT_CODES.SUCCESS);
 }
 
-// Rewrite .aekb browser <session> <subcommand> ...` so commander (which
+// Rewrite .aek/browser/system browser <session> <subcommand> ...` so commander (which
 // can't combine a parent positional with subcommand dispatch) sees the internal
-// `--session <name>` flag form. Also refuses the retired .aekb browser
+// `--session <name>` flag form. Also refuses the retired .aek/browser/system browser
 // --session foo ...` user form with a friendly usage error.
 const { rewriteBrowserArgv, BrowserSessionArgvError, escapeLeadingDashPositional } = await import('./cli-argv-preprocess.js');
 try {

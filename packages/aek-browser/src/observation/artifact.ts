@@ -17,7 +17,7 @@ export interface ExportObservationOptions {
 }
 
 function baseOpenCliDir(): string {
-  return process.env.AEKB_CONFIG_DIR || path.join(os.homedir(), '.aekb');
+  return process.env.AEKB_CONFIG_DIR || path.join(os.homedir(), '.aek/browser/system');
 }
 
 function safeSegment(value: string | undefined): string {

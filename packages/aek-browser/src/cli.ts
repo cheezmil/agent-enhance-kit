@@ -265,7 +265,7 @@ function emitNetworkError(code: string, message: string, extra: Record<string, u
 
 /**
  * Check whether the site-memory scaffolding exists under
- * ~/.aekb/sites/<site>/. Agents have a strong tendency to forget to write
+ * ~/.aek/browser/system/sites/<site>/. Agents have a strong tendency to forget to write
  * endpoints.json / notes.md after a successful verify, which dooms the next
  * agent to redo recon from scratch. Surfacing the current state as part of
  * verify's final report converts that "silent skip" into a visible nudge;
@@ -345,7 +345,7 @@ function firstExistingSitemapPath(paths: string[], fileExists: (candidate: strin
 function sitemapPathsForSite(site: string, opts: Required<Pick<SitemapAvailabilityOptions, 'homeDir' | 'packageRoot' | 'fileExists'>>): { local?: string; global?: string } {
   const safeSite = site.replace(/[^a-zA-Z0-9_-]+/g, '-');
   if (!safeSite) return {};
-  const localBase = path.join(opts.homeDir, '.aekb', 'sites', safeSite);
+  const localBase = path.join(opts.homeDir, '.aek/browser/system', 'sites', safeSite);
   return {
     local: firstExistingSitemapPath([
       path.join(localBase, 'sitemap'),
@@ -418,7 +418,7 @@ function sitemapHintForBrowserUrl(url: string, scope: string, opts: { oncePerSes
 }
 
 export function checkSiteMemory(site: string): SiteMemoryReport {
-  const siteDir = path.join(os.homedir(), '.aekb', 'sites', site);
+  const siteDir = path.join(os.homedir(), '.aek/browser/system', 'sites', site);
   const endpointsPath = path.join(siteDir, 'endpoints.json');
   const notesPath = path.join(siteDir, 'notes.md');
   let endpointsCount = 0;
@@ -518,7 +518,7 @@ type BrowserTabSummary = {
 };
 
 function getBrowserCacheDir(): string {
-  return process.env.AEKB_CACHE_DIR || path.join(os.homedir(), '.aekb', 'cache');
+  return process.env.AEKB_CACHE_DIR || path.join(os.homedir(), '.aek/browser/system', 'cache');
 }
 
 function getBrowserTargetStatePath(scope: string): string {
@@ -2598,7 +2598,7 @@ Examples:
   // Default output is JSON (agent-native). Each entry carries a stable `key`
   // (GraphQL operationName or `METHOD host+pathname`) so agents can fetch
   // full bodies with `--detail <key>` even after subsequent commands.
-  // Captures are persisted per browser session under ~/.aekb/cache/browser-network/.
+  // Captures are persisted per browser session under ~/.aek/browser/system/cache/browser-network/.
 
   addBrowserTabOption(browser.command('network'))
     .option('--detail <key>', 'Emit full body for the entry with this key')
@@ -2860,7 +2860,7 @@ Examples:
 
   browser.command('init')
     .argument('<name>', 'Adapter name in site/command format (e.g. hn/top)')
-    .description('Generate adapter scaffold in ~/.aekb/clis/')
+    .description('Generate adapter scaffold in ~/.aek/browser/system/clis/')
     .action(async (name: string) => {
       try {
         const parts = name.split('/');
@@ -2879,7 +2879,7 @@ Examples:
         const os = await import('node:os');
         const fs = await import('node:fs');
         const path = await import('node:path');
-        const dir = path.join(os.homedir(), '.aekb', 'clis', site);
+        const dir = path.join(os.homedir(), '.aek/browser/system', 'clis', site);
         const filePath = path.join(dir, `${command}.js`);
 
         if (fs.existsSync(filePath)) {
@@ -2927,13 +2927,13 @@ cli({
 
   browser.command('verify')
     .argument('<name>', 'Adapter name in site/command format (e.g. hn/top)')
-    .option('--write-fixture', 'Write a starter fixture to ~/.aekb/sites/<site>/verify/<command>.json if none exists')
+    .option('--write-fixture', 'Write a starter fixture to ~/.aek/browser/system/sites/<site>/verify/<command>.json if none exists')
     .option('--update-fixture', 'Overwrite an existing fixture with one derived from current output')
     .option('--no-fixture', 'Ignore any fixture file for this run (no value-level validation)')
-    .option('--strict-memory', 'Fail (not just warn) when ~/.aekb/sites/<site>/endpoints.json or notes.md is missing')
+    .option('--strict-memory', 'Fail (not just warn) when ~/.aek/browser/system/sites/<site>/endpoints.json or notes.md is missing')
     .option('--seed-args <value>', 'Seed args when no fixture exists; use JSON array/object for multiple args or flags')
     .option('--trace <mode>', 'Trace capture for the adapter subprocess: off, on, retain-on-failure', 'off')
-    .description('Execute an adapter and validate output; uses fixture at ~/.aekb/sites/<site>/verify/<cmd>.json when present')
+    .description('Execute an adapter and validate output; uses fixture at ~/.aek/browser/system/sites/<site>/verify/<cmd>.json when present')
     .action(async (name: string, opts: { fixture?: boolean; writeFixture?: boolean; updateFixture?: boolean; strictMemory?: boolean; seedArgs?: string; trace?: string } = {}) => {
       try {
         const parts = name.split('/');
@@ -2947,7 +2947,7 @@ cli({
 
         const { execFileSync } = await import('node:child_process');
         const { loadFixture, writeFixture, deriveFixture, validateRows, validateRowShape, fixturePath, expandFixtureArgs, parseSeedArgs } = await import('./browser/verify-fixture.js');
-        const filePath = path.join(os.homedir(), '.aekb', 'clis', site, `${command}.js`);
+        const filePath = path.join(os.homedir(), '.aek/browser/system', 'clis', site, `${command}.js`);
         if (!fs.existsSync(filePath)) {
           console.error(`Adapter not found: ${filePath}`);
           console.error(`Run "aekb init ${name}" to create it.`);
@@ -3317,7 +3317,7 @@ cli({
     .description('Show which sites have local overrides vs using official baseline')
     .action(async () => {
       const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.aekb', 'clis');
+      const userClisDir = path.join(os.homedir(), '.aek/browser/system', 'clis');
       const builtinClisDir = BUILTIN_CLIS;
       try {
         const userEntries = await fs.promises.readdir(userClisDir, { withFileTypes: true });
@@ -3333,7 +3333,7 @@ cli({
           return;
         }
 
-        console.log(`Local overrides in ~/.aekb/clis/ (${userSites.length} sites):\n`);
+        console.log(`Local overrides in ~/.aek/browser/system/clis/ (${userSites.length} sites):\n`);
         for (const site of userSites) {
           const isOfficial = builtinSites.includes(site);
           const label = isOfficial ? 'override' : 'custom';
@@ -3347,11 +3347,11 @@ cli({
 
   adapterCmd
     .command('eject')
-    .description('Copy an official adapter to ~/.aekb/clis/ for local editing')
+    .description('Copy an official adapter to ~/.aek/browser/system/clis/ for local editing')
     .argument('<site>', 'Site name (e.g. twitter, bilibili)')
     .action(async (site: string) => {
       const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.aekb', 'clis');
+      const userClisDir = path.join(os.homedir(), '.aek/browser/system', 'clis');
       const builtinSiteDir = path.join(BUILTIN_CLIS, site);
       const builtinSharedDir = path.join(BUILTIN_CLIS, '_shared');
       const userSiteDir = path.join(userClisDir, site);
@@ -3366,14 +3366,14 @@ cli({
 
       try {
         await fs.promises.access(userSiteDir);
-        console.error(`Site "${site}" already exists in ~/.aekb/clis/. Use "aekb adapter reset ${site}" first to restore official version.`);
+        console.error(`Site "${site}" already exists in ~/.aek/browser/system/clis/. Use "aekb adapter reset ${site}" first to restore official version.`);
         process.exitCode = EXIT_CODES.USAGE_ERROR;
         return;
       } catch { /* good, doesn't exist yet */ }
 
       fs.cpSync(builtinSiteDir, userSiteDir, { recursive: true });
       copyEjectedRepoSharedDependencies(builtinSiteDir, builtinSharedDir, userClisDir);
-      console.log(`✅ Ejected "${site}" to ~/.aekb/clis/${site}/`);
+      console.log(`✅ Ejected "${site}" to ~/.aek/browser/system/clis/${site}/`);
       console.log('You can now edit the adapter files. Changes take effect immediately.');
       console.log('Note: Official updates to this adapter will overwrite your changes.');
     });
@@ -3385,7 +3385,7 @@ cli({
     .option('--all', 'Reset all local overrides')
     .action(async (site: string | undefined, opts: { all?: boolean }) => {
       const os = await import('node:os');
-      const userClisDir = path.join(os.homedir(), '.aekb', 'clis');
+      const userClisDir = path.join(os.homedir(), '.aek/browser/system', 'clis');
 
       if (opts.all) {
         try {

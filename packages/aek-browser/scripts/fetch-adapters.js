@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Sparse adapter sync: keeps ~/.aekb/clis/ clean by removing stale overrides.
+ * Sparse adapter sync: keeps ~/.aek/browser/system/clis/ clean by removing stale overrides.
  *
  * Strategy (hash-based, site-level granularity):
  * - When an official site has upstream changes: DELETE the local override
@@ -10,7 +10,7 @@
  * - User-created custom sites (not in package): always preserved
  * - Skips entirely if already synced at the same version
  *
- * ~/.aekb/clis/ is a sparse override layer, not a full copy.
+ * ~/.aek/browser/system/clis/ is a sparse override layer, not a full copy.
  * Only eject-ed or user-modified sites appear here.
  *
  * Only runs on global install (npm install -g) or explicit AEKB_FETCH=1.
@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 import { join, resolve, dirname, relative } from 'node:path';
 import { homedir } from 'node:os';
 
-const AEKB_DIR = join(homedir(), '.aekb');
+const AEKB_DIR = join(homedir(), '.aek/browser/system');
 const USER_CLIS_DIR = join(AEKB_DIR, 'clis');
 const MANIFEST_PATH = join(AEKB_DIR, 'adapter-manifest.json');
 const PACKAGE_ROOT = resolve(import.meta.dirname, '..');
@@ -159,7 +159,7 @@ export function fetchAdapters() {
 
   // 2. Sparse cleanup: for changed/removed official sites, delete local overrides.
   //    Do NOT copy new versions — runtime falls back to package baseline.
-  //    Only eject-ed sites live in ~/.aekb/clis/.
+  //    Only eject-ed sites live in ~/.aek/browser/system/clis/.
   let cleared = 0;
   for (const site of changedSites) {
     const siteDir = join(USER_CLIS_DIR, site);
@@ -204,9 +204,9 @@ export function fetchAdapters() {
   }
   if (yamlCleaned > 0) log(`Cleaned up ${yamlCleaned} stale .yaml adapter files`);
 
-  // 4. Clean up legacy compat shim files from ~/.aekb/
+  // 4. Clean up legacy compat shim files from ~/.aek/browser/system/
   // These were created by an older approach that placed re-export shims directly
-  // in ~/.aekb/ (e.g., registry.js, errors.js, browser/). The current approach
+  // in ~/.aek/browser/system/ (e.g., registry.js, errors.js, browser/). The current approach
   // uses a node_modules/@cheezmil/aek-b symlink instead.
   const LEGACY_SHIM_FILES = [
     'registry.js', 'errors.js', 'utils.js', 'launcher.js', 'logger.js', 'types.js',
