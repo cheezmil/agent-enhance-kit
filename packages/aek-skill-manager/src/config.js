@@ -84,6 +84,13 @@ async function ensureConfigFile(filePath) {
   }
 }
 
+// 在指定 home 下确保配置文件存在（用于跨系统调用：WSL 侧写 Windows 侧配置）
+export async function ensureConfigFileAt(home) {
+  const filePath = getConfigPath({ home });
+  if (existsSync(filePath)) return;
+  await ensureConfigFile(filePath);
+}
+
 export async function updateConfig(patch, options = {}) {
   const filePath = getConfigPath(options);
   let raw = '';
