@@ -85,7 +85,7 @@ function parseSiteFilter(raw: string | undefined): Set<string> | null {
 }
 
 function defaultAuthRefreshStatePath(): string {
-  return join(homedir(), '.aekb', 'auth-refresh.json');
+  return join(homedir(), '.aek/browser/system', 'auth-refresh.json');
 }
 
 function emptyAuthRefreshState(): AuthRefreshState {

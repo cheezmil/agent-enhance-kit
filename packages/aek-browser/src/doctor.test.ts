@@ -331,7 +331,7 @@ describe('doctor report rendering', () => {
     mockFindShadowedUserAdapters.mockReturnValueOnce([
       {
         name: 'instagram/saved',
-        userPath: '/home/me/.aekb/clis/instagram/saved.js',
+        userPath: '/home/me/.aek/browser/system/clis/instagram/saved.js',
         builtinPath: '/pkg/clis/instagram/saved.js',
       },
     ]);

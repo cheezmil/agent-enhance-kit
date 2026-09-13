@@ -3,21 +3,25 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-import { stat, cp, mkdir, rm, readdir } from 'node:fs/promises';
+import { stat, cp, mkdir, rm, readdir, readFile, writeFile } from 'node:fs/promises';
 
 import { checkbox, confirm, select } from '@inquirer/prompts';
 
 import {
+  MODEL_SENSITIVE_FIELDS,
   PLATFORMS,
   collectModelFields,
   listSkillFolders,
-  resolveSkillsDir,
   resolveCenterRepoDir,
+  resolveSkillsDir,
+  resolveWindowsNativeSkillsDir,
   syncFromCenterRepo,
   pullToCenterRepo,
   initCenterRepo,
   syncSkillFolders,
 } from './skills.js';
+import { loadConfig, getConfigPath } from './config.js';
+import { transferSync } from './transfer-station.js';
 
 const SCOPES = ['global', 'project'];
 
@@ -35,6 +39,8 @@ async function main() {
       await runInit(scope);
     } else if (command === 'sync') {
       await runSync(scope, commandArgs);
+    } else if (command === 'transfer-sync') {
+      await runTransferSync(commandArgs);
     } else if (command === 'pull') {
       await runPull(scope, commandArgs);
     } else if (command === 'remove') {
@@ -68,7 +74,7 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg.startsWith('--scope=')) {
       scope = arg.slice('--scope='.length);
-    } else if (command === null && (arg === 'init' || arg === 'sync' || arg === 'pull' || arg === 'remove')) {
+    } else if (command === null && (arg === 'init' || arg === 'sync' || arg === 'transfer-sync' || arg === 'pull' || arg === 'remove')) {
       command = arg;
     } else {
       commandArgs.push(arg);
@@ -86,6 +92,7 @@ function printUsage() {
   console.log('用法:');
   console.log('  aek sm sync                  从中心仓库同步 skill 到各工具');
   console.log('  aek sm sync --tools claude,cursor  同步到指定工具');
+  console.log('  aek sm transfer-sync         对齐 WSL 与 Windows 的中心仓库（以最新为准）');
   console.log('  aek sm pull <source>         从某个工具拉取 skill 到中心仓库');
   console.log('  aek sm remove <skill-name>...   从各工具中移除指定 skill（支持多个名称）');
   console.log('  aek sm remove --all             从各工具中移除全部 skill');
@@ -97,68 +104,144 @@ function printUsage() {
   console.log('');
   console.log('全局范围（默认）: ~/.aek/skill-manager/skills/ → 各工具 ~/.xxx/skills/');
   console.log('项目范围: ./.aek/skill-manager/skills/ → 各工具 ./.xxx/skills/');
+  console.log('配置文件: ~/.aek/skill-manager/settings.jsonc');
 }
 
 // ====== 子命令实现 ======
 
-// Ensure the four must-install system skills (aek-install-and-init, aek-prompt-manager,
-// aek-skill-manager, aek-task-manager) exist in the .system/ sub-directory of the center repo.
-// Sources (tried in order, first one that has the skill wins):
-//   源码仓库: <cwd>/skills/aek-system/（source of truth，开发时优先）
-//   npm 安装: <包内>/system-skills/（随 @cheezmil/aek-skill-manager 发布捆绑）
-const SYSTEM_SKILL_NAMES = ['aek-install-and-init', 'aek-mcp', 'aek-prompt-manager', 'aek-skill-manager', 'aek-task-manager', 'aek-websearch'];
+// 系统 skill 源目录名（开发仓库 skills/ 下）与包内捆绑目录名
+const SYSTEM_SKILL_SOURCE_DIR = 'aek-system-skill';
+
+// 系统 skill 安装目标：~/.aek/skill-manager/aek-system-skill/
+// 与 skills/、backup/ 平级，不再是 skills/.system/ 子目录
+async function getSystemSkillsDir(scope) {
+  const centerDir = resolveCenterRepoDir({ scope }); // .../skill-manager/skills
+  return path.join(centerDir, '..', SYSTEM_SKILL_SOURCE_DIR);
+}
+
+// 从源目录动态发现系统 skill（有什么装什么，不硬编码列表）
+async function discoverSystemSkills(sourceDir) {
+  const entries = await readdir(sourceDir, { withFileTypes: true }).catch(() => []);
+  const names = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    // 必须有 SKILL.md 才算 skill
+    if (existsSync(path.join(sourceDir, entry.name, 'SKILL.md'))) {
+      names.push(entry.name);
+    }
+  }
+  return names.sort();
+}
 
 async function ensureSystemSkills(scope) {
-  const centerDir = resolveCenterRepoDir({ scope });
-  const systemDir = path.join(centerDir, '.system');
+  const systemDir = await getSystemSkillsDir(scope);
 
-  // 候选源：源码仓库 CWD/skills/aek-system/（开发时 source of truth）或 npm 包内 system-skills/
-  const pkgDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'system-skills');
-  const repoDir = path.join(process.cwd(), 'skills', 'aek-system');
+  // 候选源：源码仓库 CWD/skills/aek-system-skill/（source of truth，开发时优先）或 npm 包内 aek-system-skill/
+  const pkgDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', SYSTEM_SKILL_SOURCE_DIR);
+  const repoDir = path.join(process.cwd(), 'skills', SYSTEM_SKILL_SOURCE_DIR);
   const candidates = [repoDir, pkgDir];
 
-  for (const name of SYSTEM_SKILL_NAMES) {
-    const srcDir = candidates.find((dir) => existsSync(path.join(dir, name)));
-    if (!srcDir) {
-      console.log(`[aek sm] 系统 skill 源未找到: ${name}（仅在源码仓库或 npm 安装后可用）`);
-      continue;
-    }
-    const src = path.join(srcDir, name);
+  // 找到第一个存在的源目录
+  const srcRoot = candidates.find((dir) => existsSync(dir));
+  if (!srcRoot) {
+    console.log(`[aek sm] 系统 skill 源未找到（尝试过: ${candidates.join(', ')}）`);
+    return;
+  }
+
+  const skillNames = await discoverSystemSkills(srcRoot);
+  if (skillNames.length === 0) {
+    console.log(`[aek sm] 系统 skill 源目录为空: ${srcRoot}`);
+    return;
+  }
+
+  for (const name of skillNames) {
+    const src = path.join(srcRoot, name);
     const dest = path.join(systemDir, name);
     try {
-      const srcStat = await stat(src);
-      if (srcStat.isDirectory()) {
-        await mkdir(systemDir, { recursive: true });
-        await cp(src, dest, { recursive: true, force: true });
-        console.log(`[aek sm] 系统 skill 已安装: ${name}`);
-      }
+      await mkdir(systemDir, { recursive: true });
+      await cp(src, dest, { recursive: true, force: true });
+      console.log(`[aek sm] 系统 skill 已安装: ${name}`);
     } catch (err) {
       console.log(`[aek sm] 系统 skill 安装失败: ${name} (${err.message})`);
     }
   }
 
-  // 清理 .system/ 中已不在 SYSTEM_SKILL_NAMES 的旧条目（如旧版 aek-mcp/aek-websearch）
-  await removeStaleSystemSkills(systemDir);
+  // 清理目标目录中已不在源列表的旧 skill
+  await removeStaleSystemSkills(systemDir, skillNames);
 }
 
-async function removeStaleSystemSkills(systemDir) {
+async function removeStaleSystemSkills(systemDir, currentNames) {
   let entries;
   try {
     entries = await readdir(systemDir, { withFileTypes: true });
   } catch {
-    return; // .system 不存在，无需清理
+    return; // 目录不存在，无需清理
   }
   for (const ent of entries) {
     if (!ent.isDirectory()) continue;
-    if (SYSTEM_SKILL_NAMES.includes(ent.name)) continue;
+    if (currentNames.includes(ent.name)) continue;
     await rm(path.join(systemDir, ent.name), { recursive: true, force: true });
     console.log(`[aek sm] 清理过期系统 skill: ${ent.name}`);
   }
 }
 
+// ====== transfer-sync ======
+
+async function runTransferSync(args) {
+  let force = false;
+  for (const arg of args) {
+    if (arg === '--force') force = true;
+  }
+  await doTransferSync({ force });
+}
+
+// 按配置决定是否自动执行 transfer-sync（sync 前）
+async function maybeTransferSync() {
+  const cfg = await loadConfig();
+  if (!cfg.transferSyncBeforeSync) {
+    return;
+  }
+  try {
+    await doTransferSync({ quiet: true });
+  } catch (err) {
+    console.log(`[aek sm] transfer-sync 自动执行失败（不影响后续 sync）: ${err.message}`);
+  }
+}
+
+async function doTransferSync({ force = false, quiet = false } = {}) {
+  const result = await transferSync({ force });
+
+  if (result.action === 'skipped') {
+    if (!quiet) console.log(`[aek sm] ${result.message}`);
+    return;
+  }
+
+  if (result.action === 'noop') {
+    if (!quiet) console.log(`[aek sm] 两边已一致，无需同步。`);
+    return;
+  }
+
+  const arrow = result.direction === 'local-to-peer' ? '本地 → 对侧' : '对侧 → 本地';
+  console.log(`[aek sm] transfer-sync: ${arrow}`);
+  console.log(`  源: ${formatPathForDisplay(result.sourceDir)}`);
+  console.log(`  目标: ${formatPathForDisplay(result.targetDir)}`);
+  if (result.backupDir) {
+    console.log(`  备份: ${formatPathForDisplay(result.backupDir)}`);
+  }
+}
+
+// 初始化中心仓库 + 生成默认配置文件
 async function runInit(scope) {
   const dir = await initCenterRepo({ scope });
   await ensureSystemSkills(scope);
+
+  // 生成默认 settings.jsonc（loadConfig 内部已处理不存在时自动生成）
+  await loadConfig();
+  const configPath = getConfigPath({ home: os.homedir() });
+  if (existsSync(configPath)) {
+    console.log(`[aek sm] 配置文件: ${formatPathForDisplay(configPath)}`);
+  }
+
   console.log(`[aek sm] 中心仓库已初始化: ${formatPathForDisplay(dir)}`);
   console.log(`[aek sm] 将 skill 目录放到 ${formatPathForDisplay(dir)}/ 下，`);
   console.log(`[aek sm] 然后运行 "aek sm sync" 同步到各工具。`);
@@ -178,10 +261,16 @@ async function runSync(scope, args) {
     }
   }
 
+  // 全局 scope 下，按配置先对齐 WSL ↔ Windows 中心仓库
+  if (scope === 'global') {
+    await maybeTransferSync();
+  }
+
   const centerDir = resolveCenterRepoDir({ scope });
   await ensureSystemSkills(scope);
   const centerSkills = await listSkillFolders(centerDir);
-  const systemSkills = await listSkillFolders(path.join(centerDir, '.system'));
+  const systemSkillsDir = await getSystemSkillsDir(scope);
+  const systemSkills = await listSkillFolders(systemSkillsDir);
 
   if (centerSkills.length === 0 && systemSkills.length === 0) {
     console.log(`[aek sm] 中心仓库为空: ${formatPathForDisplay(centerDir)}`);

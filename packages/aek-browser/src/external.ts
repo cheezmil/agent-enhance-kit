@@ -35,7 +35,7 @@ export interface ExternalCliConfig {
 
 function getUserRegistryPath(): string {
   const home = os.homedir();
-  return path.join(home, '.aekb', 'external-clis.yaml');
+  return path.join(home, '.aek/browser/system', 'external-clis.yaml');
 }
 
 let _cachedExternalClis: ExternalCliConfig[] | null = null;

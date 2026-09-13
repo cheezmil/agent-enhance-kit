@@ -867,7 +867,7 @@ describe('resolveSitemapAvailabilityForUrl', () => {
   it('detects local sitemap overlays using adapter registry domain matches', () => {
     const homeDir = path.join(os.tmpdir(), 'aekb-sitemap-home');
     const packageRoot = path.join(os.tmpdir(), 'aekb-sitemap-package');
-    const localSitemap = path.join(homeDir, '.aekb', 'sites', 'hackernews', 'sitemap');
+    const localSitemap = path.join(homeDir, '.aek/browser/system', 'sites', 'hackernews', 'sitemap');
     const exists = new Set([localSitemap]);
 
     const report = resolveSitemapAvailabilityForUrl('https://news.ycombinator.com/item?id=1', {
@@ -889,7 +889,7 @@ describe('resolveSitemapAvailabilityForUrl', () => {
   it('reports global+local when both sitemap layers exist', () => {
     const homeDir = path.join(os.tmpdir(), 'aekb-sitemap-home');
     const packageRoot = path.join(os.tmpdir(), 'aekb-sitemap-package');
-    const localSitemap = path.join(homeDir, '.aekb', 'sites', 'twitter', 'sitemap.md');
+    const localSitemap = path.join(homeDir, '.aek/browser/system', 'sites', 'twitter', 'sitemap.md');
     const globalSitemap = path.join(packageRoot, 'sitemaps', 'twitter');
     const exists = new Set([localSitemap, globalSitemap]);
 
@@ -933,7 +933,7 @@ describe('browser verify', () => {
     process.env.USERPROFILE = fakeHome;
 
     try {
-      const adapterDir = path.join(fakeHome, '.aekb', 'clis', 'hn');
+      const adapterDir = path.join(fakeHome, '.aek/browser/system', 'clis', 'hn');
       fs.mkdirSync(adapterDir, { recursive: true });
       fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
 
@@ -960,7 +960,7 @@ describe('browser verify', () => {
     process.env.USERPROFILE = fakeHome;
 
     try {
-      const adapterDir = path.join(fakeHome, '.aekb', 'clis', 'hn');
+      const adapterDir = path.join(fakeHome, '.aek/browser/system', 'clis', 'hn');
       fs.mkdirSync(adapterDir, { recursive: true });
       fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
 
@@ -988,14 +988,14 @@ describe('browser verify', () => {
     mockExecFileSync.mockReturnValue(JSON.stringify([{ title: 'ok' }]));
 
     try {
-      const adapterDir = path.join(fakeHome, '.aekb', 'clis', 'hn');
+      const adapterDir = path.join(fakeHome, '.aek/browser/system', 'clis', 'hn');
       fs.mkdirSync(adapterDir, { recursive: true });
       fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
 
       const program = createProgram('', '');
       await program.parseAsync(['node', 'aekb', 'browser', '--session', 'test', 'verify', 'hn/top', '--write-fixture', '--seed-args', 'aekb-verify']);
 
-      const fixtureFile = path.join(fakeHome, '.aekb', 'sites', 'hn', 'verify', 'top.json');
+      const fixtureFile = path.join(fakeHome, '.aek/browser/system', 'sites', 'hn', 'verify', 'top.json');
       const fixture = JSON.parse(fs.readFileSync(fixtureFile, 'utf-8'));
       expect(fixture.args).toEqual(['aekb-verify']);
       expect(fixture.expect.columns).toEqual(['title']);
@@ -1019,7 +1019,7 @@ describe('browser verify', () => {
     consoleLogSpy.mockClear();
 
     try {
-      const adapterDir = path.join(fakeHome, '.aekb', 'clis', 'hn');
+      const adapterDir = path.join(fakeHome, '.aek/browser/system', 'clis', 'hn');
       fs.mkdirSync(adapterDir, { recursive: true });
       fs.writeFileSync(path.join(adapterDir, 'top.js'), 'export default {};\n', 'utf-8');
 
@@ -1048,7 +1048,7 @@ describe('adapter eject', () => {
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'aekb-adapter-eject-home-'));
     const fakePackage = fs.mkdtempSync(path.join(os.tmpdir(), 'aekb-adapter-eject-package-'));
     const builtinClis = path.join(fakePackage, 'clis');
-    const userClis = path.join(fakeHome, '.aekb', 'clis');
+    const userClis = path.join(fakeHome, '.aek/browser/system', 'clis');
     vi.mocked(console.log).mockClear();
     process.env.HOME = fakeHome;
     process.env.USERPROFILE = fakeHome;

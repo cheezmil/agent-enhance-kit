@@ -8,10 +8,10 @@ import { execFile } from 'child_process';
 import { assertSpotifyCredentialsConfigured, getFirstSpotifyTrack, mapSpotifyTrackResults, parseDotEnv, resolveSpotifyCredentials, } from './utils.js';
 // ── Credentials ───────────────────────────────────────────────────────────────
 // Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET as environment variables,
-// or place them in ~/.aekb/spotify.env:
+// or place them in ~/.aek/browser/system/spotify.env:
 //   SPOTIFY_CLIENT_ID=your_id
 //   SPOTIFY_CLIENT_SECRET=your_secret
-const ENV_FILE = join(homedir(), '.aekb', 'spotify.env');
+const ENV_FILE = join(homedir(), '.aek/browser/system', 'spotify.env');
 function loadEnv() {
     if (!existsSync(ENV_FILE))
         return {};
@@ -29,7 +29,7 @@ const SCOPES = [
     'playlist-read-private',
 ].join(' ');
 // ── Token storage ─────────────────────────────────────────────────────────────
-const TOKEN_FILE = join(homedir(), '.aekb', 'spotify-tokens.json');
+const TOKEN_FILE = join(homedir(), '.aek/browser/system', 'spotify-tokens.json');
 function loadTokens() {
     try {
         return JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'));
@@ -39,7 +39,7 @@ function loadTokens() {
     }
 }
 function saveTokens(tokens) {
-    mkdirSync(join(homedir(), '.aekb'), { recursive: true });
+    mkdirSync(join(homedir(), '.aek/browser/system'), { recursive: true });
     writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
 }
 async function refreshAccessToken(refreshToken) {

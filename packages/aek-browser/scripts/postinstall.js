@@ -164,7 +164,7 @@ function main() {
   }
 
   // ── Spotify credentials template ────────────────────────────────────
-  const aekbDir = join(home, '.aekb');
+  const aekbDir = join(home, '.aek/browser/system');
   const spotifyEnvFile = join(aekbDir, 'spotify.env');
   ensureDir(aekbDir);
   if (!existsSync(spotifyEnvFile)) {

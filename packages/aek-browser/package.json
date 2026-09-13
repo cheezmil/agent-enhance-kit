@@ -30,7 +30,6 @@
   "files": [
     "dist/src/",
     "clis/",
-    "skills/aekb*/**",
     "cli-manifest.json",
     "scripts/"
   ],

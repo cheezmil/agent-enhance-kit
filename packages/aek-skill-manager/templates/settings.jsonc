@@ -1,0 +1,13 @@
+{
+  // aek-skill-manager 配置文件
+  // 位置：~/.aek/skill-manager/settings.jsonc（全局）
+
+  // 在 aek sm sync 前自动执行 transfer-sync，对齐 WSL 与 Windows 的中心仓库
+  "transferSyncBeforeSync": true,
+
+  // transfer-sync 覆盖前备份保留的份数（最近 N 个）
+  "transferBackupKeep": 3,
+
+  // 缓存探测到的 WSL 发行版名（Windows 侧使用），失效时自动清理重新探测
+  // "wslDistro": null
+}

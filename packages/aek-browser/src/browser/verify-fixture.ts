@@ -2,7 +2,7 @@
  * Verify fixture: structural expectations for `aekb browser verify` output.
  *
  * The adapter-author skill runbook says every published adapter must write a
- * fixture under `~/.aekb/sites/<site>/verify/<command>.json` so later verify
+ * fixture under `~/.aek/browser/system/sites/<site>/verify/<command>.json` so later verify
  * runs can catch shape regressions (missing columns, wrong types, bleeding
  * values) without relying on exact content match — BBS / news / market data is
  * too volatile for value equality.
@@ -108,7 +108,7 @@ const ID_SHAPED_KEY_PATTERNS = [
 ];
 
 export function fixturePath(site: string, command: string): string {
-  return path.join(os.homedir(), '.aekb', 'sites', site, 'verify', `${command}.json`);
+  return path.join(os.homedir(), '.aek/browser/system', 'sites', site, 'verify', `${command}.json`);
 }
 
 export function loadFixture(site: string, command: string): Fixture | null {

@@ -1,8 +1,8 @@
 /**
  * Plugin management: install, uninstall, and list plugins.
  *
- * Plugins live in ~/.aekb/plugins/<name>/.
- * Monorepo clones live in ~/.aekb/monorepos/<repo-name>/.
+ * Plugins live in ~/.aek/browser/system/plugins/<name>/.
+ * Monorepo clones live in ~/.aek/browser/system/monorepos/<repo-name>/.
  * Install source format: "github:user/repo", "github:user/repo/subplugin",
  * "https://github.com/user/repo", "file:///local/plugin", or a local directory path.
  */
@@ -34,12 +34,12 @@ function getHomeDir(): string {
 
 /** Path to the lock file that tracks installed plugin versions. */
 export function getLockFilePath(): string {
-  return path.join(getHomeDir(), '.aekb', 'plugins.lock.json');
+  return path.join(getHomeDir(), '.aek/browser/system', 'plugins.lock.json');
 }
 
-/** Monorepo clones directory: ~/.aekb/monorepos/ */
+/** Monorepo clones directory: ~/.aek/browser/system/monorepos/ */
 export function getMonoreposDir(): string {
-  return path.join(getHomeDir(), '.aekb', 'monorepos');
+  return path.join(getHomeDir(), '.aek/browser/system', 'monorepos');
 }
 
 export type PluginSourceRecord =
@@ -195,7 +195,7 @@ function resolveStoredPluginSource(lockEntry: LockEntry | undefined, pluginDir: 
 /**
  * Move a directory, with EXDEV fallback.
  * fs.renameSync fails when source and destination are on different
- * filesystems (e.g. /tmp → ~/.aekb). In that case we copy then remove.
+ * filesystems (e.g. /tmp → ~/.aek/browser/system). In that case we copy then remove.
  */
 type MoveDirFsOps = Pick<typeof fs, 'renameSync' | 'cpSync' | 'rmSync'>;
 

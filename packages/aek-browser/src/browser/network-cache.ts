@@ -45,7 +45,7 @@ export interface NetworkCacheFile {
 }
 
 function getDefaultCacheDir(): string {
-    return process.env.AEKB_CACHE_DIR || path.join(os.homedir(), '.aekb', 'cache');
+    return process.env.AEKB_CACHE_DIR || path.join(os.homedir(), '.aek/browser/system', 'cache');
 }
 
 export function getCachePath(session: string, baseDir: string = getDefaultCacheDir()): string {

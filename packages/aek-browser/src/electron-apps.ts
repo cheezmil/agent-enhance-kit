@@ -2,7 +2,7 @@
  * Electron app registry — maps site names to launch metadata.
  *
  * Builtin apps are defined here. User-defined apps are loaded
- * from ~/.aekb/apps.yaml (additive only, does not override builtins).
+ * from ~/.aek/browser/system/apps.yaml (additive only, does not override builtins).
  */
 
 import * as fs from 'node:fs';
@@ -90,7 +90,7 @@ function ensureLoaded(): Record<string, ElectronAppEntry> {
 
   let userApps: Record<string, ElectronAppEntry> | undefined;
   try {
-    const yamlPath = path.join(os.homedir(), '.aekb', 'apps.yaml');
+    const yamlPath = path.join(os.homedir(), '.aek/browser/system', 'apps.yaml');
     if (fs.existsSync(yamlPath)) {
       const content = fs.readFileSync(yamlPath, 'utf-8');
       const parsed = yaml.load(content) as { apps?: Record<string, ElectronAppEntry> };

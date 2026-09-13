@@ -32,7 +32,7 @@ function getHomeDir() {
     return process.env.HOME || process.env.USERPROFILE || os.homedir();
 }
 function getLinuxDoCacheDir() {
-    return testCacheDirOverride ?? path.join(getHomeDir(), '.aekb', 'cache', 'linux-do');
+    return testCacheDirOverride ?? path.join(getHomeDir(), '.aek/browser/system', 'cache', 'linux-do');
 }
 function getMetadataCachePath(name) {
     return path.join(getLinuxDoCacheDir(), `${name}.json`);

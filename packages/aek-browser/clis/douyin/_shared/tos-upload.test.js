@@ -127,7 +127,7 @@ describe('resume state read/write', () => {
 });
 // ── getResumeFilePath ────────────────────────────────────────────────────────
 describe('getResumeFilePath', () => {
-    it('returns a path inside ~/.aekb/douyin-resume/', () => {
+    it('returns a path inside ~/.aek/browser/system/douyin-resume/', () => {
         const result = getResumeFilePath('/some/video/file.mp4');
         expect(result).toContain('douyin-resume');
         expect(result).toMatch(/\.json$/);

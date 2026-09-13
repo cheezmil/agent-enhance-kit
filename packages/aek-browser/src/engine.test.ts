@@ -409,7 +409,7 @@ version: 1
   });
 
   it('handles non-existent plugins directory gracefully', async () => {
-    // discoverPlugins should not throw if ~/.aekb/plugins/ does not exist
+    // discoverPlugins should not throw if ~/.aek/browser/system/plugins/ does not exist
     await expect(discoverPlugins()).resolves.not.toThrow();
   });
 

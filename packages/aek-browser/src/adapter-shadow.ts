@@ -44,7 +44,7 @@ function loadBuiltinCommandFiles(builtinClisDir: string): Set<string> {
 }
 
 export function findShadowedUserAdapters(opts: AdapterShadowOptions = {}): AdapterShadow[] {
-  const userClisDir = opts.userClisDir ?? path.join(os.homedir(), '.aekb', 'clis');
+  const userClisDir = opts.userClisDir ?? path.join(os.homedir(), '.aek/browser/system', 'clis');
   const builtinClisDir = opts.builtinClisDir ?? defaultBuiltinClisDir();
   const builtinCommandFiles = loadBuiltinCommandFiles(builtinClisDir);
   const shadows: AdapterShadow[] = [];
@@ -82,6 +82,6 @@ export function formatAdapterShadowIssue(shadows: AdapterShadow[]): string {
   if (shadows.length > visible.length) {
     lines.push(`  ... and ${shadows.length - visible.length} more`);
   }
-  lines.push('Remove the local ~/.aekb/clis copy, or run aekb adapter reset <site>, when you want packaged updates.');
+  lines.push('Remove the local ~/.aek/browser/system/clis copy, or run aekb adapter reset <site>, when you want packaged updates.');
   return lines.join('\n');
 }

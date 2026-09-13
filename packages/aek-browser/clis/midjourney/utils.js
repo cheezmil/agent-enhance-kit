@@ -17,7 +17,7 @@ export const MIDJOURNEY_IMAGINE_URL = `${MIDJOURNEY_URL}/imagine`;
 export const MIDJOURNEY_CDN = 'https://cdn.midjourney.com';
 export const COMPOSER_SELECTOR = '#desktop_input_bar';
 export const CREDITS_PER_FAST_MINUTE = 60_000;
-export const MIDJOURNEY_SITE_DIR = path.join(os.homedir(), '.aekb', 'sites', 'midjourney');
+export const MIDJOURNEY_SITE_DIR = path.join(os.homedir(), '.aek/browser/system', 'sites', 'midjourney');
 export const USAGE_SNAPSHOT_PATH = path.join(MIDJOURNEY_SITE_DIR, 'usage-snapshots.jsonl');
 export const IMAGE_EXTENSIONS = new Map([
   ['.png', 'image/png'],

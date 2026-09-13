@@ -264,6 +264,34 @@ export const PLATFORMS = [
   },
 ];
 
+// 同步时应跳过的目录名（虚拟环境、依赖、缓存等），不参与 list/copy/compare
+export const SYNC_EXCLUDE_DIRS = new Set([
+  'node_modules',
+  '.venv',
+  'venv',
+  '__pycache__',
+  '.git',
+  '.gitignore',
+  '.DS_Store',
+  '.npm',
+  '.yarn',
+  '.pnpm-store',
+  '.cache',
+  '.tox',
+  '.pytest_cache',
+  '.mypy_cache',
+  '.ruff_cache',
+  '.eggs',
+  'dist',
+  'build',
+  '.output',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  '.vercel',
+  '.turbo',
+]);
+
 // Frontmatter fields that bind a skill to a specific model/inference behaviour.
 // These are Claude Code extensions; other platforms use different model
 // families, so the values are meaningless after a cross-platform sync and must
@@ -298,10 +326,10 @@ export async function syncFromCenterRepo(options = {}) {
   const centerDir = resolveCenterRepoDir({ scope });
   let centerSkills = await listSkillFolders(centerDir);
 
-  // Also scan the .system/ sub-directory for project-bundled system skills.
-  // The system skills (aek-mcp, aek-websearch, aek-skill-manager) are defined in
-  // the project's skills/ directory and auto-copied to .system/ by `aek sm init`.
-  const systemDir = path.join(centerDir, '.system');
+  // Also scan the aek-system-skill/ directory (sibling of skills/) for system skills.
+  // The system skills are defined in the project's skills/aek-system-skill/ and auto-copied
+  // to <skill-manager-root>/aek-system-skill/ by `aek sm init` / `aek sm sync`.
+  const systemDir = path.resolve(path.join(centerDir, '..', 'aek-system-skill'));
   const systemSkills = await listSkillFolders(systemDir);
   centerSkills = [...centerSkills, ...systemSkills];
 
@@ -509,6 +537,10 @@ export async function listSkillFolders(dir) {
     if (!entry.isDirectory()) {
       continue;
     }
+    // 排除虚拟环境、依赖、缓存等目录，避免把 .venv / node_modules 同步到各工具目录
+    if (SYNC_EXCLUDE_DIRS.has(entry.name)) {
+      continue;
+    }
     const skillPath = path.join(dir, entry.name);
     const frontmatter = await readSkillFrontmatter(skillPath);
     if (frontmatter === null) {
@@ -551,10 +583,16 @@ export function collectModelFields(skillFolders) {
 // drvfs 挂载（/mnt/c，即 Windows 原生盘）上不兼容该语义，会抛 EPERM。改用逐文件
 // readFile -> writeFile 的字节复制，跨 ext4/drvfs/本地边界都稳定（skill 均为纯文本，
 // 无需保留 mode/时间戳）。
+//
+// 跳过虚拟环境、依赖、缓存等目录（由 SYNC_EXCLUDE_DIRS 定义），避免把 .venv / node_modules
+// 等无关内容同步到 AI 工具目录。
 export async function copySkillFolder(srcDir, destDir) {
   await mkdir(destDir, { recursive: true });
   const entries = await readdir(srcDir, { withFileTypes: true });
   for (const entry of entries) {
+    if (entry.isDirectory() && SYNC_EXCLUDE_DIRS.has(entry.name)) {
+      continue;
+    }
     const src = path.join(srcDir, entry.name);
     const dest = path.join(destDir, entry.name);
     if (entry.isDirectory()) {

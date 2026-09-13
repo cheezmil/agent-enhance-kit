@@ -41,7 +41,7 @@ import { resolveAdapterSourcePath } from './adapter-source.js';
 const _loadedModules = new Map<string, Promise<void>>();
 /** Track mtime of loaded user adapter files for hot-reload in daemon mode. */
 const _moduleMtimes = new Map<string, number>();
-const _userClisDir = `${os.homedir()}/.aekb/clis/`;
+const _userClisDir = `${os.homedir()}/.aek/browser/system/clis/`;
 
 type TraceMode = 'off' | 'on' | 'retain-on-failure';
 
