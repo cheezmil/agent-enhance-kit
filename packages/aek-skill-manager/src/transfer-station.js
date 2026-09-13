@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek-common';
 import { CENTER_REPO_NAME, copySkillFolder, SYNC_EXCLUDE_DIRS } from './skills.js';
-import { loadConfig, updateConfig } from './config.js';
+import { loadConfig, updateConfig, ensureConfigFileAt } from './config.js';
 
 // 需要排除的目录/文件（不参与同步与 mtime 比较）
 // 备份目录（skills.bak.*）与 skills 同级，不在扫描范围内；settings.jsonc 同理。
@@ -231,6 +231,12 @@ export async function transferSync(options = {}) {
   if (!peerDir) {
     return { action: 'skipped', reason: 'no-peer', message: '无法确定对侧中心仓库路径（非 WSL/Windows 组合）' };
   }
+
+  // 两边配置文件都确保存在（WSL 侧时顺手生成 Windows 侧，反之亦然）
+  // peerDir 形如 /mnt/c/Users/<u>/.aek/skill-manager/skills 或 \\wsl.localhost\<d>\home\<u>\.aek\skill-manager\skills
+  // 从 peerDir 提取对侧 home：去掉尾部 /.aek/skill-manager/skills
+  const peerHome = peerDir.split(/[/\\]\.aek[/\\]/)[0];
+  await ensureConfigFileAt(peerHome).catch(() => {});
 
   // 确保本地目录存在
   await mkdir(localDir, { recursive: true });
