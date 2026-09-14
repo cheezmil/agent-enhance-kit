@@ -18,6 +18,7 @@
   "type": "module",
   "main": "src/cli.js",
   "bin": {
+    "aekpm": "./bin/aekpm.js",
     "aek-prompt-manager": "./bin/aek-prompt-manager.js"
   },
   "engines": {
