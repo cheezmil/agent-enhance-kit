@@ -61,7 +61,7 @@ aekpm pr gen <agent>
 
 ```text
 <PROJECT>/.aek/prompt-manager/project-rules/
-├── all-agent-must-comply.md
+├── ALL-AGENTS-MUST-COMPLY.md
 ├── for-certain-agents/           # 每个 agent 一个子目录，目录名 = 目标相对路径（'/'->'@'，'.'->'#'，保留大小写）
 │   ├── AGENTS#md/                # -> AGENTS.md：CODEX.md / QODER.md / PI.md / DEEPSEEK-HARNESS.md / OPENCLAW.md / ZCODE.md / OPENCODE.md
 │   ├── HERMES#md/HERMES.md       # -> HERMES.md
@@ -104,7 +104,7 @@ aekpm pr gen <agent>
     └── opencode.mjs
 ```
 
-`aekpm pr init` 只创建缺失文件；`all-agent-must-comply.md` 和 `for-certain-agents/**/*.md` 初始为空，不写注释或模板废话。
+`aekpm pr init` 只创建缺失文件；`ALL-AGENTS-MUST-COMPLY.md` 和 `for-certain-agents/**/*.md` 初始为空，不写注释或模板废话。
 
 生成目标：
 
@@ -135,14 +135,27 @@ aekpm pr gen <agent>
 
 `aekpm pr gen` 使用目标去重，所以共享 `AGENTS.md` 的 agent（如 `codex` / `openclaw` / `qoder` / `pi` / `deepseek-harness` / `zcode`）不会重复写入同一个 block。
 
-项目规则 managed block：
+项目规则 managed block（以 AGENTS.md 为例，子块按源文件名 A-Z 排列）：
 
 ```text
-<!-- head-aek-project-rules -->
-<all-agent-must-comply.md>
-<for-certain-agents/<目标相对路径（'/'->'@'，'.'->'#'）>/<agent>.md>
-<!-- end-aek-project-rules -->
+<!-- head-aek-prompt-manager -->
+<ALL-AGENTS-MUST-COMPLY.md 的内容，全文件只此一份>
+
+<!-- head-codex -->
+<AGENTS#md/CODEX.md 的内容>
+<!-- end-codex -->
+
+<!-- head-deepseek-harness -->
+<AGENTS#md/DEEPSEEK-HARNESS.md 的内容>
+<!-- end-deepseek-harness -->
+
+...
+<!-- end-aek-prompt-manager -->
 ```
+
+- `pr gen <agent>` 只更新外壳（含 ALL-AGENTS-MUST-COMPLY 内容）与自己的 `head-<agent>` 子块，其他子块原样保留。
+- `pr gen all` 重写全部子块。
+- 旧格式 `head/end-aek-project-rules` 会被自动迁移为新格式。
 
 ## Supported Global Prompt Tools
 

@@ -72,12 +72,12 @@ test('init creates empty project-rules source and wrapper scripts', async () => 
   try {
     await withCwd(root, async () => {
       const res = await initProjectRules();
-      assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'all-agent-must-comply.md'))));
+      assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'ALL-AGENTS-MUST-COMPLY.md'))));
       for (const agent of EXPECTED_AGENTS) {
         assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', agentSourceRelPath(agent)))), `missing ${agent}.md`);
         assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'scripts', `${agent}.mjs`))), `missing ${agent}.mjs`);
       }
-      assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'all-agent-must-comply.md'), 'utf8'), '');
+      assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'ALL-AGENTS-MUST-COMPLY.md'), 'utf8'), '');
       assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'CLAUDE#md', 'CLAUDE.md'), 'utf8'), '');
       const script = await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'scripts', 'codex.mjs'), 'utf8');
       assert.match(script, /aekpm[\s\S]*pr[\s\S]*gen[\s\S]*codex/s);
@@ -98,7 +98,7 @@ test('gen creates managed project prompt files and is idempotent', async () => {
       assert.equal(first.generated, 1);
       assert.equal(first.writes.length, 1);
       const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
-      assert.match(agents, /head-aek-project-rules/);
+      assert.match(agents, /head-aek-prompt-manager/);
       assert.match(agents, /codex extra/);
 
       await writeFile(join(root, 'AGENTS.md'), '# user\n\n' + agents + '\n# tail\n', 'utf8');
@@ -126,7 +126,7 @@ test('claude does not fall back to codex source', async () => {
       await generateProjectRules('claude');
       const claude = await readFile(join(root, 'CLAUDE.md'), 'utf8');
       assert.doesNotMatch(claude, /only codex/);
-      assert.match(claude, /head-aek-project-rules/);
+      assert.match(claude, /head-aek-prompt-manager/);
     });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -157,13 +157,13 @@ test('all-agent targets are generated once even when agents share AGENTS.md', as
   try {
     await withCwd(root, async () => {
       await initProjectRules();
-      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'all-agent-must-comply.md'), '# shared project rules\n', 'utf8');
+      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'ALL-AGENTS-MUST-COMPLY.md'), '# shared project rules\n', 'utf8');
 
       const res = await generateProjectRules('all');
       const agentsWrites = res.writes.filter((w) => w.target.endsWith(join('AGENTS.md')));
       assert.equal(agentsWrites.length, 1);
       const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
-      assert.equal((agents.match(/head-aek-project-rules/g) || []).length, 1);
+      assert.equal((agents.match(/head-aek-prompt-manager/g) || []).length, 1);
       assert.match(agents, /# shared project rules/);
     });
   } finally {
@@ -173,4 +173,79 @@ test('all-agent targets are generated once even when agents share AGENTS.md', as
 
 test('PR_ROOT_DIR uses hyphens and all-agent source name', () => {
   assert.equal(PR_ROOT_DIR, 'project-rules');
+});
+
+test('gen writes per-agent sub-blocks sorted A-Z inside one managed block', async () => {
+  const root = join(tmpdir(), 'aekpr-subblocks-' + Date.now());
+  try {
+    await withCwd(root, async () => {
+      await initProjectRules();
+      const pr = join(root, '.aek', 'prompt-manager', 'project-rules');
+      await writeFile(join(pr, 'ALL-AGENTS-MUST-COMPLY.md'), '# shared\n', 'utf8');
+      await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex part\n', 'utf8');
+      await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'QODER.md'), '# qoder part\n', 'utf8');
+
+      await generateProjectRules('all');
+      const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
+      // 只有一个外层块
+      assert.equal((agents.match(/head-aek-prompt-manager/g) || []).length, 1);
+      assert.equal((agents.match(/end-aek-prompt-manager/g) || []).length, 1);
+      // all 内容只出现一次
+      assert.equal((agents.match(/# shared/g) || []).length, 1);
+      // 子块存在且按文件名 A-Z 排列（CODEX < QODER）
+      const codexIdx = agents.indexOf('<!-- head-codex -->');
+      const qoderIdx = agents.indexOf('<!-- head-qoder -->');
+      assert.ok(codexIdx !== -1 && qoderIdx !== -1);
+      assert.ok(codexIdx < qoderIdx);
+      assert.match(agents, /<!-- end-codex -->/);
+      assert.match(agents, /# codex part/);
+      assert.match(agents, /# qoder part/);
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('gen single agent updates only its own sub-block and keeps others', async () => {
+  const root = join(tmpdir(), 'aekpr-incr-' + Date.now());
+  try {
+    await withCwd(root, async () => {
+      await initProjectRules();
+      const pr = join(root, '.aek', 'prompt-manager', 'project-rules');
+      await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex v1\n', 'utf8');
+      await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'QODER.md'), '# qoder v1\n', 'utf8');
+      await generateProjectRules('all');
+
+      // 单 agent 更新：codex 变 v2，qoder 必须原样保留
+      await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex v2\n', 'utf8');
+      await generateProjectRules('codex');
+      const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
+      assert.match(agents, /# codex v2/);
+      assert.doesNotMatch(agents, /# codex v1/);
+      assert.match(agents, /# qoder v1/);
+      assert.equal((agents.match(/head-aek-prompt-manager/g) || []).length, 1);
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('legacy head-aek-project-rules block is migrated to new format', async () => {
+  const root = join(tmpdir(), 'aekpr-legacy-' + Date.now());
+  try {
+    await withCwd(root, async () => {
+      await initProjectRules();
+      await writeFile(join(root, 'AGENTS.md'), '# user\n\n<!-- head-aek-project-rules -->\nold stuff\n<!-- end-aek-project-rules -->\n', 'utf8');
+      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex new\n', 'utf8');
+      await generateProjectRules('codex');
+      const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
+      assert.match(agents, /^# user/);
+      assert.match(agents, /head-aek-prompt-manager/);
+      assert.doesNotMatch(agents, /head-aek-project-rules/);
+      assert.doesNotMatch(agents, /old stuff/);
+      assert.match(agents, /# codex new/);
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
