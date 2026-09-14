@@ -20,7 +20,8 @@ export type Action =
   | 'network-capture-read'
   | 'wait-download'
   | 'cdp'
-  | 'frames';
+  | 'frames'
+  | 'ext-reload';
 
 export interface Command {
   /** Unique request ID */

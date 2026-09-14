@@ -283,6 +283,16 @@ export const PLATFORMS = [
     winBase: 'home',
     projectPath: ['.trae', 'skills'],
   },
+  {
+    id: 'trae-cn',
+    name: 'Trae-CN',
+    keywords: ['trae-cn', 'trae cn', 'bytedance', 'trae chinese'],
+    docs: 'https://www.trae.cn',
+    unixPath: ['.trae-cn', 'skills'],
+    winPath: ['.trae-cn', 'skills'],
+    winBase: 'home',
+    projectPath: ['.trae-cn', 'skills'],
+  },
 ];
 
 // 同步时应跳过的目录名（虚拟环境、依赖、缓存等），不参与 list/copy/compare

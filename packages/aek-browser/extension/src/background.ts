@@ -1361,6 +1361,9 @@ async function handleCommand(cmd: Command): Promise<Result> {
         return await handleWaitDownload(cmd);
       case 'frames':
         return await handleFrames(cmd, leaseKey);
+      case 'ext-reload':
+        chrome.runtime.reload();
+        return { id: cmd.id, ok: true };
       default:
         return { id: cmd.id, ok: false, error: `Unknown action: ${cmd.action}` };
     }

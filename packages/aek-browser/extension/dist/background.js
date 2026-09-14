@@ -1,18 +1,20 @@
-const DAEMON_PORT = 19825;
-const DAEMON_HOST = "localhost";
-const DAEMON_WS_URL = `ws://${DAEMON_HOST}:${DAEMON_PORT}/ext`;
-const DAEMON_PING_URL = `http://${DAEMON_HOST}:${DAEMON_PORT}/ping`;
+// extension/src/protocol.ts
+var DAEMON_PORT = 19825;
+var DAEMON_HOST = "localhost";
+var DAEMON_WS_URL = `ws://${DAEMON_HOST}:${DAEMON_PORT}/ext`;
+var DAEMON_PING_URL = `http://${DAEMON_HOST}:${DAEMON_PORT}/ping`;
 
-const attached = /* @__PURE__ */ new Set();
-const tabFrameContexts = /* @__PURE__ */ new Map();
-const frameTargets = /* @__PURE__ */ new Map();
-const frameTargetKeys = /* @__PURE__ */ new Map();
-let frameTargetCleanupRegistered = false;
-const CDP_RESPONSE_BODY_CAPTURE_LIMIT = 8 * 1024 * 1024;
-const CDP_REQUEST_BODY_CAPTURE_LIMIT = 1 * 1024 * 1024;
-const networkCaptures = /* @__PURE__ */ new Map();
-const CDP_COMMAND_TIMEOUT_MS = 6e4;
-const CDP_PROBE_TIMEOUT_MS = 2e3;
+// extension/src/cdp.ts
+var attached = /* @__PURE__ */ new Set();
+var tabFrameContexts = /* @__PURE__ */ new Map();
+var frameTargets = /* @__PURE__ */ new Map();
+var frameTargetKeys = /* @__PURE__ */ new Map();
+var frameTargetCleanupRegistered = false;
+var CDP_RESPONSE_BODY_CAPTURE_LIMIT = 8 * 1024 * 1024;
+var CDP_REQUEST_BODY_CAPTURE_LIMIT = 1 * 1024 * 1024;
+var networkCaptures = /* @__PURE__ */ new Map();
+var CDP_COMMAND_TIMEOUT_MS = 6e4;
+var CDP_PROBE_TIMEOUT_MS = 2e3;
 async function sendDebuggerCommand(target, method, params, timeoutMs = CDP_COMMAND_TIMEOUT_MS) {
   let timer;
   const commandPromise = params === void 0 ? chrome.debugger.sendCommand(target, method) : chrome.debugger.sendCommand(target, method, params);
@@ -23,7 +25,7 @@ async function sendDebuggerCommand(target, method, params, timeoutMs = CDP_COMMA
       commandPromise,
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error(
-          `CDP command ${method} timed out after ${Math.round(timeoutMs / 1e3)}s — the page may be blocked by a native dialog (alert/confirm/print)`
+          `CDP command ${method} timed out after ${Math.round(timeoutMs / 1e3)}s \u2014 the page may be blocked by a native dialog (alert/confirm/print)`
         )), timeoutMs);
       })
     ]);
@@ -31,14 +33,14 @@ async function sendDebuggerCommand(target, method, params, timeoutMs = CDP_COMMA
     if (timer !== void 0) clearTimeout(timer);
   }
 }
-function isDebuggableUrl$1(url) {
+function isDebuggableUrl(url) {
   if (!url) return true;
   return url.startsWith("http://") || url.startsWith("https://") || url === "about:blank" || url.startsWith("data:");
 }
 async function ensureAttached(tabId, aggressiveRetry = false) {
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (!isDebuggableUrl$1(tab.url)) {
+    if (!isDebuggableUrl(tab.url)) {
       attached.delete(tabId);
       throw new Error(`Cannot debug tab ${tabId}: URL is ${tab.url ?? "unknown"}`);
     }
@@ -78,7 +80,7 @@ async function ensureAttached(tabId, aggressiveRetry = false) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         try {
           const tab = await chrome.tabs.get(tabId);
-          if (!isDebuggableUrl$1(tab.url)) {
+          if (!isDebuggableUrl(tab.url)) {
             lastError = `Tab URL changed to ${tab.url} during retry`;
             break;
           }
@@ -98,7 +100,7 @@ async function ensureAttached(tabId, aggressiveRetry = false) {
     } catch {
     }
     console.warn(`[aek-browser] attach failed for tab ${tabId}: url=${finalUrl}, windowId=${finalWindowId}, error=${lastError}`);
-    const hint = lastError.includes("chrome-extension://") ? ". Tip: another Chrome extension may be interfering — try disabling other extensions" : "";
+    const hint = lastError.includes("chrome-extension://") ? ". Tip: another Chrome extension may be interfering \u2014 try disabling other extensions" : "";
     throw new Error(`attach failed: ${lastError}${hint}`);
   }
   attached.add(tabId);
@@ -135,7 +137,7 @@ async function evaluate(tabId, expression, aggressiveRetry = false, timeoutMs = 
     throw e;
   }
 }
-const evaluateAsync = evaluate;
+var evaluateAsync = evaluate;
 async function screenshot(tabId, options = {}) {
   await ensureAttached(tabId);
   const format = options.format ?? "png";
@@ -200,7 +202,7 @@ async function setFileInputFiles(tabId, files, selector) {
     const backendNodeId = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         cleanup();
-        reject(new Error("Page.fileChooserOpened not received within 5s — the input may not have opened a file chooser"));
+        reject(new Error("Page.fileChooserOpened not received within 5s \u2014 the input may not have opened a file chooser"));
       }, 5e3);
       const listener = (source, method, params) => {
         if (source.tabId !== tabId || method !== "Page.fileChooserOpened") return;
@@ -563,7 +565,7 @@ function registerListeners() {
     if (source.targetId) clearFrameTarget(source.targetId);
   });
   chrome.tabs.onUpdated.addListener(async (tabId, info) => {
-    if (info.url && !isDebuggableUrl$1(info.url)) {
+    if (info.url && !isDebuggableUrl(info.url)) {
       await detach(tabId);
     }
   });
@@ -642,22 +644,23 @@ function registerListeners() {
   });
 }
 
-const targetToTab = /* @__PURE__ */ new Map();
-const tabToTarget = /* @__PURE__ */ new Map();
+// extension/src/identity.ts
+var targetToTab = /* @__PURE__ */ new Map();
+var tabToTarget = /* @__PURE__ */ new Map();
 async function resolveTargetId(tabId) {
   const cached = tabToTarget.get(tabId);
   if (cached) return cached;
   await refreshMappings();
   const result = tabToTarget.get(tabId);
-  if (!result) throw new Error(`No targetId for tab ${tabId} — page may have been closed`);
+  if (!result) throw new Error(`No targetId for tab ${tabId} \u2014 page may have been closed`);
   return result;
 }
-async function resolveTabId$1(targetId) {
+async function resolveTabId(targetId) {
   const cached = targetToTab.get(targetId);
   if (cached !== void 0) return cached;
   await refreshMappings();
   const result = targetToTab.get(targetId);
-  if (result === void 0) throw new Error(`Page not found: ${targetId} — stale page identity`);
+  if (result === void 0) throw new Error(`Page not found: ${targetId} \u2014 stale page identity`);
   return result;
 }
 function evictTab(tabId) {
@@ -677,12 +680,13 @@ async function refreshMappings() {
   }
 }
 
-const JOURNAL_KEY = "aek-browser_command_journal_v1";
-const JOURNAL_MAX_ENTRIES = 64;
-const JOURNAL_RESULT_MAX_BYTES = 64 * 1024;
-let cache = null;
-let writeQueue = Promise.resolve();
-const inFlight = /* @__PURE__ */ new Map();
+// extension/src/journal.ts
+var JOURNAL_KEY = "aek-browser_command_journal_v1";
+var JOURNAL_MAX_ENTRIES = 64;
+var JOURNAL_RESULT_MAX_BYTES = 64 * 1024;
+var cache = null;
+var writeQueue = Promise.resolve();
+var inFlight = /* @__PURE__ */ new Map();
 async function load() {
   if (cache) return cache;
   try {
@@ -716,7 +720,7 @@ function resultByteLength(result) {
     return Number.POSITIVE_INFINITY;
   }
 }
-const UNKNOWN_OUTCOME_HINT = "Inspect the browser/session state before retrying. Do not blindly re-run write commands such as navigate, click, type, or eval.";
+var UNKNOWN_OUTCOME_HINT = "Inspect the browser/session state before retrying. Do not blindly re-run write commands such as navigate, click, type, or eval.";
 async function executeWithJournal(cmd, execute) {
   const id = cmd.id;
   if (!id) return execute(cmd);
@@ -765,15 +769,16 @@ async function executeWithJournal(cmd, execute) {
   }
 }
 
-let ws = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
-const CONTEXT_ID_KEY = "aek-browser_context_id_v1";
-let currentContextId = "default";
-let contextIdPromise = null;
-let connectInFlight = null;
-let workerReady = Promise.resolve();
-let workerRecovered = true;
+// extension/src/background.ts
+var ws = null;
+var reconnectTimer = null;
+var reconnectAttempts = 0;
+var CONTEXT_ID_KEY = "aek-browser_context_id_v1";
+var currentContextId = "default";
+var contextIdPromise = null;
+var connectInFlight = null;
+var workerReady = Promise.resolve();
+var workerRecovered = true;
 async function getCurrentContextId() {
   if (contextIdPromise) return contextIdPromise;
   contextIdPromise = (async () => {
@@ -815,9 +820,9 @@ function generateContextId() {
   }
   return id;
 }
-const _origLog = console.log.bind(console);
-const _origWarn = console.warn.bind(console);
-const _origError = console.error.bind(console);
+var _origLog = console.log.bind(console);
+var _origWarn = console.warn.bind(console);
+var _origError = console.error.bind(console);
 function forwardLog(level, args) {
   try {
     const msg = args.map((a) => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
@@ -928,9 +933,9 @@ async function connectAttempt() {
     thisWs.close();
   };
 }
-const WS_KEEPALIVE_INTERVAL_MS = 2e4;
-let wsKeepaliveTimer = null;
-let wsKeepaliveSocket = null;
+var WS_KEEPALIVE_INTERVAL_MS = 2e4;
+var wsKeepaliveTimer = null;
+var wsKeepaliveSocket = null;
 function startWsKeepalive(socket) {
   if (wsKeepaliveTimer) clearInterval(wsKeepaliveTimer);
   wsKeepaliveSocket = socket;
@@ -948,8 +953,8 @@ function stopWsKeepalive(socket) {
   wsKeepaliveTimer = null;
   wsKeepaliveSocket = null;
 }
-const RECONNECT_BASE_DELAY_MS = 1e3;
-const RECONNECT_MAX_DELAY_MS = 15e3;
+var RECONNECT_BASE_DELAY_MS = 1e3;
+var RECONNECT_MAX_DELAY_MS = 15e3;
 function nextReconnectDelayMs() {
   const exp = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** Math.min(reconnectAttempts, 6));
   return exp + Math.floor(Math.random() * 500);
@@ -963,39 +968,41 @@ function scheduleReconnect() {
     void connect();
   }, delay);
 }
-const automationSessions = /* @__PURE__ */ new Map();
-const IDLE_TIMEOUT_DEFAULT = 3e4;
-const IDLE_TIMEOUT_INTERACTIVE = 6e5;
-const IDLE_TIMEOUT_NONE = -1;
-const REGISTRY_KEY = "aek-browser_target_lease_registry_v2";
-const LEASE_IDLE_ALARM_PREFIX = "aek-browser:lease-idle:";
-const CONTAINER_TAB_GROUP_TITLE = {
+var automationSessions = /* @__PURE__ */ new Map();
+var IDLE_TIMEOUT_DEFAULT = 3e4;
+var IDLE_TIMEOUT_INTERACTIVE = 6e5;
+var IDLE_TIMEOUT_NONE = -1;
+var REGISTRY_KEY = "aek-browser_target_lease_registry_v2";
+var LEASE_IDLE_ALARM_PREFIX = "aek-browser:lease-idle:";
+var CONTAINER_TAB_GROUP_TITLE = {
   interactive: "AEK Browser Browser",
   // Retained for registry/type compatibility. Adapter automation no longer
   // creates or discovers a visible tab group.
   automation: "AEK Browser Adapter"
 };
-const OWNED_TAB_GROUP_COLOR = "orange";
-let leaseMutationQueue = Promise.resolve();
-const ownedContainers = {
+var OWNED_TAB_GROUP_COLOR = "orange";
+var leaseMutationQueue = Promise.resolve();
+var ownedContainers = {
   interactive: { windowId: null, groupId: null, promise: null, groupPromise: null },
   automation: { windowId: null, groupId: null, promise: null, groupPromise: null }
 };
-const interactiveGroupLedger = /* @__PURE__ */ new Set();
-class CommandFailure extends Error {
+var interactiveGroupLedger = /* @__PURE__ */ new Set();
+var CommandFailure = class extends Error {
   constructor(code, message, hint) {
     super(message);
     this.code = code;
     this.hint = hint;
     this.name = "CommandFailure";
   }
-}
-const sessionOverrides = /* @__PURE__ */ new Map();
+  code;
+  hint;
+};
+var sessionOverrides = /* @__PURE__ */ new Map();
 function setSessionOverride(key, patch) {
   sessionOverrides.set(key, { ...sessionOverrides.get(key), ...patch });
 }
-const activeCommandCounts = /* @__PURE__ */ new Map();
-const LEASE_KEY_SEPARATOR = "\0";
+var activeCommandCounts = /* @__PURE__ */ new Map();
+var LEASE_KEY_SEPARATOR = "\0";
 function getLeaseKey(session, surface) {
   return `${surface}${LEASE_KEY_SEPARATOR}${encodeURIComponent(session)}`;
 }
@@ -1163,8 +1170,8 @@ function scheduleIdleAlarm(leaseKey, timeout) {
 }
 async function safeDetach(tabId) {
   try {
-    const detach$1 = detach;
-    if (typeof detach$1 === "function") await detach$1(tabId);
+    const detach2 = detach;
+    if (typeof detach2 === "function") await detach2(tabId);
   } catch {
   }
 }
@@ -1492,7 +1499,7 @@ async function findReusableOwnedContainerTab(windowId, ownedGroupId) {
   try {
     const tabs = await chrome.tabs.query({ windowId });
     const reusable = tabs.find(
-      (tab) => tab.id !== void 0 && initialTabIsAvailable(tab.id) && isDebuggableUrl(tab.url) && (ownedGroupId === void 0 || ownedGroupId !== null && tab.groupId === ownedGroupId || !isSafeNavigationUrl(tab.url ?? ""))
+      (tab) => tab.id !== void 0 && initialTabIsAvailable(tab.id) && isDebuggableUrl2(tab.url) && (ownedGroupId === void 0 || ownedGroupId !== null && tab.groupId === ownedGroupId || !isSafeNavigationUrl(tab.url ?? ""))
     );
     return reusable?.id;
   } catch {
@@ -1554,7 +1561,7 @@ async function getAutomationWindow(leaseKey, initialUrl) {
       const tabId = existing.preferredTabId;
       if (tabId !== null) {
         const tab = await chrome.tabs.get(tabId);
-        if (isDebuggableUrl(tab.url)) return tab.windowId;
+        if (isDebuggableUrl2(tab.url)) return tab.windowId;
       }
       await chrome.windows.get(existing.windowId);
       return existing.windowId;
@@ -1598,15 +1605,15 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
   await persistRuntimeState();
 });
-let initialized = false;
+var initialized = false;
 function initialize() {
   if (initialized) return;
   initialized = true;
   chrome.alarms.create("keepalive", { periodInMinutes: 0.5 });
   registerListeners();
   try {
-    const registerFrameTracking$1 = registerFrameTracking;
-    registerFrameTracking$1?.();
+    const registerFrameTracking2 = registerFrameTracking;
+    registerFrameTracking2?.();
   } catch {
   }
   try {
@@ -1722,6 +1729,9 @@ async function handleCommand(cmd) {
         return await handleWaitDownload(cmd);
       case "frames":
         return await handleFrames(cmd, leaseKey);
+      case "ext-reload":
+        chrome.runtime.reload();
+        return { id: cmd.id, ok: true };
       default:
         return { id: cmd.id, ok: false, error: `Unknown action: ${cmd.action}` };
     }
@@ -1734,8 +1744,8 @@ async function handleCommand(cmd) {
     resetWindowIdleTimer(leaseKey);
   }
 }
-const BLANK_PAGE = "about:blank";
-function isDebuggableUrl(url) {
+var BLANK_PAGE = "about:blank";
+function isDebuggableUrl2(url) {
   if (!url) return true;
   return url.startsWith("http://") || url.startsWith("https://") || url === "about:blank" || url.startsWith("data:");
 }
@@ -1802,7 +1812,7 @@ function setLeaseSession(leaseKey, session) {
   void persistRuntimeState();
 }
 async function resolveCommandTabId(cmd) {
-  if (cmd.page) return resolveTabId$1(cmd.page);
+  if (cmd.page) return resolveTabId(cmd.page);
   return void 0;
 }
 async function resolveTab(tabId, leaseKey, initialUrl) {
@@ -1812,7 +1822,7 @@ async function resolveTab(tabId, leaseKey, initialUrl) {
       const tab = await chrome.tabs.get(tabId);
       const session = existingSession;
       const matchesSession = session ? session.preferredTabId !== null ? session.preferredTabId === tabId : tab.windowId === session.windowId : false;
-      if (isDebuggableUrl(tab.url) && matchesSession) return { tabId, tab };
+      if (isDebuggableUrl2(tab.url) && matchesSession) return { tabId, tab };
       if (session && !session.owned) {
         throw new CommandFailure(
           matchesSession ? "bound_tab_not_debuggable" : "bound_tab_mismatch",
@@ -1820,18 +1830,18 @@ async function resolveTab(tabId, leaseKey, initialUrl) {
           'Run "aekb browser <session> bind" again on a debuggable http(s) tab.'
         );
       }
-      if (session && !matchesSession && session.preferredTabId === null && isDebuggableUrl(tab.url)) {
+      if (session && !matchesSession && session.preferredTabId === null && isDebuggableUrl2(tab.url)) {
         console.warn(`[aek-browser] Tab ${tabId} drifted to window ${tab.windowId}, moving back to ${session.windowId}`);
         try {
           await chrome.tabs.move(tabId, { windowId: session.windowId, index: -1 });
           const moved = await chrome.tabs.get(tabId);
-          if (moved.windowId === session.windowId && isDebuggableUrl(moved.url)) {
+          if (moved.windowId === session.windowId && isDebuggableUrl2(moved.url)) {
             return { tabId, tab: moved };
           }
         } catch (moveErr) {
           console.warn(`[aek-browser] Failed to move tab back: ${moveErr}`);
         }
-      } else if (!isDebuggableUrl(tab.url)) {
+      } else if (!isDebuggableUrl2(tab.url)) {
         console.warn(`[aek-browser] Tab ${tabId} URL is not debuggable (${tab.url}), re-resolving`);
       }
     } catch (err) {
@@ -1852,7 +1862,7 @@ async function resolveTab(tabId, leaseKey, initialUrl) {
     const session = existingSession;
     try {
       const preferredTab = await chrome.tabs.get(existingPreferredTabId);
-      if (isDebuggableUrl(preferredTab.url)) return { tabId: preferredTab.id, tab: preferredTab };
+      if (isDebuggableUrl2(preferredTab.url)) return { tabId: preferredTab.id, tab: preferredTab };
       if (!session.owned) {
         throw new CommandFailure(
           "bound_tab_not_debuggable",
@@ -1889,7 +1899,7 @@ async function resolveTab(tabId, leaseKey, initialUrl) {
     await new Promise((resolve) => setTimeout(resolve, 300));
     try {
       const updated = await chrome.tabs.get(reuseTab.id);
-      if (isDebuggableUrl(updated.url)) return { tabId: reuseTab.id, tab: updated };
+      if (isDebuggableUrl2(updated.url)) return { tabId: reuseTab.id, tab: updated };
       console.warn(`[aek-browser] data: URI was intercepted (${updated.url}), creating fresh tab`);
     } catch {
     }
@@ -1903,7 +1913,7 @@ async function pageScopedResult(id, tabId, data) {
   const page = await resolveTargetId(tabId);
   return { id, ok: true, data, page };
 }
-async function resolveTabId(tabId, leaseKey, initialUrl) {
+async function resolveTabId2(tabId, leaseKey, initialUrl) {
   const resolved = await resolveTab(tabId, leaseKey, initialUrl);
   return resolved.tabId;
 }
@@ -1927,7 +1937,7 @@ async function listAutomationTabs(leaseKey) {
 }
 async function listAutomationWebTabs(leaseKey) {
   const tabs = await listAutomationTabs(leaseKey);
-  return tabs.filter((tab) => isDebuggableUrl(tab.url));
+  return tabs.filter((tab) => isDebuggableUrl2(tab.url));
 }
 function commandCdpTimeoutMs(cmd) {
   if (typeof cmd.deadlineAt === "number" && cmd.deadlineAt > 0) {
@@ -1957,7 +1967,7 @@ function errorResult(id, err) {
 async function handleExec(cmd, leaseKey) {
   if (!cmd.code) return { id: cmd.id, ok: false, error: "Missing code" };
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     const aggressive = getSurfaceFromKey(leaseKey) === "browser";
     if (cmd.frameIndex != null) {
@@ -1977,7 +1987,7 @@ async function handleExec(cmd, leaseKey) {
 }
 async function handleFrames(cmd, leaseKey) {
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     const tree = await getFrameTree(tabId);
     return { id: cmd.id, ok: true, data: enumerateCrossOriginFrames(tree) };
@@ -2160,7 +2170,7 @@ async function handleTabs(cmd, leaseKey) {
         return { id: cmd.id, ok: true, data: { closed: closedPage2 } };
       }
       const cmdTabId = await resolveCommandTabId(cmd);
-      const tabId = await resolveTabId(cmdTabId, leaseKey);
+      const tabId = await resolveTabId2(cmdTabId, leaseKey);
       const closedPage = await resolveTargetId(tabId).catch(() => void 0);
       const currentSession = automationSessions.get(leaseKey);
       if (currentSession?.preferredTabId === tabId) {
@@ -2222,7 +2232,7 @@ async function handleCookies(cmd) {
 }
 async function handleScreenshot(cmd, leaseKey) {
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     const data = await screenshot(tabId, {
       format: cmd.format,
@@ -2236,7 +2246,7 @@ async function handleScreenshot(cmd, leaseKey) {
     return errorResult(cmd.id, err);
   }
 }
-const CDP_ALLOWLIST = /* @__PURE__ */ new Set([
+var CDP_ALLOWLIST = /* @__PURE__ */ new Set([
   // Agent DOM context
   "Accessibility.enable",
   "Accessibility.getFullAXTree",
@@ -2270,7 +2280,7 @@ async function handleCdp(cmd, leaseKey) {
     return { id: cmd.id, ok: false, error: `CDP method not permitted: ${cmd.cdpMethod}` };
   }
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     const aggressive = getSurfaceFromKey(leaseKey) === "browser";
     await ensureAttached(tabId, aggressive);
@@ -2303,7 +2313,7 @@ async function handleSetFileInput(cmd, leaseKey) {
     return { id: cmd.id, ok: false, error: "Missing or empty files array" };
   }
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     await setFileInputFiles(tabId, cmd.files, cmd.selector);
     return pageScopedResult(cmd.id, tabId, { count: cmd.files.length });
@@ -2316,7 +2326,7 @@ async function handleInsertText(cmd, leaseKey) {
     return { id: cmd.id, ok: false, error: "Missing text payload" };
   }
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     await insertText(tabId, cmd.text);
     return pageScopedResult(cmd.id, tabId, { inserted: true });
@@ -2326,7 +2336,7 @@ async function handleInsertText(cmd, leaseKey) {
 }
 async function handleNetworkCaptureStart(cmd, leaseKey) {
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     await startNetworkCapture(tabId, cmd.pattern);
     return pageScopedResult(cmd.id, tabId, { started: true });
@@ -2336,7 +2346,7 @@ async function handleNetworkCaptureStart(cmd, leaseKey) {
 }
 async function handleNetworkCaptureRead(cmd, leaseKey) {
   const cmdTabId = await resolveCommandTabId(cmd);
-  const tabId = await resolveTabId(cmdTabId, leaseKey);
+  const tabId = await resolveTabId2(cmdTabId, leaseKey);
   try {
     const data = await readNetworkCapture(tabId);
     return pageScopedResult(cmd.id, tabId, data);
@@ -2418,7 +2428,7 @@ async function reconcileTargetLeaseRegistry() {
     if (tabId === null) continue;
     try {
       const tab = await chrome.tabs.get(tabId);
-      if (!isDebuggableUrl(tab.url)) continue;
+      if (!isDebuggableUrl2(tab.url)) continue;
       if (stored.lifecycle === "ephemeral" || stored.lifecycle === "persistent" || stored.lifecycle === "pinned") {
         setSessionOverride(leaseKey, { lifecycle: stored.lifecycle });
       }
@@ -2470,7 +2480,7 @@ async function handleBind(cmd, leaseKey) {
   }
   const activeTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const fallbackTabs = await chrome.tabs.query({ lastFocusedWindow: true });
-  const boundTab = activeTabs.find((tab) => isDebuggableUrl(tab.url)) ?? fallbackTabs.find((tab) => isDebuggableUrl(tab.url));
+  const boundTab = activeTabs.find((tab) => isDebuggableUrl2(tab.url)) ?? fallbackTabs.find((tab) => isDebuggableUrl2(tab.url));
   if (!boundTab?.id) {
     return {
       id: cmd.id,
@@ -2501,3 +2511,71 @@ async function handleBind(cmd, leaseKey) {
     session: getSessionFromKey(leaseKey)
   });
 }
+var __test__ = {
+  handleExec,
+  handleNavigate,
+  isTargetUrl,
+  handleTabs,
+  handleBind,
+  resolveTabId: resolveTabId2,
+  resetWindowIdleTimer,
+  handleCommand,
+  getSessionName,
+  getCommandSurface,
+  getIdleTimeout,
+  getLeaseKey,
+  sessionOverrides,
+  reconcileTargetLeaseRegistry,
+  ensureOwnedContainerGroup,
+  getInteractiveContainer: () => ({
+    windowId: ownedContainers.interactive.windowId,
+    groupId: ownedContainers.interactive.groupId,
+    groupIds: [...interactiveGroupLedger]
+  }),
+  connectForTest: connect,
+  scheduleReconnectForTest: () => scheduleReconnect(),
+  getReconnectAttempts: () => reconnectAttempts,
+  setReconnectAttempts: (value) => {
+    reconnectAttempts = value;
+  },
+  nextReconnectDelayMs,
+  resetReconnectState: () => {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectAttempts = 0;
+    if (wsKeepaliveTimer) clearInterval(wsKeepaliveTimer);
+    wsKeepaliveTimer = null;
+    wsKeepaliveSocket = null;
+    connectInFlight = null;
+    ws = null;
+  },
+  getSession: (leaseKey = "default") => automationSessions.get(leaseKey) ?? null,
+  getAutomationWindowId: (leaseKey = "default") => automationSessions.get(leaseKey)?.windowId ?? null,
+  setAutomationWindowId: (leaseKey, windowId) => {
+    if (windowId === null) {
+      const session = automationSessions.get(leaseKey);
+      if (session?.idleTimer) clearTimeout(session.idleTimer);
+      automationSessions.delete(leaseKey);
+      return;
+    }
+    setLeaseSession(leaseKey, {
+      session: getSessionFromKey(leaseKey),
+      surface: getSurfaceFromKey(leaseKey),
+      kind: "owned",
+      windowId,
+      owned: true,
+      preferredTabId: null
+    });
+  },
+  setSession: (leaseKey, session) => {
+    setLeaseSession(leaseKey, {
+      session: getSessionFromKey(leaseKey),
+      surface: getSurfaceFromKey(leaseKey),
+      kind: session.owned ? "owned" : "bound",
+      ...session
+    });
+  }
+};
+export {
+  __test__
+};
