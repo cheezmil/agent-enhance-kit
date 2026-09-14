@@ -262,6 +262,27 @@ export const PLATFORMS = [
     winBase: 'home',
     projectPath: ['.dsh', 'skills'],
   },
+  {
+    id: 'zcode',
+    name: 'ZCode',
+    keywords: ['zcode', 'z.ai', 'glm', 'glmcodex'],
+    docs: 'https://zcode.z.ai/en/docs/skill',
+    unixPath: ['.zcode', 'skills'],
+    winPath: ['.zcode', 'skills'],
+    winBase: 'home',
+    // ZCode only supports global skills; no project-level skills directory.
+    projectPath: null,
+  },
+  {
+    id: 'trae',
+    name: 'Trae',
+    keywords: ['trae', 'bytedance', 'trae ide'],
+    docs: 'https://www.flowtools.co/trae',
+    unixPath: ['.trae', 'skills'],
+    winPath: ['.trae', 'skills'],
+    winBase: 'home',
+    projectPath: ['.trae', 'skills'],
+  },
 ];
 
 // 同步时应跳过的目录名（虚拟环境、依赖、缓存等），不参与 list/copy/compare
@@ -411,6 +432,9 @@ export function resolveSkillsDir(platform, options = {}) {
   const p = platformOS === 'win32' ? path.win32 : path.posix;
 
   if (scope === 'project') {
+    if (!platform.projectPath) {
+      return ''; // platform does not support project-level skills
+    }
     return p.resolve(p.join(cwd, ...platform.projectPath));
   }
 

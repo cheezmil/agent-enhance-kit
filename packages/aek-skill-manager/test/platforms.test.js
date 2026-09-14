@@ -93,3 +93,27 @@ test('resolveWindowsNativeSkillsDir returns empty for project scope or no winRoo
   assert.equal(resolveWindowsNativeSkillsDir(platform('claude'), { scope: 'project', winRoot: '/mnt/c/Users/xdx' }), '');
   assert.equal(resolveWindowsNativeSkillsDir(platform('claude'), { scope: 'global', winRoot: '' }), '');
 });
+
+test('zcode has no project-level skills directory (projectPath is null)', () => {
+  const zcode = platform('zcode');
+  assert.equal(zcode.projectPath, null);
+  // project scope should return empty string
+  assert.equal(resolveSkillsDir(zcode, { scope: 'project', platformOS: 'linux', cwd: '/work/proj' }), '');
+  // global scope works normally
+  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'linux', home: '/home/u' }), '/home/u/.zcode/skills');
+});
+
+test('trae resolves correctly on all platforms', () => {
+  const trae = platform('trae');
+  assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'linux', home: '/home/u' }), '/home/u/.trae/skills');
+  assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'darwin', home: '/Users/u' }), '/Users/u/.trae/skills');
+  assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'win32', home: 'C:\\\\Users\\\\u', env: {} }), 'C:\\\\Users\\\\u\\\\.trae\\\\skills');
+  assert.equal(resolveSkillsDir(trae, { scope: 'project', platformOS: 'linux', cwd: '/work/proj' }), '/work/proj/.trae/skills');
+});
+
+test('zcode resolves correctly on all platforms', () => {
+  const zcode = platform('zcode');
+  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'linux', home: '/home/u' }), '/home/u/.zcode/skills');
+  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'darwin', home: '/Users/u' }), '/Users/u/.zcode/skills');
+  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'win32', home: 'C:\\\\Users\\\\u', env: {} }), 'C:\\\\Users\\\\u\\\\.zcode\\\\skills');
+});
