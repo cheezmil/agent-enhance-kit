@@ -14,6 +14,8 @@ aekb doctor
 
 Until `doctor` is green, nothing else will work. Typical failures: Chrome not running, extension not installed, debug port blocked by 1Password / other extensions. The doctor output tells you which.
 
+**Auto-reload**: When the daemon detects a version mismatch between CLI and extension, it automatically sends an `ext-reload` command to restart the extension via `chrome.runtime.reload()`. You only need to manually refresh once after a major update.
+
 ---
 
 ## Session lifecycle
@@ -420,6 +422,7 @@ normal DOM `state`, or navigate/bind directly to the iframe URL when possible.
 | symptom | fix |
 |---------|-----|
 | `aekb doctor` red: "Browser not connected" | Start Chrome with `--remote-debugging-port=9222`, or install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/aek-b/ildkmabpimmkaediidaifkhjpohdnifk). |
+| `aekb doctor` shows "version incompatible" | Run `aekb external install @cheezmil/aek-browser` to update both CLI and extension. The daemon auto-reloads the extension on next connection. |
 | `attach failed: chrome-extension://...` | Disable 1Password / other CDP-hungry extensions temporarily. |
 | `selector_not_found` right after `state` | Page mutated. `wait selector "..."` then retry. |
 | `stale_ref` across every command | You are reusing refs from a prior page. Re-`state`. |
