@@ -2,6 +2,8 @@
 // Two sources of platform-specific prompt fragments, different semantics:
 //   patch  -> global-prompt-mapping   (managed block replaced in place)
 //   apply  -> only-patch              (appended to end; replaces block on repeat)
+// Project rules:
+//   pr     -> .aek/prompt-manager/project-rules (project-local prompt files)
 import process from 'node:process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,9 +26,17 @@ import {
   isWSL,
   windowsNativeTarget,
 } from './core.js';
+import {
+  initProjectRules,
+  generateProjectRules,
+  listProjectAgents,
+  findProjectAgent,
+  projectAgentName,
+} from './project-rules.js';
 
-const CMD = 'aek pm';
+const CMD = 'aekpm';
 const SOURCES = [MAPPING_SOURCE, ONLY_PATCH_SOURCE];
+const COMMANDS = ['init', 'patch', 'map', 'apply', 'remove', 'status', 'pr', 'project-rules'];
 
 async function main() {
   try {
@@ -40,6 +50,7 @@ async function main() {
     else if (command === 'apply') await runApply(commandArgs);
     else if (command === 'remove') await runRemove(commandArgs);
     else if (command === 'status') await runStatus(commandArgs);
+    else if (command === 'pr' || command === 'project-rules') await runProjectRules(commandArgs);
     else if (command === null && commandArgs.length === 0) printUsage();
     else { printUsage(); process.exitCode = 1; }
   } catch (error) {
@@ -49,15 +60,11 @@ async function main() {
 }
 
 function parseArgs(argv) {
-  let command = null;
-  const commandArgs = [];
-  let help = false;
-  for (const arg of argv) {
-    if (arg === '--help' || arg === '-h') help = true;
-    else if (command === null && ['init', 'patch', 'map', 'apply', 'remove', 'status'].includes(arg)) command = arg;
-    else commandArgs.push(arg);
-  }
-  return { command, commandArgs, help };
+  const help = argv.includes('--help') || argv.includes('-h');
+  const first = argv.find((arg) => arg !== '--help' && arg !== '-h');
+  if (!first) return { command: null, commandArgs: argv, help };
+  if (!COMMANDS.includes(first)) return { command: null, commandArgs: argv, help };
+  return { command: first, commandArgs: argv.slice(1), help };
 }
 
 function findTool(id) {
@@ -231,10 +238,65 @@ async function toolState(p) {
   }
 }
 
+async function runProjectRules(args) {
+  const sub = args[0];
+  const rest = args.slice(1);
+
+  if (!sub || sub === '-h' || sub === '--help' || sub === 'help') {
+    printProjectRulesUsage();
+    return;
+  }
+
+  if (sub === 'init') {
+    const res = await initProjectRules();
+    for (const f of res.files) {
+      console.log(`[${CMD}] ${f.created ? 'created' : 'exists'} ${f.path}`);
+    }
+    return;
+  }
+
+  if (sub === 'gen') {
+    const agent = findProjectAgent(rest[0] || 'all').id;
+    const res = await generateProjectRules(agent);
+    for (const w of res.writes) {
+      console.log(`[${CMD}] ${w.replaced ? 'updated' : 'created'} ${w.target}`);
+    }
+    console.log(`[${CMD}] generated ${res.generated} target(s) for ${res.agentId}`);
+    return;
+  }
+
+  throw new Error(`Unknown project-rules subcommand "${sub}". Use "pr init" or "pr gen [agent]".`);
+}
+
+function printProjectRulesUsage() {
+  const agents = listProjectAgents().map(projectAgentName).join(', ');
+  console.log(`[${CMD}] Manage project-local prompt rules.
+
+Commands:
+  pr init                  Create .aek/prompt-manager/project-rules/ source files
+  pr gen [all|agent]       Generate project prompt files; default is all
+  project-rules ...        Alias for pr
+
+Project-rule agents (${agents}):
+  codex        -> AGENTS.md
+  claude       -> CLAUDE.md
+  gemini       -> GEMINI.md
+  qwencode     -> QWEN.md
+  roocode      -> .roo/rules-*/rules.md
+  kilocode     -> .kilocode/rules-*/rules.md
+
+Source layout (.aek/prompt-manager/project-rules):
+  all-agent-must-comply.md   shared by all project-rule targets
+  agents/<agent>.md          per-agent extra content
+  scripts/*.mjs              thin wrappers around "aekpm pr gen ..."
+`);
+}
+
 function printUsage() {
   const supported = SUPPORTED_IDS.join(', ');
   const platformList = PLATFORM_FILES.map((n) => PLATFORM_FILE(n)).join(', ');
-  console.log(`[${CMD}] Manage platform-specific global prompt fragments across two sources.
+  const agents = listProjectAgents().map(projectAgentName).join(', ');
+  console.log(`[${CMD}] Manage global prompt fragments and project-local prompt rules.
 
 Commands:
   init            Create source dirs with empty platform files for both sources
@@ -247,6 +309,9 @@ Commands:
   remove <tool>   Remove the managed block from one tool's global prompt
   remove all      Remove from every supported tool
   status <tool>   Show whether a tool's global prompt file is patched
+  pr init         Create project-rules source files under .aek/prompt-manager/project-rules/
+  pr gen          Generate all project prompt rules
+  pr gen <agent>  Generate rules for one project-rule agent (${agents})
 
 Options:
   -h, --help      Show this help
@@ -258,9 +323,14 @@ Two sources (~/.aek/prompt-manager/):
   global-prompt-mapping/   "map" source     (managed block replaced in place)
   only-patch/              "patch"/"apply" source   (appended to end; replaces block on repeat)
 
+Project-rules layout (.aek/prompt-manager/project-rules):
+  all-agent-must-comply.md   shared by all project-rule targets
+  agents/<agent>.md          per-agent extra content
+  scripts/*.mjs              thin wrappers around "aekpm pr gen ..."
+
 Layout inside each source:
   all_agents_shared/           shared across every tool
-  <tool_dir>/                  per-tool  (dir name: tool id, hyphens -> underscores)
+  <tool_dir>/                  per-tool  (dir name: tool id, hyphen -> underscore)
     e.g.  claude_code/         for tool id "claude-code"
 
 Platform files (${platformList}):
