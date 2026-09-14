@@ -1,0 +1,6 @@
+# cqg-all-platforms-ignore-head
+.cheezmil_quick_git/logs/
+.cheezmil_quick_git/_platform_repos/
+.cheezmil_quick_git/*.mjs
+node_modules/
+# cqg-all-platforms-ignore-end
