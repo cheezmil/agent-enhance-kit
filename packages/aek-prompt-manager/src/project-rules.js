@@ -358,6 +358,11 @@ export async function generateProjectRules(agentId = 'all', projectRoot = proces
   await mkdir(prAgentsDir(projectRoot), { recursive: true });
   await mkdir(prScriptsDir(projectRoot), { recursive: true });
   
+  // 确保 ALL-AGENTS-MUST-COMPLY.md 存在
+  const allFile = prAllFile(projectRoot);
+  await mkdir(dirname(allFile), { recursive: true });
+  await writeIfMissing(allFile, '');
+  
   const agent = findProjectAgent(agentId);
   const writes = [];
   let generated = 0;
