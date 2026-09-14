@@ -11,7 +11,7 @@ metadata:
 
 ## Overview
 
-向各 AI coding agent（Claude Code、Codex、OpenCode、Hermes 等）的全局提示词文件注入平台化提示词片段，双源两种注入语义，支持 17 个 agent 工具。CLI 入口 `aek pm` / `aek-prompt-manager`。
+向各 AI coding agent（Claude Code、Codex、OpenCode、Hermes 等）的全局提示词文件注入平台化提示词片段，双源两种注入语义，支持 19 个 agent 工具。CLI 入口 `aek pm` / `aek-prompt-manager`。
 
 ## When to Use
 
@@ -99,9 +99,9 @@ HOME="$FAKE" aek pm patch codex
 <!-- end-aek-pm-patch -->
 ```
 
-## Supported Tools（17）
+## Supported Tools（19）
 
-`claude-code` · `claude-desktop` · `cline` · `cursor` · `vscode` · `windsurf` · `openclaw` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `pi` · `deepseek-harness` · `opencode` · `codex` · `hermes`
+`claude-code` · `claude-desktop` · `cline` · `cursor` · `vscode` · `windsurf` · `openclaw` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `pi` · `deepseek-harness` · `zcode` · `trae` · `opencode` · `codex` · `hermes`
 
 不支持（GUI 无文件级提示词或无文件型全局规则）：`cherry-studio` · `chatbox` · `continue` · `workbuddy`
 
