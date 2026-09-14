@@ -285,26 +285,28 @@ Project-rule agents (${agents}):
   qwencode         -> QWEN.md
   copilot          -> .github/copilot-instructions.md
   vscode           -> .github/copilot-instructions.md
-  cursor           -> .cursor/rules/aekpm.md
-  cline            -> .cline/rules/aekpm.md
-  windsurf         -> .windsurf/rules/aekpm.md
-  roocode          -> .roo/rules/aekpm.md
-  kilocode         -> .kilocode/rules/aekpm.md
-  antigravity      -> .agents/rules/aekpm.md
+  cursor           -> .cursor/rules/CURSOR.md
+  cline            -> .cline/rules/CLINE.md
+  windsurf         -> .windsurf/rules/WINDSURF.md
+  roocode          -> .roo/rules/ROOCODE.md
+  kilocode         -> .kilocode/rules/KILOCODE.md
+  antigravity      -> .agents/rules/ANTIGRAVITY.md
   qoder            -> AGENTS.md
-  kiro             -> .kiro/steering/aekpm.md
+  kiro             -> .kiro/steering/KIRO.md
   pi               -> AGENTS.md
   deepseek-harness -> AGENTS.md
   openclaw         -> AGENTS.md
   zcode            -> AGENTS.md
-  trae             -> .trae/rules/project_rules.md
-  trae-cn          -> .trae-cn/rules/project_rules.md
+  trae             -> .trae/rules/TRAE.md
+  trae-cn          -> .trae-cn/rules/TRAE-CN.md
   opencode         -> AGENTS.md
 
 Source layout (.aek/prompt-manager/project-rules):
-  all-agent-must-comply.md   shared by all project-rule targets
-  agents/<agent>.md          per-agent extra content
-  scripts/*.mjs              thin wrappers around "aekpm pr gen ..."
+  all-agent-must-comply.md                     shared by all project-rule targets
+  for-certain-agents/<target-path>/<agent>.md  per-agent content; dir name =
+                                               target path ('/'->'@', '.'->'#'),
+                                               e.g. AGENTS#md, #cursor@rules@CURSOR#md
+  scripts/*.mjs                                thin wrappers around "aekpm pr gen ..."
 `);
 }
 
@@ -340,9 +342,11 @@ Two sources (~/.aek/prompt-manager/):
   only-patch/              "patch"/"apply" source   (appended to end; replaces block on repeat)
 
 Project-rules layout (.aek/prompt-manager/project-rules):
-  all-agent-must-comply.md   shared by all project-rule targets
-  agents/<agent>.md          per-agent extra content
-  scripts/*.mjs              thin wrappers around "aekpm pr gen ..."
+  all-agent-must-comply.md                     shared by all project-rule targets
+  for-certain-agents/<target-path>/<agent>.md  per-agent content; dir name =
+                                               target path ('/'->'@', '.'->'#'),
+                                               e.g. AGENTS#md, #cursor@rules@CURSOR#md
+  scripts/*.mjs                                thin wrappers around "aekpm pr gen ..."
 
 Layout inside each source:
   all_agents_shared/           shared across every tool
