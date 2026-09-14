@@ -271,8 +271,6 @@ export const SYNC_EXCLUDE_DIRS = new Set([
   'venv',
   '__pycache__',
   '.git',
-  '.gitignore',
-  '.DS_Store',
   '.npm',
   '.yarn',
   '.pnpm-store',
