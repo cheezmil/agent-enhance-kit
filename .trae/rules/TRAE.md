@@ -1,4 +1,4 @@
-<!-- head-aek-project-rules -->
+<!-- head-aek-prompt-manager -->
 # 本项目必须遵守的规则
 
 ## 不准在packages各个包的文件夹中写README
@@ -49,4 +49,5 @@
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录（Hermes 双写 `.hermes` + `AppData/Local/hermes`）
-<!-- end-aek-project-rules -->
+
+<!-- end-aek-prompt-manager -->

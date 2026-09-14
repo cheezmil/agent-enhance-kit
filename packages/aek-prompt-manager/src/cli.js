@@ -256,8 +256,9 @@ async function runProjectRules(args) {
   }
 
   if (sub === 'gen') {
-    const agent = findProjectAgent(rest[0] || 'all').id;
-    const res = await generateProjectRules(agent);
+    const agentId = rest[0] || 'all';
+    findProjectAgent(agentId); // 校验合法性
+    const res = await generateProjectRules(agentId);
     for (const w of res.writes) {
       console.log(`[${CMD}] ${w.replaced ? 'updated' : 'created'} ${w.target}`);
     }
@@ -302,7 +303,7 @@ Project-rule agents (${agents}):
   opencode         -> AGENTS.md
 
 Source layout (.aek/prompt-manager/project-rules):
-  all-agent-must-comply.md                     shared by all project-rule targets
+  ALL-AGENTS-MUST-COMPLY.md                     shared by all project-rule targets
   for-certain-agents/<target-path>/<agent>.md  per-agent content; dir name =
                                                target path ('/'->'@', '.'->'#'),
                                                e.g. AGENTS#md, #cursor@rules@CURSOR#md
@@ -342,7 +343,7 @@ Two sources (~/.aek/prompt-manager/):
   only-patch/              "patch"/"apply" source   (appended to end; replaces block on repeat)
 
 Project-rules layout (.aek/prompt-manager/project-rules):
-  all-agent-must-comply.md                     shared by all project-rule targets
+  ALL-AGENTS-MUST-COMPLY.md                     shared by all project-rule targets
   for-certain-agents/<target-path>/<agent>.md  per-agent content; dir name =
                                                target path ('/'->'@', '.'->'#'),
                                                e.g. AGENTS#md, #cursor@rules@CURSOR#md
