@@ -20,7 +20,9 @@ Or use a subcommand for specialized operations:
   aek websearch extract "https://example.com"
   aek websearch doctor
   aek websearch budgets
-  aek websearch test-provider serper`,
+  aek websearch test-provider serper
+  aek websearch selftest    # Run comprehensive self-test on all providers
+  aek websearch diag        # Show detailed diagnostic information`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := flagOrArg(cmd, args, "query", 0)
@@ -196,6 +198,34 @@ var webSearchKeyPoolEnableCmd = &cobra.Command{
 	},
 }
 
+var webSearchSelfTestCmd = &cobra.Command{
+	Use:   "selftest",
+	Short: "Run comprehensive self-test on all providers",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		b := commands.DefaultBroker()
+		out, err := commands.SelfTest(b)
+		if err != nil {
+			return err
+		}
+		fmt.Print(out)
+		return nil
+	},
+}
+
+var webSearchDiagCmd = &cobra.Command{
+	Use:   "diag",
+	Short: "Show detailed diagnostic information",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		b := commands.DefaultBroker()
+		out, err := commands.Diag(b)
+		if err != nil {
+			return err
+		}
+		fmt.Print(out)
+		return nil
+	},
+}
+
 var webSearchConfigInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create empty config template files under ~/.aek/websearch/ (never overwrites existing files)",
@@ -217,7 +247,9 @@ func init() {
 	webSearchCmd.AddCommand(webSearchTestProviderCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolDisableCmd)
-	webSearchCmd.AddCommand(webSearchKeyPoolEnableCmd)
+		webSearchCmd.AddCommand(webSearchKeyPoolEnableCmd)
+	webSearchCmd.AddCommand(webSearchSelfTestCmd)
+	webSearchCmd.AddCommand(webSearchDiagCmd)
 	webSearchCmd.AddCommand(webSearchConfigInitCmd)
 
 	webSearchCmd.Flags().StringP("mode", "m", "discovery", "Search mode: recovery, discovery, grounding, research")

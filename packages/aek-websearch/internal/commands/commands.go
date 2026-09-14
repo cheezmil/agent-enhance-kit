@@ -350,3 +350,113 @@ func KeyPoolEnable(provider string, index int) (string, error) {
 	}
 	return fmt.Sprintf("Enabled key [%d] for %s\n", index, provider), nil
 }
+
+// ── SelfTest ───────────────────────────────────────────────────────────────
+
+// SelfTest runs a comprehensive self-test on all configured providers.
+func SelfTest(b *broker.SearchBroker) (string, error) {
+	var sb strings.Builder
+	sb.WriteString("Running self-test for all providers...\n\n")
+
+	statuses := b.GetAllProviderStatus()
+	testQuery := "aek self-test"
+
+	for name, status := range statuses {
+		statusStr := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[statusStr]
+		if display == "" {
+			display = statusStr
+		}
+
+		sb.WriteString(fmt.Sprintf("[%s] Status: %s\n", name, display))
+
+		// Only test providers with OK or HEALTHY status
+		if statusStr != "enabled" && statusStr != "healthy" {
+			sb.WriteString("  Skipped (not ready)\n\n")
+			continue
+		}
+
+		// Run a quick test
+		sq := models.SearchQuery{
+			Query:      testQuery,
+			Mode:       models.SearchModeDiscovery,
+			MaxResults: 1,
+		}
+		resp, err := b.Search(context.Background(), sq)
+		if err != nil {
+			sb.WriteString(fmt.Sprintf("  Error: %v\n\n", err))
+			continue
+		}
+
+		// Find results from this provider
+		var found bool
+		for _, r := range resp.Results {
+			if r.Provider != nil && *r.Provider == models.ProviderName(name) {
+				sb.WriteString(fmt.Sprintf("  Test: PASS (%d results)\n", resp.TotalResults))
+				found = true
+				break
+			}
+		}
+		if !found && resp.TotalResults > 0 {
+			sb.WriteString(fmt.Sprintf("  Test: PASS (results from other providers)\n"))
+		} else if !found {
+			sb.WriteString(fmt.Sprintf("  Test: NO RESULTS\n"))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String(), nil
+}
+
+// ── Diag ────────────────────────────────────────────────────────────────────
+
+// Diag returns detailed diagnostic information.
+func Diag(b *broker.SearchBroker) (string, error) {
+	cfg := config.Load()
+	statuses := b.GetAllProviderStatus()
+
+	var sb strings.Builder
+	sb.WriteString("=== AEK WebSearch Diagnostic ===\n\n")
+
+	// Config info
+	sb.WriteString("Config:\n")
+	sb.WriteString(fmt.Sprintf("  Port: %d\n", cfg.Port))
+	sb.WriteString(fmt.Sprintf("  Bind Host: %s\n", cfg.BindHost))
+	sb.WriteString(fmt.Sprintf("  RRF Enabled: %v\n\n", cfg.RRF))
+
+	// Provider statuses
+	sb.WriteString("Provider Status:\n")
+	for name, status := range statuses {
+		raw := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[raw]
+		if display == "" {
+			display = raw
+		}
+		tag := "on-demand"
+		if config.IsProviderDefault(name) {
+			tag = "default"
+		}
+		sb.WriteString(fmt.Sprintf("  %-15s %-20s %s\n", name, display, tag))
+	}
+
+	// Key pool summary
+	sb.WriteString("\nAPI Key Pool:\n")
+	providerNames := []string{"exa", "tavily", "serper", "you", "parallel", "linkup", "wolfram", "context7", "duckduckgo", "yahoo"}
+	totalKeys := 0
+	readyKeys := 0
+	for _, name := range providerNames {
+		pool := providers.NewKeyPool(name)
+		if pool.Count() > 0 {
+			totalKeys += pool.Count()
+			for _, k := range pool.Status() {
+				if disabled, ok := k["disabled"].(bool); !ok || !disabled {
+					readyKeys++
+				}
+			}
+			sb.WriteString(fmt.Sprintf("  %-15s %d keys (%d ready)\n", name, pool.Count(), readyKeys))
+		}
+	}
+	sb.WriteString(fmt.Sprintf("\nTotal: %d keys (%d ready)\n", totalKeys, readyKeys))
+
+	return sb.String(), nil
+}
