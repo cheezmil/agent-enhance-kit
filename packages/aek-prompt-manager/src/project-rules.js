@@ -352,16 +352,9 @@ async function writeTargetFull(target, projectRoot) {
 }
 
 export async function generateProjectRules(agentId = 'all', projectRoot = process.cwd()) {
-  // 确保 .aek/prompt-manager/project-rules/ 目录结构完整
-  const root = prRoot(projectRoot);
-  await mkdir(root, { recursive: true });
-  await mkdir(prAgentsDir(projectRoot), { recursive: true });
-  await mkdir(prScriptsDir(projectRoot), { recursive: true });
-  
-  // 确保 ALL-AGENTS-MUST-COMPLY.md 存在
-  const allFile = prAllFile(projectRoot);
-  await mkdir(dirname(allFile), { recursive: true });
-  await writeIfMissing(allFile, '');
+  // 先初始化完整目录结构（initProjectRules 内部 writeIfMissing，幂等安全）
+  const init = await initProjectRules(projectRoot);
+  const root = init.root;
   
   const agent = findProjectAgent(agentId);
   const writes = [];
