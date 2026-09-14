@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"agent-enhance-kit/internal/config"
+	"agent-enhance-kit/internal/diag"
 	"agent-enhance-kit/internal/models"
 )
 // KeyPoolDo is the shared failover engine for every API-key provider.
@@ -69,11 +70,15 @@ func (d *KeyPoolDo) Do(query models.SearchQuery) ([]models.SearchResult, models.
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		apiKey, err := pool.Next()
 		if err != nil {
+			diag.Logf("keypool-do[%s] attempt %d/%d: pool.Next err=%v", d.name, attempt+1, maxAttempts, err)
 			return nil, trace, err
 		}
+		masked := diag.MaskKey(apiKey)
+		reqStart := time.Now()
 
 		req, err := d.buildRequest(apiKey, query)
 		if err != nil {
+			diag.Logf("keypool-do[%s] attempt %d/%d key=%s buildRequest err=%v", d.name, attempt+1, maxAttempts, masked, err)
 			trace.Status = "error"
 			errMsg := err.Error()
 			trace.Error = &errMsg
@@ -81,7 +86,10 @@ func (d *KeyPoolDo) Do(query models.SearchQuery) ([]models.SearchResult, models.
 		}
 
 		resp, err := d.client.Do(req)
+		latency := time.Since(reqStart)
 		if err != nil {
+			diag.Logf("keypool-do[%s] attempt %d/%d key=%s transport err after %s: %v",
+				d.name, attempt+1, maxAttempts, masked, latency, err)
 			pool.ReportFailure(apiKey, false)
 			lastErr = err
 			continue
@@ -91,8 +99,15 @@ func (d *KeyPoolDo) Do(query models.SearchQuery) ([]models.SearchResult, models.
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			permanent := classifyStatus(resp.StatusCode)
+			// 截断响应体避免泄露敏感信息，且防止超长日志
+			bodySnippet := string(respBody)
+			if len(bodySnippet) > 200 {
+				bodySnippet = bodySnippet[:200] + "..."
+			}
+			diag.Logf("keypool-do[%s] attempt %d/%d key=%s HTTP %d in %s permanent=%v body=%s",
+				d.name, attempt+1, maxAttempts, masked, resp.StatusCode, latency, permanent, bodySnippet)
 			pool.ReportFailure(apiKey, permanent)
-			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, bodySnippet)
 			continue
 		}
 
@@ -100,12 +115,15 @@ func (d *KeyPoolDo) Do(query models.SearchQuery) ([]models.SearchResult, models.
 
 		results, err := d.parse(respBody, query)
 		if err != nil {
+			diag.Logf("keypool-do[%s] attempt %d/%d key=%s parse err=%v", d.name, attempt+1, maxAttempts, masked, err)
 			trace.Status = "error"
 			errMsg := err.Error()
 			trace.Error = &errMsg
 			return nil, trace, err
 		}
 
+		diag.Logf("keypool-do[%s] attempt %d/%d key=%s SUCCESS results=%d in %s",
+			d.name, attempt+1, maxAttempts, masked, len(results), latency)
 		trace.Status = "success"
 		trace.ResultsCount = len(results)
 		trace.LatencyMs = int(time.Since(start).Milliseconds())

@@ -70,16 +70,30 @@ aek mcp
 - 配置: `~/.aek/settings.jsonc`
 - API Keys: `~/.aek/web-search/<provider>.txt`
 
-### 安装到 Windows
+### 构建与部署（统一入口：scripts/build_deploy.py）
+
 ```bash
-python3 packages/aek-websearch/scripts/for-wsl/install-aek-to-windows.py
+# 构建本机 + 对端平台二进制（WSL 自动编译 linux + windows）
+python3 scripts/build_deploy.py aek-websearch --no-deploy
+
+# 交叉编译全部 5 个平台（CI/维护者用）
+python3 scripts/build_deploy.py --build-platform-bins --cross-compile --build-platform-bin-short aek-websearch
+
+# 同步平台子包版本号到主包版本
+python3 scripts/build_deploy.py --sync-versions
+
+# 完整部署（构建 + npm install -g + 对端同步）
+python3 scripts/build_deploy.py aek-websearch
 ```
 
-### 构建脚本（从项目根目录执行）
+### 启动服务
+
 ```bash
-python3 packages/aek-websearch/scripts/start_build_aek-websearch.py       # 编译
-python3 packages/aek-websearch/scripts/start_install_aek-websearch.py     # 安装到 Go bin
-python3 packages/aek-websearch/scripts/start_aek-websearch.py             # 启动 serve
+# 启动 websearch 服务
+python3 scripts/start.py websearch
+
+# 列出所有可用服务
+python3 scripts/start.py --list
 ```
 
 ### 注意事项

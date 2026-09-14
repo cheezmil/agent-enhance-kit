@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"agent-enhance-kit/internal/commands"
+	"agent-enhance-kit/internal/config"
+	"agent-enhance-kit/internal/diag"
 	"github.com/spf13/cobra"
 )
 
@@ -134,6 +136,7 @@ var webSearchTestProviderCmd = &cobra.Command{
 			return fmt.Errorf("usage: aek websearch test-provider <provider>")
 		}
 		query, _ := cmd.Flags().GetString("query")
+		showTrace, _ := cmd.Flags().GetBool("trace")
 
 		b := commands.DefaultBroker()
 		out, err := commands.TestProvider(b, provider, query)
@@ -141,6 +144,14 @@ var webSearchTestProviderCmd = &cobra.Command{
 			return err
 		}
 		fmt.Print(out)
+
+		if showTrace {
+			traceOut, terr := commands.TestProviderTrace(b, provider, query)
+			if terr != nil {
+				return terr
+			}
+			fmt.Print(traceOut)
+		}
 		return nil
 	},
 }
@@ -240,6 +251,14 @@ var webSearchConfigInitCmd = &cobra.Command{
 }
 
 func init() {
+	// PersistentPreRun 在任意子命令执行前运行：处理 --verbose 与 环境快照
+	webSearchCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if v, _ := cmd.Flags().GetBool("verbose"); v {
+			diag.SetVerbose(true)
+			diag.LogEnvironment(config.KeysDir(), config.SettingsPath())
+		}
+	}
+
 	webSearchCmd.AddCommand(webSearchExtractCmd)
 	webSearchCmd.AddCommand(webSearchCodeSearchCmd)
 	webSearchCmd.AddCommand(webSearchDoctorCmd)
@@ -247,15 +266,17 @@ func init() {
 	webSearchCmd.AddCommand(webSearchTestProviderCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolCmd)
 	webSearchCmd.AddCommand(webSearchKeyPoolDisableCmd)
-		webSearchCmd.AddCommand(webSearchKeyPoolEnableCmd)
+	webSearchCmd.AddCommand(webSearchKeyPoolEnableCmd)
 	webSearchCmd.AddCommand(webSearchSelfTestCmd)
 	webSearchCmd.AddCommand(webSearchDiagCmd)
 	webSearchCmd.AddCommand(webSearchConfigInitCmd)
 
+	webSearchCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose diagnostic logs to stderr (never prints plaintext API keys)")
 	webSearchCmd.Flags().StringP("mode", "m", "discovery", "Search mode: recovery, discovery, grounding, research")
 	webSearchCmd.Flags().StringP("providers", "p", "", "Override providers (comma-separated)")
 	webSearchCmd.Flags().StringP("session", "s", "", "Session ID for multi-turn context")
 
 	webSearchCodeSearchCmd.Flags().Int("tokens", 0, "Token limit (0=auto)")
 	webSearchTestProviderCmd.Flags().StringP("query", "q", "aek test", "Test query")
+	webSearchTestProviderCmd.Flags().Bool("trace", false, "Print per-provider trace details (status, latency, error)")
 }

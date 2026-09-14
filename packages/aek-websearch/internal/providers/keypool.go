@@ -2,11 +2,11 @@ package providers
 
 import (
 	"agent-enhance-kit/internal/config"
+	"agent-enhance-kit/internal/diag"
 	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -39,6 +39,13 @@ func NewKeyPool(provider string) *KeyPool {
 	}
 	pool.loadDisabled()
 	pool.load()
+	if diag.Verbose() {
+		diag.Logf("keypool[%s] loaded: total=%d disabled=%d keyPath=%s disabledPath=%s",
+			provider, len(pool.keys), len(pool.disabled), pool.keyPath(), pool.disabledPath())
+		for i, ks := range pool.keys {
+			diag.Logf("keypool[%s]   [%d] %s disabled=%v", provider, i, diag.MaskKey(ks.Key), ks.Disabled)
+		}
+	}
 	return pool
 }
 
@@ -112,14 +119,26 @@ func (p *KeyPool) saveDisabled() error {
 	return nil
 }
 
+// userHome 解析用户主目录，跨平台一致使用 os.UserHomeDir()：
+//   - Windows: %USERPROFILE%（若未设置则 %HOMEDRIVE%%HOMEPATH%）
+//   - Linux/macOS: $HOME
+//
+// 历史 bug：旧实现优先看 $HOME 环境变量，导致 Windows 上一旦进程被
+// git-bash/MSYS/WSL 跨域调用注入了 $HOME（形如 /home/xdx 或 \\wsl.localhost\...），
+// Windows 原生二进制就会把 key 文件路径解析到错误位置，出现
+//「WSL 正常、Windows 异常」的割裂现象。
 func userHome() string {
+	if h, err := os.UserHomeDir(); err == nil && h != "" {
+		return h
+	}
+	// os.UserHomeDir 失败的兜底（极端情况）
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}
-	if runtime.GOOS == "windows" {
-		return os.Getenv("USERPROFILE")
+	if h := os.Getenv("USERPROFILE"); h != "" {
+		return h
 	}
-	return "/"
+	return "."
 }
 
 // Next returns the next available key. Returns error if all keys are exhausted.
@@ -138,6 +157,7 @@ func (p *KeyPool) Next() (string, error) {
 	defer p.mu.Unlock()
 
 	if len(p.keys) == 0 {
+		diag.Logf("keypool[%s] Next: no keys loaded (path=%s)", p.provider, p.keyPath())
 		return "", fmt.Errorf("no API keys found for %s", p.provider)
 	}
 
@@ -149,9 +169,12 @@ func (p *KeyPool) Next() (string, error) {
 			idx := (p.current + i) % len(p.keys)
 			ks := p.keys[idx]
 			if ks.Disabled || now.Before(ks.CooldownEnd) {
+				diag.Logf("keypool[%s] Next: skip [%d] %s (disabled=%v cooling=%v)",
+					p.provider, idx, diag.MaskKey(ks.Key), ks.Disabled, now.Before(ks.CooldownEnd))
 				continue
 			}
 			p.current = (idx + 1) % len(p.keys)
+			diag.Logf("keypool[%s] Next: pick [%d] %s (round-robin)", p.provider, idx, diag.MaskKey(ks.Key))
 			return ks.Key, nil
 		}
 	} else {
@@ -159,8 +182,11 @@ func (p *KeyPool) Next() (string, error) {
 		for i := 0; i < len(p.keys); i++ {
 			ks := p.keys[i]
 			if ks.Disabled || now.Before(ks.CooldownEnd) {
+				diag.Logf("keypool[%s] Next: skip [%d] %s (disabled=%v cooling=%v)",
+					p.provider, i, diag.MaskKey(ks.Key), ks.Disabled, now.Before(ks.CooldownEnd))
 				continue
 			}
+			diag.Logf("keypool[%s] Next: pick [%d] %s", p.provider, i, diag.MaskKey(ks.Key))
 			return ks.Key, nil
 		}
 	}
@@ -176,11 +202,13 @@ func (p *KeyPool) Next() (string, error) {
 	if !earliest.IsZero() {
 		wait := time.Until(earliest)
 		if wait > 0 && wait < 5*time.Minute {
+			diag.Logf("keypool[%s] Next: all keys cooling, wait %s then retry", p.provider, wait)
 			time.Sleep(wait)
 			return p.Next()
 		}
 	}
 
+	diag.Logf("keypool[%s] Next: all %d keys exhausted (cooldown or disabled)", p.provider, len(p.keys))
 	return "", fmt.Errorf("all %s API keys exhausted (cooldown or disabled)", p.provider)
 }
 
@@ -204,18 +232,22 @@ func (p *KeyPool) ReportFailure(key string, permanent bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, ks := range p.keys {
+	for i, ks := range p.keys {
 		if ks.Key == key {
 			if permanent {
 				ks.Disabled = true
 				p.disabled[key] = true
 				p.saveDisabled()
+				diag.Logf("keypool[%s] ReportFailure: [%d] %s permanently disabled",
+					p.provider, i, diag.MaskKey(key))
 				return
 			}
 
 			ks.Failures++
 			cooldown := calculateCooldown(ks.Failures)
 			ks.CooldownEnd = time.Now().Add(cooldown)
+			diag.Logf("keypool[%s] ReportFailure: [%d] %s transient, failures=%d cooldown=%s",
+				p.provider, i, diag.MaskKey(key), ks.Failures, cooldown)
 			return
 		}
 	}
