@@ -345,8 +345,8 @@ async function writeTargetFull(target, projectRoot) {
     subBlocks.set(id, (await readMaybe(prAgentFile(projectRoot, id))).trimEnd());
   }
   const block = buildManagedBlock(allContent, subBlocks, groupIds);
-  const parts = [existing.before, block, existing.after].filter(Boolean);
-  const merged = `${parts.join('\n\n')}\n`;
+  // gen all 时覆盖整个文件，不要保留块之前的旧内容
+  const merged = `${block}\n`;
   await writeFile(target, merged, 'utf8');
   return { target, replaced: existing.found, content: merged };
 }
