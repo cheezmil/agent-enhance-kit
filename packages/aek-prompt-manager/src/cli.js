@@ -278,18 +278,28 @@ Commands:
   project-rules ...        Alias for pr
 
 Project-rule agents (${agents}):
-  codex        -> AGENTS.md
-  claude       -> CLAUDE.md
-  gemini       -> GEMINI.md
-  qwencode     -> QWEN.md
-  copilot      -> .github/copilot-instructions.md
-  cursor       -> .cursorrules
-  cline        -> .clinerules
-  roocode      -> .roo/rules-*/rules.md
-  kilocode     -> .kilocode/rules/aekpm.md
-  antigravity  -> .agents/rules/aekpm.md
-  openclaw     -> AGENTS.md
-  opencode     -> opencode.md
+  codex            -> AGENTS.md
+  hermes           -> HERMES.md
+  claude           -> CLAUDE.md
+  gemini           -> GEMINI.md
+  qwencode         -> QWEN.md
+  copilot          -> .github/copilot-instructions.md
+  vscode           -> .github/copilot-instructions.md
+  cursor           -> .cursor/rules/aekpm.md
+  cline            -> .cline/rules/aekpm.md
+  windsurf         -> .windsurf/rules/aekpm.md
+  roocode          -> .roo/rules/aekpm.md
+  kilocode         -> .kilocode/rules/aekpm.md
+  antigravity      -> .agents/rules/aekpm.md
+  qoder            -> AGENTS.md
+  kiro             -> .kiro/steering/aekpm.md
+  pi               -> AGENTS.md
+  deepseek-harness -> AGENTS.md
+  openclaw         -> AGENTS.md
+  zcode            -> AGENTS.md
+  trae             -> .trae/rules/project_rules.md
+  trae-cn          -> .trae-cn/rules/project_rules.md
+  opencode         -> AGENTS.md
 
 Source layout (.aek/prompt-manager/project-rules):
   all-agent-must-comply.md   shared by all project-rule targets

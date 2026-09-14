@@ -1,7 +1,6 @@
 // aek-prompt-manager — project rules generation
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export const PR_ROOT_DIR = 'project-rules';
 export const AGENTS_DIR = 'agents';
@@ -10,14 +9,8 @@ export const ALL_AGENT_FILE = 'all-agent-must-comply.md';
 export const PR_HEAD = '<!-- head-aek-project-rules -->';
 export const PR_END = '<!-- end-aek-project-rules -->';
 
-const MULTI_MODE_RULES = ['rules-code', 'rules-architect', 'rules-ask', 'rules-debug', 'rules-orchestrator'];
-
-function rootFile(name) {
-  return (projectRoot) => [join(projectRoot, name)];
-}
-
-function multiModeRules(rootDir) {
-  return (projectRoot) => MULTI_MODE_RULES.map((mode) => join(projectRoot, rootDir, mode, 'rules.md'));
+function projectTarget(relativePath) {
+  return (projectRoot) => [join(projectRoot, relativePath)];
 }
 
 export const PROJECT_AGENTS = {
@@ -29,62 +22,112 @@ export const PROJECT_AGENTS = {
   codex: {
     displayName: 'Codex',
     sourceFile: 'codex.md',
-    targets: rootFile('AGENTS.md'),
+    targets: projectTarget('AGENTS.md'),
+  },
+  hermes: {
+    displayName: 'Hermes',
+    sourceFile: 'hermes.md',
+    targets: projectTarget('HERMES.md'),
   },
   claude: {
     displayName: 'Claude',
     sourceFile: 'claude.md',
-    targets: rootFile('CLAUDE.md'),
+    targets: projectTarget('CLAUDE.md'),
   },
   gemini: {
     displayName: 'Gemini',
     sourceFile: 'gemini.md',
-    targets: rootFile('GEMINI.md'),
+    targets: projectTarget('GEMINI.md'),
   },
   qwencode: {
     displayName: 'Qwen Code',
     sourceFile: 'qwencode.md',
-    targets: rootFile('QWEN.md'),
+    targets: projectTarget('QWEN.md'),
   },
   copilot: {
     displayName: 'GitHub Copilot',
     sourceFile: 'copilot.md',
-    targets: rootFile('.github/copilot-instructions.md'),
+    targets: projectTarget('.github/copilot-instructions.md'),
+  },
+  vscode: {
+    displayName: 'VS Code',
+    sourceFile: 'vscode.md',
+    targets: projectTarget('.github/copilot-instructions.md'),
   },
   cursor: {
     displayName: 'Cursor',
     sourceFile: 'cursor.md',
-    targets: rootFile('.cursorrules'),
+    targets: projectTarget('.cursor/rules/aekpm.md'),
   },
   cline: {
     displayName: 'Cline',
     sourceFile: 'cline.md',
-    targets: rootFile('.clinerules'),
+    targets: projectTarget('.cline/rules/aekpm.md'),
+  },
+  windsurf: {
+    displayName: 'Windsurf',
+    sourceFile: 'windsurf.md',
+    targets: projectTarget('.windsurf/rules/aekpm.md'),
   },
   roocode: {
     displayName: 'Roo Code',
     sourceFile: 'roocode.md',
-    targets: multiModeRules('.roo'),
+    targets: projectTarget('.roo/rules/aekpm.md'),
   },
   kilocode: {
     displayName: 'Kilo Code',
     sourceFile: 'kilocode.md',
-    targets: rootFile('.kilocode/rules/aekpm.md'),
+    targets: projectTarget('.kilocode/rules/aekpm.md'),
   },
   antigravity: {
     displayName: 'Google Antigravity',
     sourceFile: 'antigravity.md',
-    targets: rootFile('.agents/rules/aekpm.md'),
+    targets: projectTarget('.agents/rules/aekpm.md'),
+  },
+  qoder: {
+    displayName: 'Qoder',
+    sourceFile: 'qoder.md',
+    targets: projectTarget('AGENTS.md'),
+  },
+  kiro: {
+    displayName: 'Kiro',
+    sourceFile: 'kiro.md',
+    targets: projectTarget('.kiro/steering/aekpm.md'),
+  },
+  pi: {
+    displayName: 'Pi Agent',
+    sourceFile: 'pi.md',
+    targets: projectTarget('AGENTS.md'),
+  },
+  'deepseek-harness': {
+    displayName: 'DeepSeek Harness',
+    sourceFile: 'deepseek-harness.md',
+    targets: projectTarget('AGENTS.md'),
   },
   openclaw: {
     displayName: 'OpenClaw',
     sourceFile: 'openclaw.md',
-    targets: rootFile('AGENTS.md'),
+    targets: projectTarget('AGENTS.md'),
+  },
+  zcode: {
+    displayName: 'ZCode',
+    sourceFile: 'zcode.md',
+    targets: projectTarget('AGENTS.md'),
+  },
+  trae: {
+    displayName: 'Trae',
+    sourceFile: 'trae.md',
+    targets: projectTarget('.trae/rules/project_rules.md'),
+  },
+  'trae-cn': {
+    displayName: 'Trae-CN',
+    sourceFile: 'trae-cn.md',
+    targets: projectTarget('.trae-cn/rules/project_rules.md'),
   },
   opencode: {
     displayName: 'OpenCode',
     sourceFile: 'opencode.md',
-    targets: rootFile('opencode.md'),
+    targets: projectTarget('AGENTS.md'),
   },
 };
 
@@ -142,27 +185,23 @@ export async function readMaybe(filePath) {
   return readFile(filePath, 'utf8');
 }
 
-async function copyMissing(templatePath, targetPath) {
+async function writeIfMissing(filePath, content = '') {
   try {
-    await access(targetPath);
+    await access(filePath);
     return false;
   } catch {
-    await mkdir(dirname(targetPath), { recursive: true });
-    await writeFile(targetPath, await readFile(templatePath, 'utf8'), 'utf8');
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, content, 'utf8');
     return true;
   }
 }
 
-function projectTemplatesDir() {
-  return join(dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'project-rules');
-}
+function scriptTemplate(agentId) {
+  return `#!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
 
-function resolveProjectRuleScriptTemplate(agentId) {
-  const templatePath = join(projectTemplatesDir(), SCRIPTS_DIR, `${agentId}.mjs`);
-  if (!templatePath.startsWith(projectTemplatesDir())) {
-    throw new Error(`Invalid project-rule script template: ${agentId}`);
-  }
-  return templatePath;
+execFileSync('aekpm', ['pr', 'gen', '${agentId}'], { stdio: 'inherit' });
+`;
 }
 
 export async function initProjectRules(projectRoot) {
@@ -172,15 +211,15 @@ export async function initProjectRules(projectRoot) {
   await mkdir(prScriptsDir(projectRoot), { recursive: true });
 
   const files = [];
-  async function addTemplate(templatePath, targetPath) {
-    files.push({ path: targetPath, created: await copyMissing(templatePath, targetPath) });
+  async function addScript(agentId) {
+    files.push({ path: prScriptFile(projectRoot, agentId), created: await writeIfMissing(prScriptFile(projectRoot, agentId), scriptTemplate(agentId)) });
   }
 
-  await addTemplate(join(projectTemplatesDir(), ALL_AGENT_FILE), prAllFile(projectRoot));
-  await addTemplate(resolveProjectRuleScriptTemplate('all'), prScriptFile(projectRoot, 'all'));
+  files.push({ path: prAllFile(projectRoot), created: await writeIfMissing(prAllFile(projectRoot), '') });
+  await addScript('all');
   for (const agentId of listProjectAgents()) {
-    await addTemplate(join(projectTemplatesDir(), AGENTS_DIR, `${agentId}.md`), prAgentFile(projectRoot, agentId));
-    await addTemplate(resolveProjectRuleScriptTemplate(agentId), prScriptFile(projectRoot, agentId));
+    files.push({ path: prAgentFile(projectRoot, agentId), created: await writeIfMissing(prAgentFile(projectRoot, agentId), '') });
+    await addScript(agentId);
   }
   return { root, files };
 }
