@@ -1,87 +1,83 @@
 ---
 name: aek-prompt-manager
-description: Use when injecting platform-specific prompt fragments into AI coding tools' global prompt files — patch (append) / map (replace) / remove / status / init.
+description: Use when injecting global prompts or generating project-local rules for AI coding tools via aekpm: patch/map/remove/status and pr init/gen.
 license: MIT
 metadata:
   hermes:
-    tags: [aek, prompt, global-prompt, inject, agent]
+    tags: [aek, prompt, global-prompt, project-rules, inject, agent]
 ---
 
 # aek-prompt-manager
 
 ## Overview
 
-向各 AI coding agent（Claude Code、Codex、OpenCode、Hermes 等）的全局提示词文件注入平台化提示词片段，双源两种注入语义，支持 17 个 agent 工具。CLI 入口 `aek pm` / `aek-prompt-manager`。
+管理 AI coding agent 的两类提示词：
+
+1. **全局提示词注入**：向 Claude Code、Codex、OpenCode、Hermes 等工具的全局提示词文件注入 managed block。
+2. **项目提示词生成**：在项目目录生成 `AGENTS.md`、`CLAUDE.md`、`.cursorrules` 等项目级 agent 规则文件。
+
+主入口：`aekpm`。兼容旧入口：`aek-prompt-manager`。
 
 ## When to Use
 
-- 需要给多个 agent 工具的全局提示词统一注入提示词片段
-- 需要按平台（linux/mac/windows/wsl）区分注入内容
-- 需要移除/查看已注入的提示词块
+- 给多个 agent 工具统一注入全局提示词片段
+- 按平台（linux/mac/windows/wsl）区分全局提示词内容
+- 为当前项目生成各 agent 的项目级规则文件
+- 查看/移除已注入的全局提示词块
 
-## 双源语义
+## Global Prompt Semantics
 
-| 源目录 | 命令 | 注入语义 |
+| 源目录 | 命令 | 语义 |
 |---|---|---|
-| `global-prompt-mapping/` | `aek pm map <tool>` / `map all` | **原地替换**：命中已有块整块替换，块外用户内容保留 |
-| `only-patch/` | `aek pm patch <tool>` / `patch all`（`apply` 是别名） | **末尾追加**：重复执行命中已有块则原地替换（幂等） |
+| `global-prompt-mapping/` | `aekpm map <tool>` / `map all` | **原地替换**：命中已有块整块替换，块外用户内容保留 |
+| `only-patch/` | `aekpm patch <tool>` / `patch all`（`apply` 是别名） | **末尾追加**：重复执行命中已有块则原地替换（幂等） |
 
-两个源结构相同：
+全局源目录结构：
+
 ```text
-<source>/
-├── all_agents_shared/      # 所有 agent 共用（跨平台 + 按平台）
-├── claude_code/            # 下划线命名的 agent 目录（id 中 hyphen → underscore）
-├── claude_desktop/ ...
-└── hermes/
-    每个目录: cross_platform_shared.md / linux.md / mac.md / windows.md / wsl.md
+<HOME>/.aek/prompt-manager/
+├── global-prompt-mapping/
+│   ├── all_agents_shared/
+│   └── <tool_dir>/
+└── only-patch/
+    ├── all_agents_shared/
+    ├── <tool_dir>/
+    └── aek_system_prompt/all_agents_shared/
 ```
 
-only-patch 额外支持系统内置提示词：
+每个工具源目录包含：
+
 ```text
-only-patch/aek_system_prompt/all_agents_shared/   # 注入到 head-aek-system-built-in-prompt 块
+cross_platform_shared.md
+linux.md
+mac.md
+windows.md
+wsl.md
 ```
 
-5 个平台文件按当前运行平台合并：先读 `cross_platform_shared.md`，再读当前平台文件。WSL 识别（/proc/version 含 microsoft → wsl）。
+合并顺序：
 
-## Usage
+1. `all_agents_shared/cross_platform_shared.md`
+2. `all_agents_shared/<current-platform>.md`
+3. `<tool_dir>/cross_platform_shared.md`
+4. `<tool_dir>/<current-platform>.md`
 
-### 初始化（建源目录 + 空平台文件，不覆盖已有内容）
+WSL 识别：`/proc/version` 包含 `microsoft` 时当前平台为 `wsl`。
+
+## Global Prompt Usage
 
 ```bash
-aek pm init
+aekpm init
+aekpm patch codex
+aekpm patch all
+aekpm apply codex
+aekpm map codex
+aekpm map all
+aekpm remove codex
+aekpm status all
 ```
 
-### 注入（末尾追加）
-
-```bash
-aek pm patch codex        # 只注入 codex
-aek pm patch all          # 注入全部 17 个工具
-aek pm apply codex        # patch 别名
-```
-
-### 注入（原地替换）
-
-```bash
-aek pm map codex
-aek pm map all
-```
-
-### 移除 / 查看
-
-```bash
-aek pm remove codex       # 移除 codex 的 managed block
-aek pm status all         # 各工具状态：patched / not-patched / file-missing
-```
-
-### 指定工作目录/隔离 HOME（测试）
-
-```bash
-FAKE=/tmp/gpm-e2e; mkdir -p "$FAKE"
-HOME="$FAKE" aek pm init
-HOME="$FAKE" aek pm patch codex
-```
-
-## 标记块结构（注入到工具全局提示词文件）
+标记块结构：
 
 ```text
 <!-- head-aek-pm-patch -->
@@ -99,24 +95,99 @@ HOME="$FAKE" aek pm patch codex
 <!-- end-aek-pm-patch -->
 ```
 
-## Supported Tools（17）
+Supported global prompt tools（20）：
 
-`claude-code` · `claude-desktop` · `cline` · `cursor` · `vscode` · `windsurf` · `openclaw` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `pi` · `deepseek-harness` · `opencode` · `codex` · `hermes`
+`claude-code` · `claude-desktop` · `cline` · `cursor` · `vscode` · `windsurf` · `openclaw` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `pi` · `deepseek-harness` · `zcode` · `trae` · `trae-cn` · `opencode` · `codex` · `hermes`
 
-不支持（GUI 无文件级提示词或无文件型全局规则）：`cherry-studio` · `chatbox` · `continue` · `workbuddy`
+## Project Rules (`pr`)
+
+### Usage
+
+```bash
+aekpm pr init
+aekpm pr gen
+aekpm pr gen all
+aekpm pr gen <agent>
+```
+
+项目源目录：
+
+```text
+<PROJECT>/.aek/prompt-manager/project-rules/
+├── all-agent-must-comply.md
+├── agents/
+│   ├── codex.md
+│   ├── claude.md
+│   ├── gemini.md
+│   ├── qwencode.md
+│   ├── copilot.md
+│   ├── cursor.md
+│   ├── cline.md
+│   ├── roocode.md
+│   ├── kilocode.md
+│   ├── antigravity.md
+│   ├── openclaw.md
+│   └── opencode.md
+└── scripts/
+    ├── all.mjs
+    ├── codex.mjs
+    ├── claude.mjs
+    ├── gemini.mjs
+    ├── qwencode.mjs
+    ├── copilot.mjs
+    ├── cursor.mjs
+    ├── cline.mjs
+    ├── roocode.mjs
+    ├── kilocode.mjs
+    ├── antigravity.mjs
+    ├── openclaw.mjs
+    └── opencode.mjs
+```
+
+生成目标：
+
+| agent | 目标 |
+|---|---|
+| `codex` | `AGENTS.md` |
+| `claude` | `CLAUDE.md` |
+| `gemini` | `GEMINI.md` |
+| `qwencode` | `QWEN.md` |
+| `copilot` | `.github/copilot-instructions.md` |
+| `cursor` | `.cursorrules` |
+| `cline` | `.clinerules` |
+| `roocode` | `.roo/rules-<mode>/rules.md` |
+| `kilocode` | `.kilocode/rules/aekpm.md` |
+| `antigravity` | `.agents/rules/aekpm.md` |
+| `openclaw` | `AGENTS.md` |
+| `opencode` | `opencode.md` |
+
+`aekpm pr gen` 使用目标去重，所以共享 `AGENTS.md` 的 agent（如 `codex` / `openclaw`）不会重复写入同一个 block。
+
+项目规则 managed block：
+
+```text
+<!-- head-aek-project-rules -->
+<all-agent-must-comply.md>
+<agents/<agent>.md>
+<!-- end-aek-project-rules -->
+```
 
 ## Common Pitfalls
 
-- **初始化不会覆盖已有文件**：`init` 只补缺失文件，用户已写内容保留（writeIfMissing 语义）
-- **cursor / vscode 带 fileHeader**：首次写入时自动加 frontmatter（`.mdc` 需 `globs/alwaysApply`，`.instructions.md` 需 `applyTo: "**"`）
-- **ESM 禁止 require**：src/ 全是 ES 模块，用顶层 `import { join } from 'node:path'`
-- **路径惰性**：`AEEK_DIR` / `sharedDir()` / `toolDir()` 调用时读取 `process.env.HOME`，不用模块顶层 const 快照
+- **全局命令短入口是 `aekpm`**；源码目录中仍保留 `aek-prompt-manager` bin。
+- **项目规则不做平台分支**；平台分支只用于全局 prompt 源。
+- **`CLAUDE.md` 不 fallback 到 codex 源**；必须读取 `agents/claude.md`。
+- **共享目标必须去重**：`aekpm pr gen all` 对 `AGENTS.md` 只写一次。
+- **初始化不会覆盖已有文件**：`init` / `pr init` 只补缺失文件。
+- **脚本只是 wrapper**：`scripts/*.mjs` 调 `aekpm pr gen <agent>`，真实逻辑在 `src/project-rules.js`。
+- **ESM 禁止 require**：src 全部使用顶层 `import`。
+- **路径惰性**：全局 prompt 源路径调用时读取 `HOME`，避免模块加载时快照。
 
 ## Verification
 
 ```bash
 cd packages/aek-prompt-manager
-node --test test/core.test.js    # 11 个测试
-aek pm status all                # 查看各工具注入状态
-aek pm patch codex && cat ~/.codex/AGENTS.md   # 手动确认块内容
+corepack pnpm run test
+aekpm pr --help
+corepack pnpm -r build
 ```
