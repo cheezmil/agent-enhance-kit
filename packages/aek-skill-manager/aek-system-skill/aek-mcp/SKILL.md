@@ -20,46 +20,40 @@ MCP proxy gateway for centralized management of all MCP server connections. Supp
 - Need to manage servers, users, groups, or API keys via Web UI
 - Need to configure permissions
 
-## Usage
-
-### Start (frontend + backend)
+## 构建与部署（统一入口：scripts/build_deploy.py）
 
 ```bash
-python3 packages/aek-mcp/scripts/start_aek-mcp.py
+# 构建本机 + 对端平台二进制（WSL 自动编译 linux + windows）
+python3 scripts/build_deploy.py aek-mcp --no-deploy
+
+# 完整部署（构建 + npm install -g + 对端同步）
+python3 scripts/build_deploy.py aek-mcp
+
+# 交叉编译全部 5 个平台
+python3 scripts/build_deploy.py --build-platform-bins --cross-compile
 ```
 
-### Start frontend only
+## 启动服务
 
 ```bash
-python3 packages/aek-mcp/scripts/start_fe_aek-mcp.py
+# 启动 MCP 全部服务（backend + frontend）
+python3 scripts/start.py mcp
+
+# 仅启动后端（gin, port 1352）
+python3 scripts/start.py mcp-backend
+
+# dev 模式（热重载）
+python3 scripts/start.py mcp --dev
+
+# 列出所有可用服务
+python3 scripts/start.py --list
 ```
 
-### Start backend only
+### 服务端口
+- Backend (gin): `:1352`
+- Frontend (nextjs): `:1351`
 
-```bash
-python3 packages/aek-mcp/scripts/start_be_aek-mcp.py
-```
-
-### Deploy (build + install)
-
-```bash
-# Deploy both
-python3 packages/aek-mcp/scripts/start_deploy_aek-mcp.py
-
-# Deploy frontend only
-python3 packages/aek-mcp/scripts/start_deploy_fe_aek-mcp.py
-
-# Deploy backend only
-python3 packages/aek-mcp/scripts/start_deploy_be_aek-mcp.py
-```
-
-### Install dependencies
-
-```bash
-python3 packages/aek-mcp/scripts/start_install_dependencies_aek-mcp.py
-```
-
-### Web UI Features
+## Web UI Features
 - Dashboard
 - Server management
 - User & group management
@@ -73,7 +67,7 @@ python3 packages/aek-mcp/scripts/start_install_dependencies_aek-mcp.py
 ## Common Pitfalls
 
 - Frontend (1351) and backend (1352) must both be running
-- Run `start_deploy` before `start` to build
+- Run `build_deploy.py` before `start.py` to build
 - Check logs via Web UI if connections fail
 
 ## Verification

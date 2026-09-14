@@ -290,6 +290,42 @@ func TestProvider(b *broker.SearchBroker, provider, query string) (string, error
 	return sb.String(), nil
 }
 
+// ── TestProviderTrace ────────────────────────────────────────────────────────
+
+// TestProviderTrace 单独对指定 provider 跑一次真实调用，输出其 ProviderTrace。
+// 用于诊断：为什么这个 provider 没有返回结果（哪个 key、什么 HTTP 状态、是否 failover）。
+// 所有 key 输出均已 mask，绝不出现明文。
+func TestProviderTrace(b *broker.SearchBroker, provider, query string) (string, error) {
+	if query == "" {
+		query = "aek test"
+	}
+	pname := models.ProviderName(provider)
+
+	// 强制只跑这一个 provider，避免被默认路由覆盖。
+	sq := models.SearchQuery{
+		Query:      query,
+		Mode:       models.SearchModeDiscovery,
+		MaxResults: 5,
+		Providers:  []models.ProviderName{pname},
+	}
+	resp, err := b.Search(context.Background(), sq)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Trace for provider=%s (total_results=%d)\n", provider, resp.TotalResults))
+	for _, t := range resp.Traces {
+		sb.WriteString(fmt.Sprintf("  provider=%s status=%s results=%d latency=%dms",
+			t.Provider, t.Status, t.ResultsCount, t.LatencyMs))
+		if t.Error != nil {
+			sb.WriteString(fmt.Sprintf(" error=%s", *t.Error))
+		}
+		sb.WriteString("\n")
+	}
+	return sb.String(), nil
+}
+
 // ── KeyPoolStatus ──────────────────────────────────────────────────────────
 
 // KeyPoolStatus returns API key pool status for all providers.
