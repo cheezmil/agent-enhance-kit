@@ -55,6 +55,8 @@ function globalPromptPath(id, options = {}) {
       return joinPath(home, '.zcode', 'AGENTS.md');
     case 'trae':
       return joinPath(home, '.trae', 'AGENTS.md');
+    case 'trae-cn':
+      return joinPath(home, '.trae-cn', 'AGENTS.md');
     case 'opencode': {
       const cfg = win
         ? (process.env.LOCALAPPDATA ? process.env.LOCALAPPDATA.replace(/\\/g, '/') : joinPath(home, 'AppData', 'Local'))
@@ -96,6 +98,7 @@ function globalPromptLabel(id) {
     case 'deepseek-harness': return '~/.dsh/AGENTS.md (user-global)';
     case 'zcode': return '~/.zcode/AGENTS.md (user-global)';
     case 'trae': return '~/.trae/AGENTS.md (user-global)';
+    case 'trae-cn': return '~/.trae-cn/AGENTS.md (user-global, China edition)';
     case 'opencode': return 'global AGENTS.md';
     case 'codex': return 'global AGENTS.md';
     case 'hermes': return 'SOUL.md (global identity)';
@@ -207,6 +210,12 @@ export const PLATFORMS = [
     globalPromptLabel,
   },
   {
+    id: 'trae-cn',
+    name: 'Trae-CN',
+    globalPromptPath,
+    globalPromptLabel,
+  },
+  {
     id: 'opencode',
     name: 'OpenCode',
     globalPromptPath,
@@ -234,7 +243,7 @@ const ALL_AGENT_IDS = [
   'claude-code', 'claude-desktop', 'cherry-studio', 'chatbox', 'cline',
   'codex', 'continue', 'cursor', 'hermes', 'opencode', 'vscode',
   'windsurf', 'workbuddy', 'openclaw', 'qoder', 'qwencode', 'antigravity',
-  'kiro', 'kilocode', 'pi', 'deepseek-harness', 'zcode', 'trae',
+  'kiro', 'kilocode', 'pi', 'deepseek-harness', 'zcode', 'trae', 'trae-cn',
 ];
 
 export const UNSUPPORTED = ALL_AGENT_IDS.filter((id) => !SUPPORTED_IDS.includes(id));

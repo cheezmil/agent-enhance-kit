@@ -49,6 +49,20 @@ if (!isIgnorableDaemonPortEnv(process.env.AEKB_DAEMON_PORT)) {
   process.exit(EXIT_CODES.USAGE_ERROR);
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────
+
+/** Parse a semver string into [major, minor, patch]. Returns null on invalid input. */
+function parseSemver(v: string): [number, number, number] | null {
+  const parts = v.replace(/^v/, '').split('-')[0].split('.').map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) return null;
+  return [parts[0], parts[1], parts[2]];
+}
+
+let _cmdIdCounter = 0;
+function generateCmdId(): string {
+  return `cmd_${process.pid}_${Date.now()}_${++_cmdIdCounter}`;
+}
+
 // ─── State ───────────────────────────────────────────────────────────
 
 type ExtensionProfileConnection = {
@@ -543,6 +557,23 @@ wss.on('connection', (ws: WebSocket) => {
         connection.lastSeenAt = Date.now();
         if (connection.extensionVersion) recordExtensionVersion(connection.extensionVersion);
         log.info(`[daemon] Extension profile connected: ${connection.contextId}`);
+        // Auto-reload extension if CLI version doesn't satisfy the extension's compat range
+        if (connection.extensionCompatRange && PKG_VERSION) {
+          const match = connection.extensionCompatRange.match(/^(>=?)\s*(\S+)$/);
+          if (match) {
+            const [, op, rangeVer] = match;
+            const extV = connection.extensionVersion ? parseSemver(connection.extensionVersion) : null;
+            const rangeV = parseSemver(rangeVer);
+            if (extV && rangeV) {
+              const cmp = extV[0] - rangeV[0] || extV[1] - rangeV[1] || extV[2] - rangeV[2];
+              const satisfies = op === '>=' ? cmp >= 0 : cmp > 0;
+              if (!satisfies) {
+                log.warn(`[daemon] Extension v${connection.extensionVersion} requires ${connection.extensionCompatRange}, but CLI is v${PKG_VERSION}. Reloading extension...`);
+                ws.send(JSON.stringify({ id: generateCmdId(), action: 'ext-reload' }));
+              }
+            }
+          }
+        }
         return;
       }
 
