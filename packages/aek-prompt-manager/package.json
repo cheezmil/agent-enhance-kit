@@ -1,6 +1,6 @@
 {
   "name": "@cheezmil/aek-prompt-manager",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "向各 AI Agent 工具的全局提示词文件注入可管理的 patch 块",
   "scripts": {
     "test": "node --test"
@@ -18,14 +18,14 @@
   "type": "module",
   "main": "src/cli.js",
   "bin": {
-    "aekpm": "./bin/aekpm.js",
-    "aek-prompt-manager": "./bin/aek-prompt-manager.js"
+    "aekpm": "bin/aekpm.js",
+    "aek-prompt-manager": "bin/aek-prompt-manager.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@cheezmil/aek-common": "workspace:*"
+    "@cheezmil/aek-common": "^0.1.2"
   },
   "files": [
     "bin/",
