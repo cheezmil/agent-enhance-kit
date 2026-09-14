@@ -7,15 +7,20 @@
 
 ## 禁止将txt、json、jsonc、md等模板文件中的内容硬编码到各个编程语言文件中
 
-## 部署方式：优先本地编译，其次 npm 云端包
+## 部署方式：开发模式 vs npm 发布模式（严禁混淆）
 
 ### 开发模式（本地编译部署）
 - **开发时一律用本地编译**：`go build` → `npm install -g .`（本地文件夹安装）
-- 脚本位置：
-  - WSL/Linux: `packages/<包>/scripts/start_deploy_<包>.py`
-  - 部署到 Windows: `packages/<包>/scripts/for-wsl/start_deploy_<包>-to-windows.py`
-- 复用 `shared/start_scripts_shared_logic.py`，禁止硬编码路径
+- 脚本统一放 `packages/<包>/scripts/` 下，复用 `shared/start_scripts_shared_logic.py`
 - **禁止在开发脚本中执行 npm publish**
+- 部署到 Windows 的脚本统一放 `packages/<包>/scripts/for-wsl/`，命名规范：`start_deploy_<包>-to-windows.py`
+
+| 包 | 开发部署脚本 |
+|---|---|
+| aek-websearch | `packages/aek-websearch/scripts/start_deploy_aek-websearch.py` |
+| aek-websearch (Win) | `packages/aek-websearch/scripts/for-wsl/start_deploy_aek-websearch-to-windows.py` |
+| aek-prompt-manager (Win) | `packages/aek-prompt-manager/scripts/for-wsl/start_deploy_aek-prompt-manager-to-windows.py` |
+| aek-mcp | `packages/aek-mcp/scripts/start_deploy_aek-mcp.py` |
 
 ### npm 发布模式（仅限维护者）
 - 仅当需要对外发布时才执行 npm publish，且必须：
