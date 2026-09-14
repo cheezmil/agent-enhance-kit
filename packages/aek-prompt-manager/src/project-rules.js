@@ -6,11 +6,6 @@ export const PR_ROOT_DIR = 'project-rules';
 export const AGENTS_DIR = 'for-certain-agents';
 export const SCRIPTS_DIR = 'scripts';
 export const ALL_AGENT_FILE = 'ALL-AGENTS-MUST-COMPLY.md';
-export const PR_HEAD = '<!-- head-aek-prompt-manager -->';
-export const PR_END = '<!-- end-aek-prompt-manager -->';
-// 旧版标记（迁移用）：遇到旧块整体按新结构重建
-const LEGACY_HEAD = '<!-- head-aek-project-rules -->';
-const LEGACY_END = '<!-- end-aek-project-rules -->';
 
 function subBlockHead(agentId) {
   return `<!-- head-${agentId} -->`;
@@ -243,75 +238,37 @@ export async function initProjectRules(projectRoot) {
   return { root, files };
 }
 
-// 解析文件内容：拆出用户部分（aekpm 块之前/之后）与已存在的 agent 子块 map
-function parseExisting(fileContent) {
-  let headIdx = fileContent.indexOf(PR_HEAD);
-  let endMark = PR_END;
-  if (headIdx === -1) {
-    headIdx = fileContent.indexOf(LEGACY_HEAD);
-    endMark = LEGACY_END;
-  }
-  if (headIdx === -1) {
-    return { found: false, before: fileContent.trimEnd(), after: '', subBlocks: new Map() };
-  }
-  let endIdx = fileContent.indexOf(endMark, headIdx);
-  if (endIdx === -1) {
-    throw new Error(`Malformed managed block: head marker found without matching end marker.`);
-  }
-  endIdx += endMark.length;
-  const before = fileContent.slice(0, headIdx).trimEnd();
-  const after = fileContent.slice(endIdx).trimStart();
-  const inner = fileContent.slice(headIdx, endIdx);
-
-  // 抽取子块 <!-- head-<id> --> ... <!-- end-<id> -->（负向断言排除外层标记自身，
-  // 否则外层的 end 回引会把整个 inner 吞掉，子块就扫不到了）
-  const subBlocks = new Map();
-  const subRe = /<!-- head-(?!aek-prompt-manager -->)(?!aek-project-rules -->)([a-z0-9-]+) -->([\s\S]*?)<!-- end-\1 -->/gi;
-  let m;
-  while ((m = subRe.exec(inner)) !== null) {
-    subBlocks.set(m[1], m[2].trim());
-  }
-  return { found: true, before, after, subBlocks };
-}
-
-function buildManagedBlock(allContent, subBlocks, orderedIds) {
-  const lines = [PR_HEAD];
-  if (allContent.trim()) lines.push(allContent.trimEnd(), '');
+// 将所有内容拼接为一个完整的文件内容（无注释块标记）
+function buildContent(allContent, subBlocks, orderedIds) {
   const parts = [];
+  if (allContent.trim()) parts.push(allContent.trimEnd());
   for (const id of orderedIds) {
     const c = subBlocks.get(id);
     if (!c || !c.trim()) continue;
     parts.push(`${subBlockHead(id)}\n${c.trimEnd()}\n${subBlockEnd(id)}`);
   }
-  if (parts.length) lines.push(parts.join('\n\n'), '');
-  lines.push(PR_END);
-  return lines.join('\n');
+  return parts.length ? `${parts.join('\n\n')}\n` : '';
 }
 
 // gen 单个 agent：只更新自己的子块与外壳（含 all 内容），保留其他子块
-// gen all：重写全部子块
+// gen all：重写整个文件
 export async function mergeProjectBlock(fileContent, agentId, projectRoot) {
-  const existing = parseExisting(fileContent);
   const allContent = (await readMaybe(prAllFile(projectRoot))).trimEnd();
 
-  const subBlocks = new Map(existing.subBlocks);
-  let orderedIds;
-  if (agentId === 'all') {
-    // 全量：重写该目标所在组的全部 agent 子块
-    // 目标维度由调用方保证（这里无法知道目标），交由 generateProjectRules 按组调用
-    throw new Error('mergeProjectBlock 不支持 agentId=all，请走 generateProjectRules');
+  // 解析已有子块（用子块标记 <!-- head-<id> --> / <!-- end-<id> --> 抽取）
+  const subBlocks = new Map();
+  const subRe = /<!-- head-([a-z0-9-]+) -->([\s\S]*?)<!-- end-\1 -->/gi;
+  let m;
+  while ((m = subRe.exec(fileContent)) !== null) {
+    subBlocks.set(m[1], m[2].trim());
   }
+
   const ids = groupAgents(agentId);
-  orderedIds = ids;
   const own = (await readMaybe(prAgentFile(projectRoot, agentId))).trimEnd();
   subBlocks.set(agentId, own);
-  // 外壳 all 内容始终刷新；其他子块保留（parseExisting 已收集）
 
-  const block = buildManagedBlock(allContent, subBlocks, orderedIds);
-  const before = existing.before;
-  const after = existing.after;
-  const parts = [before, block, after].filter(Boolean);
-  return { content: `${parts.join('\n\n')}\n`, replaced: existing.found };
+  const content = buildContent(allContent, subBlocks, ids);
+  return { content, replaced: !!content };
 }
 
 async function writeOneTarget(target, agentId, projectRoot) {
@@ -330,11 +287,9 @@ async function writeOneTarget(target, agentId, projectRoot) {
   return { target, replaced, content: merged };
 }
 
-// gen all：对每个唯一目标，按组重写全部子块
+// gen all：对整个文件覆盖写入
 async function writeTargetFull(target, projectRoot) {
   await mkdir(dirname(target), { recursive: true });
-  let fileContent = await readMaybe(target);
-  const existing = parseExisting(fileContent);
   const allContent = (await readMaybe(prAllFile(projectRoot))).trimEnd();
   // 找出该目标对应的组（任一 agent 指向它即可）
   const groupIds = listProjectAgents().filter((id) =>
@@ -344,18 +299,16 @@ async function writeTargetFull(target, projectRoot) {
   for (const id of groupIds) {
     subBlocks.set(id, (await readMaybe(prAgentFile(projectRoot, id))).trimEnd());
   }
-  const block = buildManagedBlock(allContent, subBlocks, groupIds);
-  // gen all 时覆盖整个文件，不要保留块之前的旧内容
-  const merged = `${block}\n`;
-  await writeFile(target, merged, 'utf8');
-  return { target, replaced: existing.found, content: merged };
+  const content = buildContent(allContent, subBlocks, groupIds);
+  await writeFile(target, content, 'utf8');
+  return { target, replaced: true, content };
 }
 
 export async function generateProjectRules(agentId = 'all', projectRoot = process.cwd()) {
   // 先初始化完整目录结构（initProjectRules 内部 writeIfMissing，幂等安全）
   const init = await initProjectRules(projectRoot);
   const root = init.root;
-  
+
   const agent = findProjectAgent(agentId);
   const writes = [];
   let generated = 0;
