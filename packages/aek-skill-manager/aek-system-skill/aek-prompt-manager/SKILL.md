@@ -135,10 +135,9 @@ aekpm pr gen <agent>
 
 `aekpm pr gen` 使用目标去重，所以共享 `AGENTS.md` 的 agent（如 `codex` / `openclaw` / `qoder` / `pi` / `deepseek-harness` / `zcode`）不会重复写入同一个 block。
 
-项目规则 managed block（以 AGENTS.md 为例，子块按源文件名 A-Z 排列）：
+项目规则生成（以 AGENTS.md 为例，子块按源文件名 A-Z 排列）：
 
 ```text
-<!-- head-aek-prompt-manager -->
 <ALL-AGENTS-MUST-COMPLY.md 的内容，全文件只此一份>
 
 <!-- head-codex -->
@@ -150,11 +149,10 @@ aekpm pr gen <agent>
 <!-- end-deepseek-harness -->
 
 ...
-<!-- end-aek-prompt-manager -->
 ```
 
-- `pr gen <agent>` 只更新外壳（含 ALL-AGENTS-MUST-COMPLY 内容）与自己的 `head-<agent>` 子块，其他子块原样保留。
-- `pr gen all` 重写全部子块。
+- `pr gen <agent>` 只更新自己的子块，其他子块原样保留。
+- `pr gen all` 重写全部子块，整个文件覆盖。
 - 旧格式 `head/end-aek-project-rules` 会被自动迁移为新格式。
 
 ## Supported Global Prompt Tools
