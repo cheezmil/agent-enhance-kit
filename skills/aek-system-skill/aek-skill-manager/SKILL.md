@@ -46,6 +46,24 @@ aek sm pull claude
 aek sm init
 ```
 
+### Transfer-sync (WSL ↔ Windows mirror)
+
+```bash
+aek sm transfer-sync
+```
+
+以最新修改的一方为准，双向对齐中心仓库。覆盖前自动备份。
+
+### Remove skills
+
+```bash
+aek sm remove <skill-name>...
+aek sm remove --all
+aek sm remove <skill-name>... --tools claude,cursor
+```
+
+从各工具目录移除指定 skill（支持多个名称），或清空全部。
+
 ### Interactive wizard
 
 Run without arguments for a guided interactive setup:
