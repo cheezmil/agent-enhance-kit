@@ -7,71 +7,84 @@ export const PR_ROOT_DIR = 'project-rules';
 export const AGENTS_DIR = 'agents';
 export const SCRIPTS_DIR = 'scripts';
 export const ALL_AGENT_FILE = 'all-agent-must-comply.md';
-export const PR_HEAD = '<!-- head-aek-pr-rules -->';
-export const PR_END = '<!-- end-aek-pr-rules -->';
+export const PR_HEAD = '<!-- head-aek-project-rules -->';
+export const PR_END = '<!-- end-aek-project-rules -->';
+
+const MULTI_MODE_RULES = ['rules-code', 'rules-architect', 'rules-ask', 'rules-debug', 'rules-orchestrator'];
+
+function rootFile(name) {
+  return (projectRoot) => [join(projectRoot, name)];
+}
+
+function multiModeRules(rootDir) {
+  return (projectRoot) => MULTI_MODE_RULES.map((mode) => join(projectRoot, rootDir, mode, 'rules.md'));
+}
 
 export const PROJECT_AGENTS = {
   all: {
     displayName: 'all',
-    sourceFile: null,
-    targets: (projectRoot) => [
-      join(projectRoot, 'AGENTS.md'),
-      join(projectRoot, 'CLAUDE.md'),
-      join(projectRoot, 'GEMINI.md'),
-      join(projectRoot, 'QWEN.md'),
-      join(projectRoot, '.roo', 'rules-code', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-architect', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-ask', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-debug', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-orchestrator', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-code', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-architect', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-ask', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-debug', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-orchestrator', 'rules.md'),
-    ],
+    sourceFile: ALL_AGENT_FILE,
+    targets: () => ['__all_targets__'],
   },
   codex: {
     displayName: 'Codex',
     sourceFile: 'codex.md',
-    targets: (projectRoot) => [join(projectRoot, 'AGENTS.md')],
+    targets: rootFile('AGENTS.md'),
   },
   claude: {
     displayName: 'Claude',
     sourceFile: 'claude.md',
-    targets: (projectRoot) => [join(projectRoot, 'CLAUDE.md')],
+    targets: rootFile('CLAUDE.md'),
   },
   gemini: {
     displayName: 'Gemini',
     sourceFile: 'gemini.md',
-    targets: (projectRoot) => [join(projectRoot, 'GEMINI.md')],
+    targets: rootFile('GEMINI.md'),
   },
   qwencode: {
     displayName: 'Qwen Code',
     sourceFile: 'qwencode.md',
-    targets: (projectRoot) => [join(projectRoot, 'QWEN.md')],
+    targets: rootFile('QWEN.md'),
+  },
+  copilot: {
+    displayName: 'GitHub Copilot',
+    sourceFile: 'copilot.md',
+    targets: rootFile('.github/copilot-instructions.md'),
+  },
+  cursor: {
+    displayName: 'Cursor',
+    sourceFile: 'cursor.md',
+    targets: rootFile('.cursorrules'),
+  },
+  cline: {
+    displayName: 'Cline',
+    sourceFile: 'cline.md',
+    targets: rootFile('.clinerules'),
   },
   roocode: {
     displayName: 'Roo Code',
     sourceFile: 'roocode.md',
-    targets: (projectRoot) => [
-      join(projectRoot, '.roo', 'rules-code', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-architect', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-ask', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-debug', 'rules.md'),
-      join(projectRoot, '.roo', 'rules-orchestrator', 'rules.md'),
-    ],
+    targets: multiModeRules('.roo'),
   },
   kilocode: {
     displayName: 'Kilo Code',
     sourceFile: 'kilocode.md',
-    targets: (projectRoot) => [
-      join(projectRoot, '.kilocode', 'rules-code', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-architect', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-ask', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-debug', 'rules.md'),
-      join(projectRoot, '.kilocode', 'rules-orchestrator', 'rules.md'),
-    ],
+    targets: rootFile('.kilocode/rules/aekpm.md'),
+  },
+  antigravity: {
+    displayName: 'Google Antigravity',
+    sourceFile: 'antigravity.md',
+    targets: rootFile('.agents/rules/aekpm.md'),
+  },
+  openclaw: {
+    displayName: 'OpenClaw',
+    sourceFile: 'openclaw.md',
+    targets: rootFile('AGENTS.md'),
+  },
+  opencode: {
+    displayName: 'OpenCode',
+    sourceFile: 'opencode.md',
+    targets: rootFile('opencode.md'),
   },
 };
 
@@ -114,6 +127,10 @@ export function findProjectAgent(id) {
 
 export function projectAgentName(id) {
   return findProjectAgent(id).displayName;
+}
+
+export function projectAgentTargets(agentId, projectRoot) {
+  return findProjectAgent(agentId).targets(projectRoot);
 }
 
 export async function readMaybe(filePath) {
@@ -208,23 +225,41 @@ async function buildContentForAgent(agentId, projectRoot) {
 
 async function writeOneTarget(target, content) {
   await mkdir(dirname(target), { recursive: true });
-  const fileContent = await readMaybe(target);
+  let fileContent = '';
+  try {
+    fileContent = await readMaybe(target);
+  } catch (error) {
+    if (error?.code === 'EISDIR') {
+      throw new Error(`Target path is a directory; expected a file: ${target}`);
+    }
+    throw error;
+  }
   const { content: merged, replaced } = mergeProjectBlock(fileContent, content);
   await writeFile(target, merged, 'utf8');
-  return { target, replaced };
+  return { target, replaced, content: merged };
 }
 
 export async function generateProjectRules(agentId = 'all', projectRoot = process.cwd()) {
-  findProjectAgent(agentId);
+  const agent = findProjectAgent(agentId);
+  const root = prRoot(projectRoot);
+  let targetList;
+  if (agentId === 'all') {
+    targetList = [];
+    for (const id of listProjectAgents()) {
+      targetList.push(...PROJECT_AGENTS[id].targets(projectRoot));
+    }
+    targetList = [...new Set(targetList)];
+  } else {
+    targetList = agent.targets(projectRoot);
+  }
   const content = await buildContentForAgent(agentId, projectRoot);
-  const targets = PROJECT_AGENTS[agentId].targets(projectRoot);
   const writes = [];
   let generated = 0;
-  for (const target of targets) {
-    const targetContent = await buildContentForAgent(agentId, projectRoot);
-    const r = await writeOneTarget(target, targetContent);
+  for (const target of targetList) {
+    if (target === '__all_targets__') continue;
+    const r = await writeOneTarget(target, content);
     writes.push(r);
     if (content.trim()) generated += 1;
   }
-  return { agentId, generated, writes, root: prRoot(projectRoot) };
+  return { agentId, generated, writes, root };
 }

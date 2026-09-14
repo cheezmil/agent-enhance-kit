@@ -282,8 +282,14 @@ Project-rule agents (${agents}):
   claude       -> CLAUDE.md
   gemini       -> GEMINI.md
   qwencode     -> QWEN.md
+  copilot      -> .github/copilot-instructions.md
+  cursor       -> .cursorrules
+  cline        -> .clinerules
   roocode      -> .roo/rules-*/rules.md
-  kilocode     -> .kilocode/rules-*/rules.md
+  kilocode     -> .kilocode/rules/aekpm.md
+  antigravity  -> .agents/rules/aekpm.md
+  openclaw     -> AGENTS.md
+  opencode     -> opencode.md
 
 Source layout (.aek/prompt-manager/project-rules):
   all-agent-must-comply.md   shared by all project-rule targets
