@@ -107,7 +107,7 @@ test('trae resolves correctly on all platforms', () => {
   const trae = platform('trae');
   assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'linux', home: '/home/u' }), '/home/u/.trae/skills');
   assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'darwin', home: '/Users/u' }), '/Users/u/.trae/skills');
-  assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'win32', home: 'C:\\\\Users\\\\u', env: {} }), 'C:\\\\Users\\\\u\\\\.trae\\\\skills');
+  assert.equal(resolveSkillsDir(trae, { scope: 'global', platformOS: 'win32', home: 'C:\\Users\\u', env: {} }), 'C:\\Users\\u\\.trae\\skills');
   assert.equal(resolveSkillsDir(trae, { scope: 'project', platformOS: 'linux', cwd: '/work/proj' }), '/work/proj/.trae/skills');
 });
 
@@ -115,5 +115,5 @@ test('zcode resolves correctly on all platforms', () => {
   const zcode = platform('zcode');
   assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'linux', home: '/home/u' }), '/home/u/.zcode/skills');
   assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'darwin', home: '/Users/u' }), '/Users/u/.zcode/skills');
-  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'win32', home: 'C:\\\\Users\\\\u', env: {} }), 'C:\\\\Users\\\\u\\\\.zcode\\\\skills');
+  assert.equal(resolveSkillsDir(zcode, { scope: 'global', platformOS: 'win32', home: 'C:\\Users\\u', env: {} }), 'C:\\Users\\u\\.zcode\\skills');
 });

@@ -11,7 +11,7 @@ metadata:
 
 ## Overview
 
-Sync Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skill-manager/skills/`) to every AI coding tool's global or project directory. Supports 20+ agent tools (Claude Code, Cursor, Codex, OpenCode, Hermes, Cline, Kiro, Pi Agent, etc.).
+Sync Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skill-manager/skills/`) to every AI coding tool's global or project directory. Supports 22 agent tools (Claude Code, Cursor, Codex, OpenCode, Hermes, Cline, Kiro, Pi Agent, ZCode, Trae, etc.).
 
 ## When to Use
 
@@ -81,4 +81,4 @@ aek sm
 
 ## Supported Tools
 
-`claude` · `claude-desktop` · `cherry-studio` · `chatbox` · `cline` · `codex` · `continue` · `copilot` · `cursor` · `gemini` · `hermes` · `opencode` · `openclaw` · `pi` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `vscode` · `windsurf` · `workbuddy`
+`claude` · `claude-desktop` · `cherry-studio` · `chatbox` · `cline` · `codex` · `continue` · `copilot` · `cursor` · `gemini` · `hermes` · `opencode` · `openclaw` · `pi` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `vscode` · `windsurf` · `workbuddy` · `zcode` · `trae`
