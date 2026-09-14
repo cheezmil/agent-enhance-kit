@@ -3,130 +3,119 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 
 export const PR_ROOT_DIR = 'project-rules';
-export const AGENTS_DIR = 'agents';
+export const AGENTS_DIR = 'for-certain-agents';
 export const SCRIPTS_DIR = 'scripts';
 export const ALL_AGENT_FILE = 'all-agent-must-comply.md';
 export const PR_HEAD = '<!-- head-aek-project-rules -->';
 export const PR_END = '<!-- end-aek-project-rules -->';
 
+// 目录名禁止出现点号和路径分隔符，目标相对路径里的 `.` 一律用 `#` 表示、
+// 目录分隔符一律用 `@` 表示，并保留原始大小写：
+//   AGENTS.md                      -> AGENTS#md
+//   .github/copilot-instructions.md -> #github@copilot-instructions#md
+//   .cursor/rules/aekpm.md          -> #cursor@rules@aekpm#md
+// 每个 agent 的源 md 收进以其目标相对路径命名的子目录，一眼即可看出提示词生成到哪里。
+export function targetGroupDir(targetRelPath) {
+  return targetRelPath.replace(/\\/g, '/').split('/').join('@').replace(/\./g, '#');
+}
+
 function projectTarget(relativePath) {
-  return (projectRoot) => [join(projectRoot, relativePath)];
+  const fn = (projectRoot) => [join(projectRoot, relativePath)];
+  fn.relPath = relativePath;
+  return fn;
 }
 
 export const PROJECT_AGENTS = {
   all: {
     displayName: 'all',
-    sourceFile: ALL_AGENT_FILE,
     targets: () => ['__all_targets__'],
   },
   codex: {
     displayName: 'Codex',
-    sourceFile: 'codex.md',
     targets: projectTarget('AGENTS.md'),
   },
   hermes: {
     displayName: 'Hermes',
-    sourceFile: 'hermes.md',
     targets: projectTarget('HERMES.md'),
   },
   claude: {
     displayName: 'Claude',
-    sourceFile: 'claude.md',
     targets: projectTarget('CLAUDE.md'),
   },
   gemini: {
     displayName: 'Gemini',
-    sourceFile: 'gemini.md',
     targets: projectTarget('GEMINI.md'),
   },
   qwencode: {
     displayName: 'Qwen Code',
-    sourceFile: 'qwencode.md',
     targets: projectTarget('QWEN.md'),
   },
   copilot: {
     displayName: 'GitHub Copilot',
-    sourceFile: 'copilot.md',
     targets: projectTarget('.github/copilot-instructions.md'),
   },
   vscode: {
     displayName: 'VS Code',
-    sourceFile: 'vscode.md',
     targets: projectTarget('.github/copilot-instructions.md'),
   },
   cursor: {
     displayName: 'Cursor',
-    sourceFile: 'cursor.md',
-    targets: projectTarget('.cursor/rules/aekpm.md'),
+    targets: projectTarget('.cursor/rules/CURSOR.md'),
   },
   cline: {
     displayName: 'Cline',
-    sourceFile: 'cline.md',
-    targets: projectTarget('.cline/rules/aekpm.md'),
+    targets: projectTarget('.cline/rules/CLINE.md'),
   },
   windsurf: {
     displayName: 'Windsurf',
-    sourceFile: 'windsurf.md',
-    targets: projectTarget('.windsurf/rules/aekpm.md'),
+    targets: projectTarget('.windsurf/rules/WINDSURF.md'),
   },
   roocode: {
     displayName: 'Roo Code',
-    sourceFile: 'roocode.md',
-    targets: projectTarget('.roo/rules/aekpm.md'),
+    targets: projectTarget('.roo/rules/ROOCODE.md'),
   },
   kilocode: {
     displayName: 'Kilo Code',
-    sourceFile: 'kilocode.md',
-    targets: projectTarget('.kilocode/rules/aekpm.md'),
+    targets: projectTarget('.kilocode/rules/KILOCODE.md'),
   },
   antigravity: {
     displayName: 'Google Antigravity',
-    sourceFile: 'antigravity.md',
-    targets: projectTarget('.agents/rules/aekpm.md'),
+    targets: projectTarget('.agents/rules/ANTIGRAVITY.md'),
   },
   qoder: {
     displayName: 'Qoder',
-    sourceFile: 'qoder.md',
     targets: projectTarget('AGENTS.md'),
   },
   kiro: {
     displayName: 'Kiro',
-    sourceFile: 'kiro.md',
-    targets: projectTarget('.kiro/steering/aekpm.md'),
+    targets: projectTarget('.kiro/steering/KIRO.md'),
   },
   pi: {
     displayName: 'Pi Agent',
-    sourceFile: 'pi.md',
     targets: projectTarget('AGENTS.md'),
   },
   'deepseek-harness': {
     displayName: 'DeepSeek Harness',
-    sourceFile: 'deepseek-harness.md',
     targets: projectTarget('AGENTS.md'),
   },
   openclaw: {
     displayName: 'OpenClaw',
-    sourceFile: 'openclaw.md',
     targets: projectTarget('AGENTS.md'),
   },
   zcode: {
     displayName: 'ZCode',
-    sourceFile: 'zcode.md',
     targets: projectTarget('AGENTS.md'),
   },
   trae: {
     displayName: 'Trae',
-    sourceFile: 'trae.md',
-    targets: projectTarget('.trae/rules/project_rules.md'),
+    targets: projectTarget('.trae/rules/TRAE.md'),
   },
   'trae-cn': {
     displayName: 'Trae-CN',
-    sourceFile: 'trae-cn.md',
-    targets: projectTarget('.trae-cn/rules/project_rules.md'),
+    targets: projectTarget('.trae-cn/rules/TRAE-CN.md'),
   },
   opencode: {
     displayName: 'OpenCode',
-    sourceFile: 'opencode.md',
     targets: projectTarget('AGENTS.md'),
   },
 };
@@ -153,7 +142,10 @@ export function prAllFile(projectRoot) {
 }
 
 export function prAgentFile(projectRoot, agentId) {
-  return join(prAgentsDir(projectRoot), `${agentId}.md`);
+  const agent = findProjectAgent(agentId);
+  const base = prAgentsDir(projectRoot);
+  // 源 md 文件名与目标文件名风格统一：agent id 大写
+  return join(base, targetGroupDir(agent.targets.relPath), `${agentId.toUpperCase()}.md`);
 }
 
 export function prScriptFile(projectRoot, agentId) {
@@ -209,6 +201,10 @@ export async function initProjectRules(projectRoot) {
   await mkdir(root, { recursive: true });
   await mkdir(prAgentsDir(projectRoot), { recursive: true });
   await mkdir(prScriptsDir(projectRoot), { recursive: true });
+  // 预建每个 agent 的分组目录（按其目标相对路径命名）
+  for (const agentId of listProjectAgents()) {
+    await mkdir(dirname(prAgentFile(projectRoot, agentId)), { recursive: true });
+  }
 
   const files = [];
   async function addScript(agentId) {

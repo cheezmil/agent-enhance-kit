@@ -37,6 +37,21 @@ const EXPECTED_AGENTS = [
   'opencode',
 ];
 
+const TARGET_GROUP_BY_AGENT = {
+  codex: 'AGENTS#md', qoder: 'AGENTS#md', pi: 'AGENTS#md',
+  'deepseek-harness': 'AGENTS#md', openclaw: 'AGENTS#md', zcode: 'AGENTS#md', opencode: 'AGENTS#md',
+  hermes: 'HERMES#md', claude: 'CLAUDE#md', gemini: 'GEMINI#md', qwencode: 'QWEN#md',
+  copilot: '#github@copilot-instructions#md', vscode: '#github@copilot-instructions#md',
+  cursor: '#cursor@rules@CURSOR#md', cline: '#cline@rules@CLINE#md', windsurf: '#windsurf@rules@WINDSURF#md',
+  roocode: '#roo@rules@ROOCODE#md', kilocode: '#kilocode@rules@KILOCODE#md', antigravity: '#agents@rules@ANTIGRAVITY#md',
+  kiro: '#kiro@steering@KIRO#md',
+  trae: '#trae@rules@TRAE#md', 'trae-cn': '#trae-cn@rules@TRAE-CN#md',
+};
+
+function agentSourceRelPath(agent) {
+  return join('for-certain-agents', TARGET_GROUP_BY_AGENT[agent], `${agent.toUpperCase()}.md`);
+}
+
 async function withCwd(dir, fn) {
   const prev = process.cwd();
   await mkdir(dir, { recursive: true });
@@ -59,11 +74,11 @@ test('init creates empty project-rules source and wrapper scripts', async () => 
       const res = await initProjectRules();
       assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'all-agent-must-comply.md'))));
       for (const agent of EXPECTED_AGENTS) {
-        assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'agents', `${agent}.md`))), `missing ${agent}.md`);
+        assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', agentSourceRelPath(agent)))), `missing ${agent}.md`);
         assert.ok(res.files.some((f) => f.path.endsWith(join('.aek', 'prompt-manager', 'project-rules', 'scripts', `${agent}.mjs`))), `missing ${agent}.mjs`);
       }
       assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'all-agent-must-comply.md'), 'utf8'), '');
-      assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'agents', 'claude.md'), 'utf8'), '');
+      assert.equal(await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'CLAUDE#md', 'CLAUDE.md'), 'utf8'), '');
       const script = await readFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'scripts', 'codex.mjs'), 'utf8');
       assert.match(script, /aekpm[\s\S]*pr[\s\S]*gen[\s\S]*codex/s);
     });
@@ -77,7 +92,7 @@ test('gen creates managed project prompt files and is idempotent', async () => {
   try {
     await withCwd(root, async () => {
       await initProjectRules();
-      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'agents', 'codex.md'), '# codex extra\n', 'utf8');
+      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex extra\n', 'utf8');
 
       const first = await generateProjectRules('codex');
       assert.equal(first.generated, 1);
@@ -87,7 +102,7 @@ test('gen creates managed project prompt files and is idempotent', async () => {
       assert.match(agents, /codex extra/);
 
       await writeFile(join(root, 'AGENTS.md'), '# user\n\n' + agents + '\n# tail\n', 'utf8');
-      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'agents', 'codex.md'), '# codex extra v2\n', 'utf8');
+      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex extra v2\n', 'utf8');
       const second = await generateProjectRules('codex');
       assert.equal(second.writes[0].replaced, true);
       const updated = await readFile(join(root, 'AGENTS.md'), 'utf8');
@@ -106,7 +121,7 @@ test('claude does not fall back to codex source', async () => {
   try {
     await withCwd(root, async () => {
       await initProjectRules();
-      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'agents', 'codex.md'), '# only codex\n', 'utf8');
+      await writeFile(join(root, '.aek', 'prompt-manager', 'project-rules', 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# only codex\n', 'utf8');
 
       await generateProjectRules('claude');
       const claude = await readFile(join(root, 'CLAUDE.md'), 'utf8');
@@ -127,10 +142,10 @@ test('roocode and kilocode generate project rule files', async () => {
       const kilo = await generateProjectRules('kilocode');
       assert.equal(roo.writes.length, 1);
       assert.equal(kilo.writes.length, 1);
-      assert.ok(/\.roo[\\\/]+rules[\\\/]+aekpm\.md$/.test(roo.writes[0].target));
-      assert.ok(/\.kilocode[\\\/]+rules[\\\/]+aekpm\.md$/.test(kilo.writes[0].target));
-      await readFile(join(root, '.roo', 'rules', 'aekpm.md'), 'utf8');
-      await readFile(join(root, '.kilocode', 'rules', 'aekpm.md'), 'utf8');
+      assert.ok(/\.roo[\\/]+rules[\\/]+ROOCODE\.md$/.test(roo.writes[0].target));
+      assert.ok(/\.kilocode[\\/]+rules[\\/]+KILOCODE\.md$/.test(kilo.writes[0].target));
+      await readFile(join(root, '.roo', 'rules', 'ROOCODE.md'), 'utf8');
+      await readFile(join(root, '.kilocode', 'rules', 'KILOCODE.md'), 'utf8');
     });
   } finally {
     await rm(root, { recursive: true, force: true });

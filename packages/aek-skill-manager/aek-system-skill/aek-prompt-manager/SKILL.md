@@ -62,29 +62,22 @@ aekpm pr gen <agent>
 ```text
 <PROJECT>/.aek/prompt-manager/project-rules/
 ├── all-agent-must-comply.md
-├── agents/
-│   ├── codex.md
-│   ├── hermes.md
-│   ├── claude.md
-│   ├── gemini.md
-│   ├── qwencode.md
-│   ├── copilot.md
-│   ├── vscode.md
-│   ├── cursor.md
-│   ├── cline.md
-│   ├── windsurf.md
-│   ├── roocode.md
-│   ├── kilocode.md
-│   ├── antigravity.md
-│   ├── qoder.md
-│   ├── kiro.md
-│   ├── pi.md
-│   ├── deepseek-harness.md
-│   ├── openclaw.md
-│   ├── zcode.md
-│   ├── trae.md
-│   ├── trae-cn.md
-│   └── opencode.md
+├── for-certain-agents/           # 每个 agent 一个子目录，目录名 = 目标相对路径（'/'->'@'，'.'->'#'，保留大小写）
+│   ├── AGENTS#md/                # -> AGENTS.md：CODEX.md / QODER.md / PI.md / DEEPSEEK-HARNESS.md / OPENCLAW.md / ZCODE.md / OPENCODE.md
+│   ├── HERMES#md/HERMES.md       # -> HERMES.md
+│   ├── CLAUDE#md/CLAUDE.md       # -> CLAUDE.md
+│   ├── GEMINI#md/GEMINI.md       # -> GEMINI.md
+│   ├── QWEN#md/QWENCODE.md       # -> QWEN.md
+│   ├── #github@copilot-instructions#md/   # -> .github/copilot-instructions.md：COPILOT.md / VSCODE.md
+│   ├── #cursor@rules@CURSOR#md/CURSOR.md
+│   ├── #cline@rules@CLINE#md/CLINE.md
+│   ├── #windsurf@rules@WINDSURF#md/WINDSURF.md
+│   ├── #roo@rules@ROOCODE#md/ROOCODE.md
+│   ├── #kilocode@rules@KILOCODE#md/KILOCODE.md
+│   ├── #agents@rules@ANTIGRAVITY#md/ANTIGRAVITY.md
+│   ├── #kiro@steering@KIRO#md/KIRO.md
+│   ├── #trae@rules@TRAE#md/TRAE.md
+│   └── #trae-cn@rules@TRAE-CN#md/TRAE-CN.md
 └── scripts/
     ├── all.mjs
     ├── codex.mjs
@@ -111,7 +104,7 @@ aekpm pr gen <agent>
     └── opencode.mjs
 ```
 
-`aekpm pr init` 只创建缺失文件；`all-agent-must-comply.md` 和 `agents/*.md` 初始为空，不写注释或模板废话。
+`aekpm pr init` 只创建缺失文件；`all-agent-must-comply.md` 和 `for-certain-agents/**/*.md` 初始为空，不写注释或模板废话。
 
 生成目标：
 
@@ -124,20 +117,20 @@ aekpm pr gen <agent>
 | `qwencode` | `QWEN.md` |
 | `copilot` | `.github/copilot-instructions.md` |
 | `vscode` | `.github/copilot-instructions.md` |
-| `cursor` | `.cursor/rules/aekpm.md` |
-| `cline` | `.cline/rules/aekpm.md` |
-| `windsurf` | `.windsurf/rules/aekpm.md` |
-| `roocode` | `.roo/rules/aekpm.md` |
-| `kilocode` | `.kilocode/rules/aekpm.md` |
-| `antigravity` | `.agents/rules/aekpm.md` |
+| `cursor` | `.cursor/rules/CURSOR.md` |
+| `cline` | `.cline/rules/CLINE.md` |
+| `windsurf` | `.windsurf/rules/WINDSURF.md` |
+| `roocode` | `.roo/rules/ROOCODE.md` |
+| `kilocode` | `.kilocode/rules/KILOCODE.md` |
+| `antigravity` | `.agents/rules/ANTIGRAVITY.md` |
 | `qoder` | `AGENTS.md` |
-| `kiro` | `.kiro/steering/aekpm.md` |
+| `kiro` | `.kiro/steering/KIRO.md` |
 | `pi` | `AGENTS.md` |
 | `deepseek-harness` | `AGENTS.md` |
 | `openclaw` | `AGENTS.md` |
 | `zcode` | `AGENTS.md` |
-| `trae` | `.trae/rules/project_rules.md` |
-| `trae-cn` | `.trae-cn/rules/project_rules.md` |
+| `trae` | `.trae/rules/TRAE.md` |
+| `trae-cn` | `.trae-cn/rules/TRAE-CN.md` |
 | `opencode` | `AGENTS.md` |
 
 `aekpm pr gen` 使用目标去重，所以共享 `AGENTS.md` 的 agent（如 `codex` / `openclaw` / `qoder` / `pi` / `deepseek-harness` / `zcode`）不会重复写入同一个 block。
@@ -147,7 +140,7 @@ aekpm pr gen <agent>
 ```text
 <!-- head-aek-project-rules -->
 <all-agent-must-comply.md>
-<agents/<agent>.md>
+<for-certain-agents/<目标相对路径（'/'->'@'，'.'->'#'）>/<agent>.md>
 <!-- end-aek-project-rules -->
 ```
 
@@ -161,7 +154,9 @@ aekpm pr gen <agent>
 
 - **全局短命令是 `aekpm`**；源码目录中仍保留 `aek-prompt-manager` bin。
 - **项目规则不做平台分支**；平台分支只用于全局 prompt 源。
-- **`CLAUDE.md` 不 fallback 到 codex 源**；必须读取 `agents/claude.md`。
+- **`CLAUDE.md` 不 fallback 到 codex 源**；必须读取 `for-certain-agents/CLAUDE#md/CLAUDE.md`。
+- **按目标相对路径分组**：每个 agent 的源 md 放在以其目标相对路径命名的子目录（`/` 一律用 `@` 表示、`.` 一律用 `#` 表示、保留原始大小写，如 `AGENTS.md` → `AGENTS#md/`、`.cursor/rules/CURSOR.md` → `#cursor@rules@CURSOR#md/`）；源 md 文件名一律为 agent id 大写（如 `ANTIGRAVITY.md`）；共享同一物理目标文件的 agent 自然落在同一目录（如 7 个 agent 共享 `AGENTS#md/`）。
+- **目标文件命名**：工具官方硬性约定的文件名保持原样（`AGENTS.md`/`CLAUDE.md`/`HERMES.md`/`GEMINI.md`/`QWEN.md`/`copilot-instructions.md`）；可自由命名的规则文件一律用工具名大写（`.agents/rules/ANTIGRAVITY.md`、`.cursor/rules/CURSOR.md` 等），不再用 `aekpm.md`。
 - **共享目标必须去重**：`aekpm pr gen all` 对 `AGENTS.md` 只写一次。
 - **初始化不会覆盖已有文件**：`init` / `pr init` 只补缺失文件。
 - **脚本只是 wrapper**：`scripts/*.mjs` 调 `aekpm pr gen <agent>`，真实逻辑在 `src/project-rules.js`。
