@@ -46,8 +46,12 @@ test('globalPromptPath native Windows home keeps backslash separators', () => {
   const prevHome = process.env.HOME;
   process.env.HOME = 'C:\\Users\\xdx';
   try {
-    assert.equal(platform('claude-code').globalPromptPath('claude-code', { header: false, os: 'win32' }), 'C:\\Users\\xdx\\.claude\\CLAUDE.md');
-    assert.equal(platform('hermes').globalPromptPath('hermes', { os: 'win32' }), 'C:\\Users\\xdx\\.hermes\\SOUL.md');
+    assert.equal(platform('claude-code').globalPromptPath('claude-code', { header: false, os: 'win32' }), 'C:\\\\Users\\\\xdx\\\\.claude\\\\CLAUDE.md');
+    assert.equal(platform('hermes').globalPromptPath('hermes', { os: 'win32' }), 'C:\\\\Users\\\\xdx\\\\.hermes\\\\SOUL.md');
+    // zcode and trae also use home-based paths
+    assert.equal(platform('zcode').globalPromptPath('zcode', { os: 'win32' }), 'C:\\\\Users\\\\xdx\\\\.zcode\\\\AGENTS.md');
+    assert.equal(platform('trae').globalPromptPath('trae', { os: 'win32' }), 'C:\\\\Users\\\\xdx\\\\.trae\\\\AGENTS.md');
+    assert.equal(platform('deepseek-harness').globalPromptPath('deepseek-harness', { os: 'win32' }), 'C:\\\\Users\\\\xdx\\\\.dsh\\\\AGENTS.md');
   } finally {
     process.env.HOME = prevHome;
   }
