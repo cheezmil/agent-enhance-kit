@@ -46,21 +46,23 @@ aek sm pull claude
 aek sm init
 ```
 
-### Align WSL ↔ Windows central repos (transfer-sync)
+### Transfer-sync (WSL ↔ Windows mirror)
 
 ```bash
-aek sm transfer-sync          # 以最新修改的一方为准，整目录对齐；覆盖前自动备份
-aek sm transfer-sync --force  # 即使两边 mtime 一致也强制以本地为准覆盖对侧
+aek sm transfer-sync
 ```
 
-仅作用于全局中心仓库 `~/.aek/skill-manager/skills/`：
-- 在 WSL 中执行：对侧是 Windows 原生 `%USERPROFILE%\.aek\skill-manager\skills`（经 /mnt/c 访问）
-- 在 Windows 中执行：对侧是 WSL `\\wsl.localhost\<distro>\home\<user>\.aek\skill-manager\skills`（发行版名自动探测并缓存进配置）
+以最新修改的一方为准，双向对齐中心仓库。覆盖前自动备份。
 
-配置文件 `~/.aek/skill-manager/settings.jsonc`：
-- `transferSyncBeforeSync`（默认 true）：`aek sm sync` 前自动执行 transfer-sync
-- `transferBackupKeep`（默认 3）：覆盖前备份到 `~/.aek/skill-manager/backup/skills.bak.<timestamp>/`，保留最近 N 份
-- `wslDistro`：缓存探测到的 WSL 发行版名，失效自动清理重新探测
+### Remove skills
+
+```bash
+aek sm remove <skill-name>...
+aek sm remove --all
+aek sm remove <skill-name>... --tools claude,cursor
+```
+
+从各工具目录移除指定 skill（支持多个名称），或清空全部。
 
 ### Interactive wizard
 
