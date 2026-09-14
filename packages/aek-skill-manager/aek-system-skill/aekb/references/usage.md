@@ -22,7 +22,7 @@ cd AEK Browser && npm install
 npx tsx src/main.ts <command>               # same surface, no global install
 ```
 
-`aekb doctor` prints a structured `DoctorReport` — daemon status, extension connection, version checks, and a live browser connectivity probe. Scope is narrow: it diagnoses the **browser bridge** (daemon + extension + Chrome wiring). `PUBLIC` / `LOCAL` adapters, `aekb list`, `validate`, `verify`, plugin commands, and external-CLI passthrough don't need it to be green — only `COOKIE` / `INTERCEPT` / `UI` adapters and the `aekb browser *` subcommands do. Flag: `-v` (verbose).
+`aekb doctor` prints a structured `DoctorReport` — daemon status, extension connection, version checks, and a live browser connectivity probe. Scope is narrow: it diagnoses the **browser bridge** (daemon + extension + Chrome wiring). `PUBLIC` / `LOCAL` adapters, `aekb list`, `validate`, `verify`, plugin commands, and external-CLI passthrough don't need it to be green — only `COOKIE` / `INTERCEPT` / `UI` adapters and the `aekb browser *` subcommands do. Flag: `-v` (verbose).\n\n**Auto-reload**: The daemon now automatically detects version mismatches between CLI and extension, sending `ext-reload` to trigger `chrome.runtime.reload()` — no manual refresh needed after updates.
 
 ## Prerequisites by command type
 
