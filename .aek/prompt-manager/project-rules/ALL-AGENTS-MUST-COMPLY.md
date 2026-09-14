@@ -8,13 +8,22 @@
 
 ## 部署方式：优先本地编译，其次 npm 云端包
 
-本项目通过 npm 管理发布（如 @cheezmil/aek-websearch 及各平台二进制子包 -linux-x64/-win32-x64 等）。
+### 开发模式（本地编译部署）
+- **开发时一律用本地编译**：`go build` → `npm install -g .`（本地文件夹安装）
+- 脚本位置：
+  - WSL/Linux: `packages/<包>/scripts/start_deploy_<包>.py`
+  - 部署到 Windows: `packages/<包>/scripts/for-wsl/start_deploy_<包>-to-windows.py`
+- 复用 `shared/start_scripts_shared_logic.py`，禁止硬编码路径
+- **禁止在开发脚本中执行 npm publish**
 
-选择规则（按优先级）：
-1. 能打开本项目源码并与之对话的都是高级用户/开发者 → 优先走本地编译：go build 得到本地二进制，再 npm install 本地包（本地文件夹安装会自动连带打包编译好的二进制，launcher 会自动优先解析本地产物）。
-2. 仅当用户电脑无法编译（缺 Go 工具链等）时，才 npm install 云端的预编译包。
-
-部署脚本统一放 packages/<包>/scripts/ 下，复用 shared/start_scripts_shared_logic.py，禁止把模板/脚本内容硬编码进代码。
+### npm 发布模式（仅限维护者）
+- 仅当需要对外发布时才执行 npm publish，且必须：
+  1. 先用 pnpm publish（npm publish 会把 workspace:* 打进包里导致失败）
+  2. 先发布全部平台子包（-linux-x64/-win32-x64 等），再发布主包
+  3. 发布前 `npm view` 确认所有依赖已存在于 registry
+  4. 发布后校验 dependencies/optionalDependencies 是具体版本而非 workspace:*
+  5. 补齐 git tag 并 push 到 github 和 gitea 两个 remote
+- 发布脚本统一放 `scripts/for-maintainers/`，严禁与开发部署脚本混淆
 
 ## 打 tag 与 npm 发布铁律（违规会出事故，必须遵守）
 
