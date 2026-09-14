@@ -306,7 +306,7 @@ def uninstall_cloud_conflicts(pkg_key: str, where: str) -> None:
         if not pwsh:
             print("  [!] 无 pwsh，跳过对端卸载")
             return
-        joined = " ".join(f"'{n}'" for n in names)
+        joined = ", ".join(f"'{n}'" for n in names)
         ps = f"""
 $ErrorActionPreference = 'Continue'
 foreach ($n in @({joined})) {{
@@ -333,54 +333,65 @@ def npm_install_local(pkg_key: str) -> None:
 
 
 def stage_for_windows_peer(pkg_key: str) -> str:
-    """在 Windows 上准备 staging 目录，返回 Windows 视角路径。"""
+    """在 WSL 侧把包拷贝到 Windows 原生 staging 目录，返回 Windows 视角路径。"""
     env = detect_env()
     if env != "wsl":
         raise RuntimeError("stage_for_windows_peer 仅 WSL 可用")
-    pwsh = find_pwsh()
-    if not pwsh:
-        raise RuntimeError("找不到 Windows pwsh")
 
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
     common_dir = PACKAGES_DIR / "aek-common"
 
-    distro = os.environ.get("WSL_DISTRO_NAME")
-    if not distro:
-        raise RuntimeError("WSL_DISTRO_NAME 未设置")
-
     win_user = os.environ.get("USER", "xdx")
-    staging_win = f"C:\\Users\\{win_user}\\.aek\\dev-staging\\{spec['dir']}"
+    staging_root = Path(f"/mnt/c/Users/{win_user}/.aek/dev-staging")
+    staging_win = str(staging_root / spec["dir"])
+    staging_common_win = str(staging_root / "aek-common")
 
-    def to_unc(p: Path) -> str:
-        return f"\\\\wsl.localhost\\{distro}\\" + str(p).lstrip("/").replace("/", "\\")
+    # 创建目标目录（先清空，防止旧嵌套结构残留）
+    staging_path = Path(staging_win)
+    staging_common_path = Path(staging_common_win)
+    for p in (staging_path, staging_common_path):
+        if p.exists():
+            import shutil
+            shutil.rmtree(p)
+        p.mkdir(parents=True, exist_ok=True)
 
-    src_pkg = to_unc(pkg_dir)
-    src_common = to_unc(common_dir)
+    # 排除规则
+    EXCLUDE_DIRS = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", ".next", "platforms"}
+    EXCLUDE_FILES = {"*.log", "*.tmp"}
 
-    ps = f"""
-$ErrorActionPreference = 'Stop'
-$staging = '{staging_win}'
-if (Test-Path $staging) {{ Remove-Item -Recurse -Force $staging }}
-New-Item -ItemType Directory -Path $staging -Force | Out-Null
-New-Item -ItemType Directory -Path "$staging\\{spec['dir']}" -Force | Out-Null
-New-Item -ItemType Directory -Path "$staging\\aek-common" -Force | Out-Null
+    def copy_tree(src: Path, dst: Path) -> None:
+        if not src.exists():
+            print(f"  [!] 源不存在，跳过: {src}", file=sys.stderr)
+            return
+        for item in src.iterdir():
+            if item.name in EXCLUDE_DIRS:
+                continue
+            if any(item.match(p) for p in EXCLUDE_FILES):
+                continue
+            dst_item = dst / item.name
+            if item.is_dir():
+                dst_item.mkdir(parents=True, exist_ok=True)
+                copy_tree(item, dst_item)
+            else:
+                # WSL /mnt/c/ 不支持 chmod/utime，直接读写内容跳过元数据
+                data = item.read_bytes()
+                dst_item.write_bytes(data)
 
-$excludeDirs = @('node_modules', '.git', 'dist', 'build', '__pycache__', '.venv', '.next', 'platforms')
-$excludeFiles = @('*.log', '*.tmp')
+    print(f"  [copy] {pkg_key} → {staging_win}")
+    copy_tree(pkg_dir, Path(staging_win))
+    print(f"  [copy] aek-common → {staging_common_win}")
+    copy_tree(common_dir, Path(staging_common_win))
 
-& robocopy '{src_pkg}' "$staging\\{spec['dir']}" /MIR /XD $excludeDirs /XF $excludeFiles /NFL /NDL /NJH /NJS | Out-Null
-if ($LASTEXITCODE -ge 8) {{ throw "robocopy pkg failed" }}
-& robocopy '{src_common}' "$staging\\aek-common" /MIR /XD $excludeDirs /XF $excludeFiles /NFL /NDL /NJH /NJS | Out-Null
-if ($LASTEXITCODE -ge 8) {{ throw "robocopy common failed" }}
+    # 平台二进制只保留 win32-x64（如有）
+    pkg_plat = Path(staging_win) / "platforms"
+    if pkg_plat.exists():
+        for d in pkg_plat.iterdir():
+            if d.is_dir() and d.name != "win32-x64":
+                import shutil
+                shutil.rmtree(d)
+                print(f"  [rm] 剔除平台: {d.name}")
 
-# 平台二进制只保留 win32-x64（如有）
-$pkgPlat = "$staging\\{spec['dir']}\\platforms"
-if (Test-Path $pkgPlat) {{
-  Get-ChildItem $pkgPlat -Directory | Where-Object {{ $_.Name -ne 'win32-x64' }} | ForEach-Object {{ Remove-Item -Recurse -Force $_.FullName }}
-}}
-"""
-    run_pwsh(pwsh, ps, f"stage {pkg_key} → Windows staging")
     return staging_win
 
 
@@ -388,13 +399,29 @@ def npm_install_on_windows_peer(pkg_key: str, staging_win: str) -> None:
     """让 Windows 端从 staging 安装包 + aek-common。"""
     pwsh = find_pwsh()
     spec = PACKAGES[pkg_key]
+    # staging_win 是 WSL 路径（如 /mnt/c/Users/...），转成 Windows 路径（如 C:\Users\...）
+    # 用字符串操作，避免 Python os.path 对 Windows 路径的误解析
+    import os
+    rest = staging_win[len("/mnt/c/"):]  # 去掉前缀，得到 /Users/xdx/.aek/dev-staging/aek-prompt-manager
+    win_staging = "C:\\\\" + rest.replace("/", "\\\\")  # C:\\Users\\xdx\\.aek\\dev-staging\\aek-prompt-manager
+    win_staging_root, pkg_dir_name = win_staging.rsplit("\\\\", 1)
     ps = f"""
 $ErrorActionPreference = 'Stop'
-$staging = '{staging_win}'
+# 切换到 Windows 用户目录，避免 WSL 路径污染 Node.js 模块解析
+Set-Location $env:USERPROFILE
+# 设置 NODE_PATH 让 Node.js 能找到全局模块（解决 WSL 调 PowerShell 时的 UNC 路径问题）
+$env:NODE_PATH = npm root -g
+$stagingRoot = '{win_staging_root}'
+$pkgDir = '{pkg_dir_name}'
 Write-Host '  [win] 安装 aek-common (workspace 依赖)...'
-npm install -g "$staging\\aek-common" 2>&1 | Select-Object -Last 5
+npm install -g "$stagingRoot\\aek-common" 2>&1 | Select-Object -Last 5
 Write-Host '  [win] 安装 {spec['npm']} ...'
-npm install -g "$staging\\{spec['dir']}" 2>&1 | Select-Object -Last 10
+npm install -g "$stagingRoot\\$pkgDir" 2>&1 | Select-Object -Last 10
+# 关键修复：在 staging 目录内安装本地 node_modules，确保模块依赖完整
+Write-Host '  [win] 安装本地依赖...'
+Set-Location "$stagingRoot\\$pkgDir"
+npm install 2>&1 | Select-Object -Last 5
+Write-Host '  [win] 依赖安装完成'
 """
     run_pwsh(pwsh, ps, f"Windows 端 npm install {pkg_key}")
 
