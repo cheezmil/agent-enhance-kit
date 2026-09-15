@@ -11,6 +11,7 @@ import {
   listProjectAgents,
   PR_ROOT_DIR,
 } from '../src/project-rules.js';
+import { prBackupDir } from '../src/project-rules.js';
 
 const EXPECTED_AGENTS = [
   'codex',
@@ -200,7 +201,7 @@ test('gen writes per-agent sub-blocks sorted A-Z inside one block', async () => 
   }
 });
 
-test('gen single agent updates only its own sub-block and keeps others', async () => {
+test('gen single agent rewrites the whole file (stale content is discarded)', async () => {
   const root = join(tmpdir(), 'aekpr-incr-' + Date.now());
   try {
     await withCwd(root, async () => {
@@ -210,13 +211,48 @@ test('gen single agent updates only its own sub-block and keeps others', async (
       await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'QODER.md'), '# qoder v1\n', 'utf8');
       await generateProjectRules('all');
 
-      // 单 agent 更新：codex 变 v2，qoder 必须原样保留
+      // 整文件覆盖：旧的游离内容必须消失，同组其他 agent 子块从源重建
+      const agentsFile = join(root, 'AGENTS.md');
+      const prev = await readFile(agentsFile, 'utf8');
+      await writeFile(agentsFile, `${prev}\n# stray stale content\n`, 'utf8');
       await writeFile(join(pr, 'for-certain-agents', 'AGENTS#md', 'CODEX.md'), '# codex v2\n', 'utf8');
       await generateProjectRules('codex');
-      const agents = await readFile(join(root, 'AGENTS.md'), 'utf8');
+      const agents = await readFile(agentsFile, 'utf8');
       assert.match(agents, /# codex v2/);
       assert.doesNotMatch(agents, /# codex v1/);
+      assert.doesNotMatch(agents, /stray stale content/);
       assert.match(agents, /# qoder v1/);
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('gen backs up old non-empty file and keeps at most 2 backups', async () => {
+  const root = join(tmpdir(), 'aekpr-backup-' + Date.now());
+  try {
+    await withCwd(root, async () => {
+      await initProjectRules();
+      const agentsFile = join(root, 'AGENTS.md');
+      const backupDir = prBackupDir(root);
+
+      // 旧文件非空 -> 备份到 prRoot/backup/AGENTS.md.bak.1
+      await writeFile(agentsFile, '# stale v1\n', 'utf8');
+      await generateProjectRules('all');
+      assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.1'), 'utf8'), '# stale v1\n');
+
+      // 再覆盖 -> 轮转：bak.1 是最新被覆盖的内容
+      await writeFile(agentsFile, '# stale v2\n', 'utf8');
+      await generateProjectRules('all');
+      assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.1'), 'utf8'), '# stale v2\n');
+      assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.2'), 'utf8'), '# stale v1\n');
+
+      // 第三次覆盖 -> 仍然只有 2 份备份
+      await writeFile(agentsFile, '# stale v3\n', 'utf8');
+      await generateProjectRules('all');
+      assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.1'), 'utf8'), '# stale v3\n');
+      assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.2'), 'utf8'), '# stale v2\n');
+      await assert.rejects(readFile(join(backupDir, 'AGENTS.md.bak.3'), 'utf8'), /ENOENT/);
     });
   } finally {
     await rm(root, { recursive: true, force: true });

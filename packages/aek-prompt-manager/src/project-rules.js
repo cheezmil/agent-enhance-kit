@@ -1,10 +1,11 @@
 // aek-prompt-manager — project rules generation
-import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, access } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 
 export const PR_ROOT_DIR = 'project-rules';
 export const AGENTS_DIR = 'for-certain-agents';
 export const SCRIPTS_DIR = 'scripts';
+export const BACKUP_DIR = 'backup';
 export const ALL_AGENT_FILE = 'ALL-AGENTS-MUST-COMPLY.md';
 
 function subBlockHead(agentId) {
@@ -142,6 +143,15 @@ export function prScriptsDir(projectRoot) {
   return join(prRoot(projectRoot), SCRIPTS_DIR);
 }
 
+export function prBackupDir(projectRoot) {
+  return join(prRoot(projectRoot), BACKUP_DIR);
+}
+
+// 用目标相对路径（相对于 projectRoot）作为备份文件名，避免同名冲突
+function backupFileName(target, projectRoot) {
+  return resolve(target).replace(resolve(projectRoot) + '/', '');
+}
+
 export function prAllFile(projectRoot) {
   return join(prRoot(projectRoot), ALL_AGENT_FILE);
 }
@@ -250,58 +260,64 @@ function buildContent(allContent, subBlocks, orderedIds) {
   return parts.length ? `${parts.join('\n\n')}\n` : '';
 }
 
-// gen 单个 agent：只更新自己的子块与外壳（含 all 内容），保留其他子块
-// gen all：重写整个文件
-export async function mergeProjectBlock(fileContent, agentId, projectRoot) {
-  const allContent = (await readMaybe(prAllFile(projectRoot))).trimEnd();
-
-  // 解析已有子块（用子块标记 <!-- head-<id> --> / <!-- end-<id> --> 抽取）
-  const subBlocks = new Map();
-  const subRe = /<!-- head-([a-z0-9-]+) -->([\s\S]*?)<!-- end-\1 -->/gi;
-  let m;
-  while ((m = subRe.exec(fileContent)) !== null) {
-    subBlocks.set(m[1], m[2].trim());
-  }
-
-  const ids = groupAgents(agentId);
-  const own = (await readMaybe(prAgentFile(projectRoot, agentId))).trimEnd();
-  subBlocks.set(agentId, own);
-
-  const content = buildContent(allContent, subBlocks, ids);
-  return { content, replaced: !!content };
-}
-
-async function writeOneTarget(target, agentId, projectRoot) {
-  await mkdir(dirname(target), { recursive: true });
-  let fileContent = '';
+// 备份旧文件，最多保留 MAX_BACKUPS 份（在 prRoot/backup/<backup-name>.bak.<n>）
+const MAX_BACKUPS = 2;
+async function backupTarget(target, projectRoot) {
+  let existing;
   try {
-    fileContent = await readMaybe(target);
+    existing = await readFile(target, 'utf8');
   } catch (error) {
+    if (error?.code === 'ENOENT') return null; // 旧文件不存在，无需备份
     if (error?.code === 'EISDIR') {
       throw new Error(`Target path is a directory; expected a file: ${target}`);
     }
     throw error;
   }
-  const { content: merged, replaced } = await mergeProjectBlock(fileContent, agentId, projectRoot);
-  await writeFile(target, merged, 'utf8');
-  return { target, replaced, content: merged };
+  if (!existing.trim()) return null; // 空文件没必要备份
+  const backupDir = prBackupDir(projectRoot);
+  const fname = backupFileName(target, projectRoot);
+  // 依次后移旧备份：bak.(n) -> bak.(n+1)，超出的丢弃（通过覆盖截断）
+  for (let i = MAX_BACKUPS - 1; i >= 1; i--) {
+    const oldBak = join(backupDir, `${fname}.bak.${i}`);
+    const newBak = join(backupDir, `${fname}.bak.${i + 1}`);
+    try {
+      await rename(oldBak, newBak);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+  }
+  const bakPath = join(backupDir, `${fname}.bak.1`);
+  await mkdir(dirname(bakPath), { recursive: true });
+  await writeFile(bakPath, existing, 'utf8');
+  return bakPath;
 }
 
-// gen all：对整个文件覆盖写入
-async function writeTargetFull(target, projectRoot) {
-  await mkdir(dirname(target), { recursive: true });
+// 构建某个目标文件的完整内容：all 规则 + 该目标组内所有 agent 的子块
+async function buildTargetContent(target, projectRoot) {
   const allContent = (await readMaybe(prAllFile(projectRoot))).trimEnd();
-  // 找出该目标对应的组（任一 agent 指向它即可）
-  const groupIds = listProjectAgents().filter((id) =>
-    PROJECT_AGENTS[id].targets(projectRoot).includes(target)
-  ).sort((a, b) => prAgentSourceName(a).localeCompare(prAgentSourceName(b)));
+  const groupIds = groupIdsForTarget(target, projectRoot);
   const subBlocks = new Map();
   for (const id of groupIds) {
     subBlocks.set(id, (await readMaybe(prAgentFile(projectRoot, id))).trimEnd());
   }
-  const content = buildContent(allContent, subBlocks, groupIds);
+  return buildContent(allContent, subBlocks, groupIds);
+}
+
+// 与目标文件同组的所有 agent id（任一 agent 指向它即同组），按源文件名 A-Z 排序
+function groupIdsForTarget(target, projectRoot) {
+  return listProjectAgents()
+    .filter((id) => PROJECT_AGENTS[id].targets(projectRoot).includes(target))
+    .sort((a, b) => prAgentSourceName(a).localeCompare(prAgentSourceName(b)));
+}
+
+// 铁律：gen 无论 all 还是单个 agent，都是整个文件覆盖（旧文件视作删除）。
+// 旧文件非空则备份到 prRoot/backup/<target-rel>.bak.1（最多保留 2 份），再整文件覆盖写入。
+async function writeTargetFull(target, projectRoot) {
+  await mkdir(dirname(target), { recursive: true });
+  const backup = await backupTarget(target, projectRoot);
+  const content = await buildTargetContent(target, projectRoot);
   await writeFile(target, content, 'utf8');
-  return { target, replaced: true, content };
+  return { target, replaced: true, backup, content };
 }
 
 export async function generateProjectRules(agentId = 'all', projectRoot = process.cwd()) {
@@ -324,7 +340,7 @@ export async function generateProjectRules(agentId = 'all', projectRoot = proces
     }
   } else {
     for (const target of agent.targets(projectRoot)) {
-      const r = await writeOneTarget(target, agentId, projectRoot);
+      const r = await writeTargetFull(target, projectRoot);
       writes.push(r);
       if (r.content.trim()) generated += 1;
     }
