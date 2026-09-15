@@ -3,4 +3,4 @@ packages:
   - 'packages/*/platforms/*'
   - '!packages/aek-mcp/frontend'
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true

@@ -82,6 +82,7 @@ PACKAGES = {
         "npm": "@cheezmil/aek-task-manager",
         "go_cmd": ["go", "build", "-o", None, "./src/cmd/aek-task-manager/"],
         "bin_name": "aek-task-manager",
+        "platforms_dir": "platforms",
         "conflict_npm_names": ["@cheezmil/aek-task-manager"],
     },
     "aek-prompt-manager": {
@@ -356,8 +357,8 @@ def stage_for_windows_peer(pkg_key: str) -> str:
             shutil.rmtree(p)
         p.mkdir(parents=True, exist_ok=True)
 
-    # 排除规则
-    EXCLUDE_DIRS = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", ".next", "platforms"}
+    # 排除规则（platforms 不 exclusion，Go 包的平台二进制在 platforms/<platform>/bin/ 中）
+    EXCLUDE_DIRS = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", ".next"}
     EXCLUDE_FILES = {"*.log", "*.tmp"}
 
     def copy_tree(src: Path, dst: Path) -> None:
@@ -414,13 +415,9 @@ $env:NODE_PATH = npm root -g
 $stagingRoot = '{win_staging_root}'
 $pkgDir = '{pkg_dir_name}'
 Write-Host '  [win] 安装 aek-common (workspace 依赖)...'
-npm install -g "$stagingRoot\\aek-common" 2>&1 | Select-Object -Last 5
+npm install -g "$stagingRoot\\aek-common" --force 2>&1 | Select-Object -Last 5
 Write-Host '  [win] 安装 {spec['npm']} ...'
-npm install -g "$stagingRoot\\$pkgDir" 2>&1 | Select-Object -Last 10
-# 关键修复：在 staging 目录内安装本地 node_modules，确保模块依赖完整
-Write-Host '  [win] 安装本地依赖...'
-Set-Location "$stagingRoot\\$pkgDir"
-npm install 2>&1 | Select-Object -Last 5
+npm install -g "$stagingRoot\\$pkgDir" --force 2>&1 | Select-Object -Last 10
 Write-Host '  [win] 依赖安装完成'
 """
     run_pwsh(pwsh, ps, f"Windows 端 npm install {pkg_key}")
