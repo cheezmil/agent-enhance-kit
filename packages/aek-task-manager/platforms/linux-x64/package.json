@@ -11,5 +11,8 @@
   "files": [
     "bin/"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@cheezmil/aek-task-manager-linux-x64": "link:"
+  }
 }

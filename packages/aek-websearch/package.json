@@ -2,7 +2,7 @@
   "name": "@cheezmil/aek-websearch",
   "version": "0.2.8",
   "type": "module",
-  "description": "AEK — Agent Enhance Kit (Web Search module)",
+  "description": "AEK \u2014 Agent Enhance Kit (Web Search module)",
   "bin": {
     "aek-websearch": "bin/aek-websearch.js",
     "aek": "bin/aek-shim.cjs"
@@ -16,10 +16,10 @@
     "@cheezmil/aek-common": "workspace:*"
   },
   "optionalDependencies": {
-    "@cheezmil/aek-websearch-linux-x64": "workspace:*",
-    "@cheezmil/aek-websearch-linux-arm64": "workspace:*",
-    "@cheezmil/aek-websearch-darwin-x64": "workspace:*",
     "@cheezmil/aek-websearch-darwin-arm64": "workspace:*",
+    "@cheezmil/aek-websearch-darwin-x64": "workspace:*",
+    "@cheezmil/aek-websearch-linux-arm64": "workspace:*",
+    "@cheezmil/aek-websearch-linux-x64": "workspace:*",
     "@cheezmil/aek-websearch-win32-x64": "workspace:*"
   },
   "files": [

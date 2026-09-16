@@ -49,15 +49,52 @@
 
 ## aek-skill-manager 系统 skill 更新铁律（违规会出事故）
 
-修改 `packages/aek-skill-manager/aek-system-skill/<skill-name>/SKILL.md` 后，**禁止手动 cp 到任何工具目录**（包括 `%USERPROFILE%\.hermes\skills\`、`%LOCALAPPDATA%\hermes\skills\` 等），必须走正确流程：
+修改 `packages/aek-skill-manager/aek-system-skill/<skill-name>/SKILL.md` 后，**禁止手动 cp 到任何工具目录**，必须走正确流程：
 
 ```
 1. 改 repo 里的源文件（packages/aek-skill-manager/aek-system-skill/...）
 2. cqg acp 提交推送
-3. aek sm sync   ← 让代码自动分发到所有目标（含 Hermes 双写 Windows 路径）
+3. aek sm sync   ← 让代码自动分发到所有目标
 ```
 
 `aek sm sync` 会：
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
-- 分发到所有工具的 skills 目录（Hermes 双写 `.hermes` + `AppData/Local/hermes`）
+- 分发到所有工具的 skills 目录
+
+## WSL↔Windows 跨平台部署铁律（违规会出事故，必须遵守）
+
+### PowerShell 变量展开陷阱
+- **单引号** `'...'` 和 **heredoc** `@'... '@` 都不展开变量
+- PowerShell 脚本中若需展开变量，必须用双引号包裹
+- **推荐方案**：在 Python 端构建完整内容，直接写入文件，避免 PowerShell 变量展开问题
+
+### Python os.path 陷阱
+- Python 的 `os.path` 用平台原生分隔符
+- **禁止**用 `os.path.dirname()` 处理跨平台路径（返回空字符串）
+- **正确做法**：通过动态命令获取路径
+
+### Windows 路径在 WSL 中的读写
+- WSL 可通过挂载点访问 Windows 文件系统
+- **禁止**假设用户名，必须动态获取
+- **禁止**硬编码系统路径，必须用动态查找
+
+### npm install -g 在 Windows 上的问题
+- `npm install -g` 在 Windows 上会创建 **Junction 符号链接**
+- Junction 符号链接会导致模块解析失败
+- **正确做法**：直接复制文件到 `node_modules/@cheezmil/<pkg>`，不走 npm install -g
+
+### ESM vs CJS 模块解析差异
+- **ESM** (`import`) 不认 `NODE_PATH` 环境变量
+- **CJS** (`require.resolve()`) 认 `NODE_PATH`
+- **因此**：不能在 PowerShell 中设置 `NODE_PATH` 来解决 ESM 模块找不到问题
+
+### dist/ 目录排除规则
+- 对有 `build` 脚本的 JS 包，**必须保留 dist/ 目录**
+- 只有纯源码包（无 build 脚本）才排除 dist/
+- **检测方法**：读取 package.json 的 `scripts.build` 字段判断
+
+### 临时脚本清理
+- **禁止**将调试脚本留在仓库根目录或 scripts/ 目录
+- 每个 `.py`、`.ps1`、`.mjs` 测试脚本完成后必须删除
+- 根目录只允许保留项目必要文件
