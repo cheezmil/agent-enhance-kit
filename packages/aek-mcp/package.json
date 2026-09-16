@@ -2,7 +2,7 @@
   "name": "@cheezmil/aek-mcp",
   "version": "0.11.2",
   "type": "module",
-  "description": "AEK — Agent Enhance Kit (MCP Management module)",
+  "description": "AEK \u2014 Agent Enhance Kit (MCP Management module)",
   "bin": {
     "aek-mcp": "bin/aek-mcp.js",
     "aek": "bin/aek-shim.cjs"
@@ -16,10 +16,10 @@
     "@cheezmil/aek-common": "workspace:*"
   },
   "optionalDependencies": {
-    "@cheezmil/aek-mcp-linux-x64": "workspace:*",
-    "@cheezmil/aek-mcp-linux-arm64": "workspace:*",
-    "@cheezmil/aek-mcp-darwin-x64": "workspace:*",
     "@cheezmil/aek-mcp-darwin-arm64": "workspace:*",
+    "@cheezmil/aek-mcp-darwin-x64": "workspace:*",
+    "@cheezmil/aek-mcp-linux-arm64": "workspace:*",
+    "@cheezmil/aek-mcp-linux-x64": "workspace:*",
     "@cheezmil/aek-mcp-win32-x64": "workspace:*"
   },
   "files": [
