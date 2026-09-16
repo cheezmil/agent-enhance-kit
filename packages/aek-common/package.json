@@ -2,7 +2,7 @@
   "name": "@cheezmil/aek-common",
   "version": "0.1.2",
   "type": "module",
-  "description": "AEK 各包共用代码（工具函数、类型、常量）",
+  "description": "AEK \u5404\u5305\u5171\u7528\u4ee3\u7801\uff08\u5de5\u5177\u51fd\u6570\u3001\u7c7b\u578b\u3001\u5e38\u91cf\uff09",
   "bin": {
     "aek": "bin/aek.js"
   },
@@ -13,5 +13,6 @@
   ],
   "scripts": {
     "test": "node --test"
-  }
+  },
+  "dependencies": {}
 }

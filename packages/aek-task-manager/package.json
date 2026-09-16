@@ -2,7 +2,7 @@
   "name": "@cheezmil/aek-task-manager",
   "version": "0.0.1",
   "type": "module",
-  "description": "AEK — Agent Enhance Kit (Task Manager module)",
+  "description": "AEK \u2014 Agent Enhance Kit (Task Manager module)",
   "bin": {
     "aek-tm": "bin/aek-tm.js",
     "aek": "bin/aek-shim.cjs"
@@ -15,15 +15,14 @@
     "@cheezmil/aek-common": "workspace:*"
   },
   "optionalDependencies": {
-    "@cheezmil/aek-task-manager-linux-x64": "workspace:*",
-    "@cheezmil/aek-task-manager-linux-arm64": "workspace:*",
-    "@cheezmil/aek-task-manager-darwin-x64": "workspace:*",
     "@cheezmil/aek-task-manager-darwin-arm64": "workspace:*",
+    "@cheezmil/aek-task-manager-darwin-x64": "workspace:*",
+    "@cheezmil/aek-task-manager-linux-arm64": "workspace:*",
+    "@cheezmil/aek-task-manager-linux-x64": "workspace:*",
     "@cheezmil/aek-task-manager-win32-x64": "workspace:*"
   },
   "files": [
-    "bin/aek-tm.js",
-    "bin/aek-shim.cjs",
+    "bin/",
     "package.json"
   ],
   "license": "MIT"

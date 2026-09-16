@@ -11,5 +11,8 @@
   "files": [
     "bin/"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@cheezmil/aek-websearch-linux-x64": "link:"
+  }
 }

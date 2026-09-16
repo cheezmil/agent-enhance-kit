@@ -1,7 +1,7 @@
 {
   "name": "@cheezmil/aek-browser",
   "version": "0.0.1",
-  "description": "AEK Browser — AI-powered browser automation bridge for Chrome.",
+  "description": "AEK Browser \u2014 AI-powered browser automation bridge for Chrome.",
   "engines": {
     "node": ">=20.18.1"
   },
@@ -80,8 +80,8 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/jsdom": "^27.0.0",
     "@types/js-yaml": "^4.0.9",
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^25.5.2",
     "@types/turndown": "^5.0.6",
     "@types/ws": "^8.5.13",

@@ -1,7 +1,7 @@
 {
   "name": "@cheezmil/aek-prompt-manager",
   "version": "0.1.5",
-  "description": "向各 AI Agent 工具的全局提示词文件注入可管理的 patch 块",
+  "description": "\u5411\u5404 AI Agent \u5de5\u5177\u7684\u5168\u5c40\u63d0\u793a\u8bcd\u6587\u4ef6\u6ce8\u5165\u53ef\u7ba1\u7406\u7684 patch \u5757",
   "scripts": {
     "test": "node --test"
   },

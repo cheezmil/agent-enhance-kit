@@ -6,58 +6,75 @@
 
 ## 禁止将txt、json、jsonc、md等模板文件中的内容硬编码到各个编程语言文件中
 
-## 部署方式：开发模式 vs npm 发布模式（严禁混淆）
+## 部署方式：本地编译（严禁走npm云端发布）
 
-### 开发模式（本地编译部署）
-- **开发时一律用本地编译**：`go build` → `npm install -g .`（本地文件夹安装）
-- 脚本统一放 `packages/<包>/scripts/` 下，复用 `shared/start_scripts_shared_logic.py`
-- **禁止在开发脚本中执行 npm publish**
-- 部署到 Windows 的脚本统一放 `packages/<包>/scripts/for-wsl/`，命名规范：`start_deploy_<包>-to-windows.py`
+**核心原则：只要源码在这里，就用本地编译，不走 npm publish。**
 
-| 包 | 开发部署脚本 |
-|---|---|
-| aek-websearch | `packages/aek-websearch/scripts/start_deploy_aek-websearch.py` |
-| aek-websearch (Win) | `packages/aek-websearch/scripts/for-wsl/start_deploy_aek-websearch-to-windows.py` |
-| aek-prompt-manager (Win) | `packages/aek-prompt-manager/scripts/for-wsl/start_deploy_aek-prompt-manager-to-windows.py` |
-| aek-mcp | `packages/aek-mcp/scripts/start_deploy_aek-mcp.py` |
+### 编译部署流程
+- **统一入口**：`scripts/build_deploy.py`
+- **启动脚本**：`scripts/start.py`
+- **Go 包**：`go build` 编译本机 + 对端平台二进制
+- **JS 包**：直接复制文件到 `node_modules/@cheezmil/<pkg>`，不走 `npm install -g`
 
-### npm 发布模式（仅限维护者）
-- 仅当需要对外发布时才执行 npm publish，且必须：
-  1. 先用 pnpm publish（npm publish 会把 workspace:* 打进包里导致失败）
-  2. 先发布全部平台子包（-linux-x64/-win32-x64 等），再发布主包
-  3. 发布前 `npm view` 确认所有依赖已存在于 registry
-  4. 发布后校验 dependencies/optionalDependencies 是具体版本而非 workspace:*
-  5. 补齐 git tag 并 push 到 github 和 gitea 两个 remote
-- 发布脚本统一放 `scripts/for-maintainers/`，严禁与开发部署脚本混淆
+### 脚本放置规范
+- 所有脚本统一放 `scripts/` 目录
+- Windows 部署脚本放 `scripts/for-wsl/` 子目录
+- 命名规范：`start_<功能>.py`
 
-## 打 tag 与 npm 发布铁律（违规会出事故，必须遵守）
+### npm 包处理
+- **禁止**在开发脚本中执行 `npm publish`
+- **禁止**引用云端 npm 包，只用本地源码
+- WSL↔Windows 双端同步通过 staging 目录实现
 
-### npm 发布必须用 pnpm publish（最关键）
-- 任何含 workspace:* 依赖的包 **绝不能用 npm publish**。npm publish 不会把 workspace:* 转成具体版本，会把 `workspace:*` 字面量直接打进发布的包里，导致安装时依赖解析失败（平台二进制拉不下来）。只有 pnpm publish 才会转换 workspace:*. 典型：主包 @cheezmil/aek-websearch 的 optionalDependencies 指向各平台子包；元包 @cheezmil/aek 的 dependencies 全是 workspace:*。
-- 平台子包（无任何 workspace 依赖）才可用 npm publish。
-- 发布顺序：先全部平台子包，再主包（主包 optionalDeps 引用平台子包的具体版本）。
-- 发布前必须 npm view 确认每个 workspace 依赖已在 registry；发布后校验已发布包的 dependencies/optionalDependencies 是具体版本而非 workspace:*。
-- registry 有传播延迟：刚发布立即 npm view 会 404，等约 10s 再验证，不要误判为没发布。
-- 若误用 npm publish 发布了坏版本：npm 禁止覆盖同版本，且 bypass-2FA 的 granular token 无法 unpublish（403）→ 只能把主包+全部平台子包统一 bump 到新版本再用 pnpm publish 重发（fixed 组要求主包与平台子包版本永远一致），坏版本残留无法删除。
+## WSL↔Windows 跨平台部署铁律（违规会出事故，必须遵守）
 
-### 打 tag / GitHub Release 铁律
-- 每次发布必须补齐 tag：aek-websearch@v0.x.y、aek@v0.x.y，tag 版本与实际发布版本一致，并 push 到 github 与 gitea 两个 remote。
-- 禁止用 `git push --tags`（远端已有旧 tag 会整批 reject 且误报失败），应单独 push 本次新增 tag：`git push github <tag1> <tag2>`。
-- 发布后创建 GitHub Release（复用 scripts/for-maintainers/release.py 的 create_github_release）。
+### PowerShell 变量展开陷阱
+- **单引号** `'...'` 和 **heredoc** `@'... '@` 都不展开变量
+- PowerShell 脚本中若需展开变量，必须用双引号包裹
+- **推荐方案**：在 Python 端构建完整内容，直接写入文件
 
-## 本aek系统预制的skill必须用packages/aek-skill-manager使它们存在，预制的全局提示词patch必须用packages/aek-prompt-manager去patch，这两个不做，不算安装完成。
+### Python os.path 陷阱
+- Python 的 `os.path` 用平台原生分隔符
+- **禁止**用 `os.path.dirname()` 处理跨平台路径（返回空字符串）
+- **正确做法**：通过动态命令获取路径
 
-## aek-skill-manager 系统 skill 更新铁律（违规会出事故）
+### Windows 路径在 WSL 中的读写
+- WSL 可通过挂载点访问 Windows 文件系统
+- **禁止**假设用户名，必须动态获取
+- **禁止**硬编码系统路径，必须用动态查找
 
-修改 `packages/aek-skill-manager/aek-system-skill/<skill-name>/SKILL.md` 后，**禁止手动 cp 到任何工具目录**（包括 `%USERPROFILE%\.hermes\skills\`、`%LOCALAPPDATA%\hermes\skills\` 等），必须走正确流程：
+### npm install -g 在 Windows 上的问题
+- `npm install -g` 在 Windows 上会创建 **Junction 符号链接**
+- Junction 符号链接会导致模块解析失败
+- **正确做法**：直接复制文件到 `node_modules/@cheezmil/<pkg>`
+
+### ESM vs CJS 模块解析差异
+- **ESM** (`import`) 不认 `NODE_PATH` 环境变量
+- **CJS** (`require.resolve()`) 认 `NODE_PATH`
+- **因此**：不能在 PowerShell 中设置 `NODE_PATH` 来解决 ESM 模块找不到问题
+
+### dist/ 目录排除规则
+- 对有 `build` 脚本的 JS 包，**必须保留 dist/ 目录**
+- 只有纯源码包（无 build 脚本）才排除 dist/
+- **检测方法**：读取 package.json 的 `scripts.build` 字段判断
+
+### 临时脚本清理
+- **禁止**将调试脚本留在仓库根目录或 scripts/ 目录
+- 每个测试脚本完成后必须删除
+
+## 本aek系统预制的skill必须用packages/aek-skill-manager使它们存在，预制的全局提示词patch必须用packages/aek-prompt-manager去patch
+
+## aek-skill-manager 系统 skill 更新铁律
+
+修改 `packages/aek-skill-manager/aek-system-skill/<skill-name>/SKILL.md` 后，**禁止手动 cp 到任何工具目录**，必须走正确流程：
 
 ```
-1. 改 repo 里的源文件（packages/aek-skill-manager/aek-system-skill/...）
+1. 改 repo 里的源文件
 2. cqg acp 提交推送
-3. aek sm sync   ← 让代码自动分发到所有目标（含 Hermes 双写 Windows 路径）
+3. aek sm sync
 ```
 
 `aek sm sync` 会：
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
-- 分发到所有工具的 skills 目录（Hermes 双写 `.hermes` + `AppData/Local/hermes`）
+- 分发到所有工具的 skills 目录

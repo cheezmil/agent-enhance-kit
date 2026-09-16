@@ -146,11 +146,25 @@ def detect_env() -> str:
 
 
 def find_pwsh() -> str | None:
-    """在 WSL 中找 Windows PowerShell。"""
+    """在 WSL 中找 Windows PowerShell，动态查找避免硬编码路径。"""
     if detect_env() != "wsl":
         return None
+    # 通过 where.exe 动态查找 pwsh.exe，不硬编码路径
+    try:
+        r = subprocess.run(
+            ["/mnt/c/Windows/System32/where.exe", "pwsh"],
+            capture_output=True, text=True, timeout=5,
+        )
+        for line in r.stdout.strip().splitlines():
+            p = line.strip()
+            if p and Path(p).exists():
+                return p
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    # 兜底：尝试常见位置
     for p in [
         "/mnt/c/Program Files/PowerShell/7/pwsh.exe",
+        "/mnt/c/Program Files (x86)/PowerShell/7/pwsh.exe",
         "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
     ]:
         if Path(p).exists():
@@ -159,9 +173,19 @@ def find_pwsh() -> str | None:
 
 
 def find_wsl_exe() -> str | None:
-    """在 Windows 中找 wsl.exe（用于反向同步）。"""
+    """在 Windows 中找 wsl.exe，动态查找避免硬编码路径。"""
     if detect_env() != "windows":
         return None
+    try:
+        r = subprocess.run(
+            ["where.exe", "wsl"], capture_output=True, text=True, timeout=5,
+        )
+        for line in r.stdout.strip().splitlines():
+            p = line.strip()
+            if p and Path(p).exists():
+                return p
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
     for p in [
         r"C:\Windows\System32\wsl.exe",
         r"C:\Windows\Sysnative\wsl.exe",
@@ -343,7 +367,7 @@ def stage_for_windows_peer(pkg_key: str) -> str:
     pkg_dir = PACKAGES_DIR / spec["dir"]
     common_dir = PACKAGES_DIR / "aek-common"
 
-    win_user = os.environ.get("USER", "xdx")
+    win_user = os.path.basename(os.path.expanduser("~"))
     staging_root = Path(f"/mnt/c/Users/{win_user}/.aek/dev-staging")
     staging_win = str(staging_root / spec["dir"])
     staging_common_win = str(staging_root / "aek-common")
@@ -358,7 +382,16 @@ def stage_for_windows_peer(pkg_key: str) -> str:
         p.mkdir(parents=True, exist_ok=True)
 
     # 排除规则（platforms 不 exclusion，Go 包的平台二进制在 platforms/<platform>/bin/ 中）
-    EXCLUDE_DIRS = {"node_modules", ".git", "dist", "build", "__pycache__", ".venv", ".next"}
+    # 对于有 build 脚本的 JS 包，不排除 dist/
+    import json as _json
+    spec = PACKAGES[pkg_key]
+    pkg_json_path = PACKAGES_DIR / spec["dir"] / "package.json"
+    with open(pkg_json_path) as f:
+        pkg_meta = _json.load(f)
+    has_build = bool(pkg_meta.get("scripts", {}).get("build"))
+    EXCLUDE_DIRS = {"node_modules", ".git", "build", "__pycache__", ".venv", ".next"}
+    if not has_build:
+        EXCLUDE_DIRS.add("dist")
     EXCLUDE_FILES = {"*.log", "*.tmp"}
 
     def copy_tree(src: Path, dst: Path) -> None:
@@ -397,30 +430,77 @@ def stage_for_windows_peer(pkg_key: str) -> str:
 
 
 def npm_install_on_windows_peer(pkg_key: str, staging_win: str) -> None:
-    """让 Windows 端从 staging 安装包 + aek-common。"""
-    pwsh = find_pwsh()
+    """直接把包文件复制到 Windows 全局 node_modules，不走 npm install。"""
+    import json as _json
+    import subprocess as _subprocess
+    import os as _os
+
     spec = PACKAGES[pkg_key]
-    # staging_win 是 WSL 路径（如 /mnt/c/Users/...），转成 Windows 路径（如 C:\Users\...）
-    # 用字符串操作，避免 Python os.path 对 Windows 路径的误解析
-    import os
-    rest = staging_win[len("/mnt/c/"):]  # 去掉前缀，得到 /Users/xdx/.aek/dev-staging/aek-prompt-manager
-    win_staging = "C:\\\\" + rest.replace("/", "\\\\")  # C:\\Users\\xdx\\.aek\\dev-staging\\aek-prompt-manager
-    win_staging_root, pkg_dir_name = win_staging.rsplit("\\\\", 1)
-    ps = f"""
-$ErrorActionPreference = 'Stop'
-# 切换到 Windows 用户目录，避免 WSL 路径污染 Node.js 模块解析
-Set-Location $env:USERPROFILE
-# 设置 NODE_PATH 让 Node.js 能找到全局模块（解决 WSL 调 PowerShell 时的 UNC 路径问题）
-$env:NODE_PATH = npm root -g
-$stagingRoot = '{win_staging_root}'
-$pkgDir = '{pkg_dir_name}'
-Write-Host '  [win] 安装 aek-common (workspace 依赖)...'
-npm install -g "$stagingRoot\\aek-common" --force 2>&1 | Select-Object -Last 5
-Write-Host '  [win] 安装 {spec['npm']} ...'
-npm install -g "$stagingRoot\\$pkgDir" --force 2>&1 | Select-Object -Last 10
-Write-Host '  [win] 依赖安装完成'
-"""
-    run_pwsh(pwsh, ps, f"Windows 端 npm install {pkg_key}")
+    pwsh = find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 PowerShell")
+
+    # 解析路径
+    rest = staging_win[len("/mnt/c/"):]
+    win_staging = "C:" + rest.replace("/", "\\")
+    win_staging_root, pkg_dir_name = win_staging.rsplit("\\", 1)
+
+    pkg_name = spec["npm"].split("/")[-1]
+    print(f"  [win] pkg_name={pkg_name}, pkg_dir={pkg_dir_name}")
+
+    # 获取 npm root 和 bin 目录（在 PowerShell 中处理 Windows 路径）
+    npm_result = _subprocess.run(
+        [pwsh, "-Command", "npm root -g"],
+        capture_output=True, text=True
+    )
+    npm_root = npm_result.stdout.strip()
+    # npm root 返回 D:\...\node_modules，bin 目录是其父目录
+    npm_bin_dir = _subprocess.run(
+        [pwsh, "-Command", "Split-Path (npm root -g) -Parent"],
+        capture_output=True, text=True
+    ).stdout.strip()
+    print(f"  [win] npm_root={npm_root}")
+    print(f"  [win] npm_bin_dir={npm_bin_dir}")
+
+    # 读取 package.json 获取 bin 映射
+    pkg_json_path = PACKAGES_DIR / spec["dir"] / "package.json"
+    with open(pkg_json_path) as f:
+        pkg_meta = _json.load(f)
+    bin_map = pkg_meta.get("bin", {})
+    if not bin_map:
+        bin_map = {pkg_name: f"bin/{pkg_name}.js"}
+    print(f"  [win] bin_map={bin_map}")
+
+    # 复制包文件
+    _subprocess.run([pwsh, "-Command", f"Set-Location C:\\; Copy-Item -Recurse -Force '{win_staging_root}/{pkg_dir_name}' '{npm_root}/@cheezmil/{pkg_name}'"], capture_output=True, text=True)
+    _subprocess.run([pwsh, "-Command", f"Set-Location C:\\; Copy-Item -Recurse -Force '{win_staging_root}/aek-common' '{npm_root}/aek-common'"], capture_output=True, text=True)
+    print("  [win] 复制包文件完成")
+
+    # 创建 shim 文件（通过 PowerShell 写入，因为 Python 在 WSL 上无法写入 Windows 路径）
+    for _bin_name, _js_rel in bin_map.items():
+        _js_full = f"$basedir/node_modules/@cheezmil/{pkg_name}/{_js_rel}"
+        _shim_content = (
+            "$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\n"
+            '$exe=""\n'
+            'if ($PSVersionTable.PSVersion -lt "6.0" -or $IsWindows) { $exe=".exe" }\n'
+            "$ret=0\n"
+            'if (Test-Path "$basedir/node$exe") {\n'
+            f'    & "$basedir/node$exe" "{_js_full}" $args\n'
+            "} else {\n"
+            f'    & "node$exe" "{_js_full}" $args\n'
+            "}\n"
+            "$ret=$LASTEXITCODE\n"
+            "exit $ret\n"
+        )
+        # 直接通过 WSL 路径写入 Windows 文件（/mnt/c/ 可在 WSL 中读写）
+        # npm_bin_dir 是 Windows 路径，需要转为 WSL 路径
+        _wsl_bin_dir = "/mnt/" + npm_bin_dir[0].lower() + npm_bin_dir[2:].replace("\\", "/")
+        _wsl_path = _wsl_bin_dir + "/" + _bin_name + ".ps1"
+        with open(_wsl_path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(_shim_content)
+        print(f"  [win] 创建 shim: {_bin_name}")
+
+    print("  [win] 安装完成")
 
 
 def stage_for_wsl_peer(pkg_key: str) -> str:

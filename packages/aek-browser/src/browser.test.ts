@@ -328,7 +328,9 @@ describe('BrowserBridge state', () => {
       },
     });
     vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'requestDaemonShutdown').mockResolvedValue(true);
-    vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'waitForDaemonStop').mockResolvedValue(false);
+    // First waitForDaemonStop returns false (port not released), triggering SIGKILL.
+    // After SIGKILL, waitForDaemonStop returns true so stale daemon is replaced.
+    vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'waitForDaemonStop').mockResolvedValueOnce(false).mockResolvedValue(true);
 
     const bridge = new BrowserBridge();
 
@@ -356,7 +358,8 @@ describe('BrowserBridge state', () => {
 
     const bridge = new BrowserBridge();
 
-    await expect(bridge.connect({ timeout: 0.1 })).rejects.toThrow('Browser Bridge extension not connected');
+    await expect(bridge.connect({ timeout: 0.1 })).rejects.toThrow('Stale daemon could not be replaced');
+    // requestDaemonShutdown returned false, so SIGKILL is triggered but port still not released
     expect(killSpy).toHaveBeenCalledWith(999999, 'SIGKILL');
   });
 
@@ -376,17 +379,17 @@ describe('BrowserBridge state', () => {
     });
     vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'requestDaemonShutdown').mockResolvedValue(false);
     // Graceful shutdown short-circuits to false (requestDaemonShutdown -> false).
-    // After SIGKILL the port is released, so the post-kill waitForDaemonStop returns true.
+    // First waitForDaemonStop also returns false (port not released), triggering SIGKILL.
+    // After SIGKILL, waitForDaemonStop returns true so stale daemon is replaced.
     vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'waitForDaemonStop').mockResolvedValueOnce(false).mockResolvedValue(true);
     vi.spyOn(daemonLifecycle.daemonLifecycleHooks, 'spawnDaemonProcess').mockReturnValue(null as unknown as ReturnType<typeof daemonLifecycle.spawnDaemonProcess>);
     const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
 
     const bridge = new BrowserBridge();
 
-    // We expect the stale-daemon path to succeed and then continue into the
-    // no-extension wait (which times out with `timeout: 0.1`), producing the
-    // extension-not-connected error rather than the stale-daemon error.
-    await expect(bridge.connect({ timeout: 0.1 })).rejects.toThrow('Browser Bridge extension not connected');
+    // We expect the stale-daemon path to fail: SIGKILL is called but port still not released,
+    // producing the stale-daemon error rather than the extension-not-connected error.
+    await expect(bridge.connect({ timeout: 0.1 })).rejects.toThrow('Stale daemon could not be replaced');
     expect(killSpy).toHaveBeenCalledWith(99999, 'SIGKILL');
   });
 

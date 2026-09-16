@@ -1,7 +1,7 @@
 {
   "name": "@cheezmil/aek-skill-manager",
   "version": "0.1.2",
-  "description": "同步 AI Agent Skills（SKILL.md）到各工具的全局或项目目录",
+  "description": "\u540c\u6b65 AI Agent Skills\uff08SKILL.md\uff09\u5230\u5404\u5de5\u5177\u7684\u5168\u5c40\u6216\u9879\u76ee\u76ee\u5f55",
   "scripts": {
     "test": "node --test"
   },
