@@ -1,18 +1,18 @@
 {
   "name": "@cheezmil/aek",
   "version": "0.1.10",
-  "description": "AEK \u2014 Agent Enhance Kit (All-in-one CLI)",
+  "description": "AEK — Agent Enhance Kit (All-in-one CLI)",
   "type": "module",
   "bin": {
     "aek": "bin/aek.js"
   },
   "dependencies": {
-    "@cheezmil/aek-common": "^0.1.2",
-    "@cheezmil/aek-mcp": "^0.11.2",
-    "@cheezmil/aek-prompt-manager": "^0.1.5",
-    "@cheezmil/aek-skill-manager": "^0.1.2",
-    "@cheezmil/aek-task-manager": "^0.0.1",
-    "@cheezmil/aek-websearch": "^0.2.3"
+    "@cheezmil/aek-common": "workspace:*",
+    "@cheezmil/aek-mcp": "workspace:*",
+    "@cheezmil/aek-prompt-manager": "workspace:*",
+    "@cheezmil/aek-skill-manager": "workspace:*",
+    "@cheezmil/aek-task-manager": "workspace:*",
+    "@cheezmil/aek-websearch": "workspace:*"
   },
   "files": [
     "bin/",

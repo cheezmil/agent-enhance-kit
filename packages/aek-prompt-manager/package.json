@@ -25,7 +25,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@cheezmil/aek-common": "^0.1.2"
+    "@cheezmil/aek-common": "workspace:*"
   },
   "files": [
     "bin/",
