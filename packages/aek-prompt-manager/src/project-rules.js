@@ -149,7 +149,9 @@ export function prBackupDir(projectRoot) {
 
 // 用目标相对路径（相对于 projectRoot）作为备份文件名，避免同名冲突
 function backupFileName(target, projectRoot) {
-  return resolve(target).replace(resolve(projectRoot) + '/', '');
+  const rel = path.relative(resolve(projectRoot), resolve(target));
+  // 统一用正斜杠（避免 Windows 反斜杠在文件名中出错）
+  return rel.split(path.sep).join('/');
 }
 
 export function prAllFile(projectRoot) {
