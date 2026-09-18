@@ -3,9 +3,11 @@
 
 用法：
   python3 scripts/build_deploy.py <target> [--no-deploy] [--skip-peer]
+  python3 scripts/build_deploy.py --target-platform windows --pkg aek-mcp
+  python3 scripts/build_deploy.py --target-platform both --pkg all
 
   <target>:
-    aek-websearch      Go CLI + npm 包（跨平台）
+    aek-websearch      Go CLI + npm 包
     aek-mcp            Go CLI + npm 包
     aek-task-manager   Go CLI + npm 包
     aek-prompt-manager 纯 JS npm 包
@@ -15,14 +17,18 @@
     aek                纯 JS npm 元包
     all-npm            所有 npm 包（不含 mcp 前端/后端服务）
 
-  --no-deploy   只构建，不 npm install -g
-  --skip-peer   WSL/Windows 双端环境下，跳过对端同步
+  --no-deploy          只构建，不 npm install -g
+  --skip-peer          跳过对端同步（WSL/Windows 双端环境）
+  --target-platform    指定编译目标平台：
+                         linux   仅本机 Linux 二进制（默认）
+                         windows 仅 Windows 二进制
+                         both    编译本机 + 对端平台
 
 行为：
   - 自动检测当前环境（wsl / windows / linux / darwin）
-  - 对 Go 包：编译本机平台二进制；WSL/Windows 双端环境下顺带编译对端平台
-  - 对 npm 包：本机 npm install -g
-  - WSL↔Windows 双端：自动同步对端（清云端冲突包 → staging → 对端 npm install -g）
+  - Go 包：按 --target-platform 编译指定平台二进制
+  - npm 包：本机 npm install -g
+  - WSL↔Windows 双端：默认不同步对端，需 --target-platform both 才编译对端
   - macOS：仅本机编译/部署（无对端概念）
 """
 
@@ -288,13 +294,35 @@ def build_go(pkg_key: str, target_goos: str, target_goarch: str, out_suffix: str
     return out_path
 
 
-def build(pkg_key: str, also_peer: bool, target_windows_only: bool = False) -> dict[str, Path]:
-    """构建Go包二进制。
+# (goos, goarch) → npm platform key（用于 --target-platform 参数映射）
+GOOS_ARCH_TO_NPM_PLATFORM = {
+    ("linux", "amd64"): "linux-x64",
+    ("linux", "arm64"): "linux-arm64",
+    ("darwin", "amd64"): "darwin-x64",
+    ("darwin", "arm64"): "darwin-arm64",
+    ("windows", "amd64"): "win32-x64",
+    ("windows", "arm64"): "win32-arm64",
+}
+
+
+def build(
+    pkg_key: str,
+    target_platform: str | None = None,
+    also_peer: bool = False,
+) -> dict[str, Path]:
+    """构建 Go 包二进制。
+
+    默认行为：只编译本机平台。
+    要编译对端平台，使用 target_platform="both" 或 also_peer=True。
 
     参数:
         pkg_key: 包名
-        also_peer: 是否编译对端平台
-        target_windows_only: 仅编译Windows二进制（WSL环境下跳过本机Linux编译）
+        target_platform: 目标平台选择
+            - None / "local"   → 只编译本机平台（默认）
+            - "windows"         → 只编译 Windows 二进制
+            - "linux"           → 只编译 Linux 二进制
+            - "both" / also_peer=True → 编译本机 + 对端
+        also_peer: 向后兼容参数，等价于 target_platform="both"
 
     返回:
         {goos: bin_path} 输出路径映射
@@ -305,23 +333,34 @@ def build(pkg_key: str, also_peer: bool, target_windows_only: bool = False) -> d
         return {}
 
     env = detect_env()
-    outputs = {}
 
-    if target_windows_only and env == "wsl":
-        # WSL环境只编译Windows二进制
-        print(f"  [win-only] 跳过本机Linux编译，仅编译Windows")
-        outputs["windows"] = build_go(pkg_key, "windows", "amd64")
+    # 统一 also_peer → target_platform 语义
+    if also_peer:
+        target_platform = "both"
+
+    # 计算要编译的平台列表
+    targets: list[tuple[str, str]] = []  # [(goos, goarch), ...]
+    native = current_platform()  # (goos, goarch)
+
+    if target_platform in (None, "local"):
+        targets.append(native)
+    elif target_platform == "windows":
+        targets.append(("windows", "amd64"))
+    elif target_platform == "linux":
+        targets.append(("linux", "amd64"))
+    elif target_platform == "both":
+        targets.append(native)
+        # 仅 WSL↔Windows 有对端概念；其他平台无对端
+        if env == "wsl":
+            targets.append(("windows", "amd64"))
+        elif env == "windows":
+            targets.append(("linux", "amd64"))
     else:
-        # 默认行为：编译本机 + 对端
-        goos, goarch = current_platform()
-        outputs[goos] = build_go(pkg_key, goos, goarch)
+        raise ValueError(f"未知 target_platform: {target_platform!r}")
 
-        # 对端平台：仅 WSL/Windows 互推
-        if also_peer:
-            if env == "wsl":
-                outputs["windows"] = build_go(pkg_key, "windows", "amd64")
-            elif env == "windows":
-                outputs["linux"] = build_go(pkg_key, "linux", "amd64")
+    outputs: dict[str, Path] = {}
+    for goos, goarch in targets:
+        outputs[goos] = build_go(pkg_key, goos, goarch)
 
     return outputs
 
@@ -794,8 +833,8 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
 
     # 1) 构建（Go 包才有）
     print("\n[1/4] 构建...")
-    target_windows_only = (target_platform == "windows" and env == "wsl")
-    build(pkg_key, also_peer=not skip_peer, target_windows_only=target_windows_only)
+    # target_platform 为 None 时仅编译本机；"both"/"windows"/"linux" 显式指定
+    build(pkg_key, target_platform=target_platform if not skip_peer else "local")
 
     if no_deploy:
         print("\n  --no-deploy 指定，跳过部署")
@@ -985,17 +1024,27 @@ def main() -> None:
         epilog="""
 --only 动作（逗号分隔）：
   stage          仅 stage 源码到 Windows workspace（仅 WSL 环境）
-  build-local    仅编译本机 Go 二进制（仅 WSL 环境）
-  build-win      仅交叉编译 Windows 二进制（仅 WSL 环境）
   install-win    仅 Windows pnpm install + shim（不含 Go 编译）
-  compile-win    仅通过 pwsh 在 Windows 端 go build
+  compile-win    仅通过 pwsh 在 Windows 端 go build（仅 WSL 环境）
   all            完整流水线（默认）
 
+--target-platform 选项：
+  linux          仅编译本机 Linux 二进制（默认）
+  windows        仅编译 Windows 二进制
+  both           编译本机 + 对端平台二进制
+
 示例：
-  python3 scripts/build_deploy.py --only stage
-  python3 scripts/build_deploy.py --only compile-win
-  python3 scripts/build_deploy.py --only install-win --no-cache
-  python3 scripts/build_deploy.py --only stage,compile-win,install-win --no-cache
+  # 仅编译本机（WSL 环境默认行为）
+  python3 scripts/build_deploy.py aek-mcp
+
+  # 仅编译 Windows 二进制
+  python3 scripts/build_deploy.py --target-platform windows --pkg aek-mcp
+
+  # 编译全部平台（WSL ↔ Windows 互编）
+  python3 scripts/build_deploy.py --target-platform both --pkg aek-mcp
+
+  # 仅 stage + 安装
+  python3 scripts/build_deploy.py --only stage,install-win --no-cache
         """,
     )
     parser.add_argument("target", nargs="?", choices=list(PACKAGES.keys()) + ["all-npm"],
@@ -1005,15 +1054,15 @@ def main() -> None:
     parser.add_argument("--no-cache", action="store_true",
                         help="跳过缓存，强制全量复制所有包到 Windows workspace")
     parser.add_argument("--build-platform-bins", action="store_true",
-                        help="编译本机和对端平台二进制（默认行为；加 --cross-compile 可编译全部平台）")
-    parser.add_argument("--cross-compile", action="store_true",
-                        help="与 --build-platform-bins 配合，编译全部 5 个平台")
+                        help="[已弃用] 请使用 --target-platform 代替")
     parser.add_argument("--build-platform-bin-short", default=None,
-                        help="只构建某个包的平台二进制（如 aek-websearch）")
+                        help="[已弃用] 请使用 --target-platform 代替")
+    parser.add_argument("--cross-compile", action="store_true",
+                        help="[已弃用] 请使用 --target-platform both 代替")
     parser.add_argument("--sync-versions", action="store_true",
                         help="同步平台子包版本号到主包版本")
     parser.add_argument("--only", default=None,
-                        help="细粒度动作：stage,build-local,build-win,install-win,compile-win,all（逗号分隔）")
+                        help="细粒度动作：stage,install-win,compile-win,all（逗号分隔）")
     parser.add_argument("--dry-run", action="store_true",
                         help="只打印路径和命令，不实际执行（可与 --only 配合使用）")
     parser.add_argument("--test", action="store_true",
@@ -1035,7 +1084,7 @@ def main() -> None:
             print("[!] 找不到 PowerShell，仅 WSL 环境支持 --test"); sys.exit(2)
         sys.exit(test_windows_workspace(pwsh, verbose=True))
 
-    # --build-platform-bins 模式：直接编译平台二进制
+    # --build-platform-bins 模式：直接编译平台二进制（已弃用，保留兼容）
     if args.build_platform_bins:
         sys.exit(build_platform_bins(go_cmd="go", short=args.build_platform_bin_short,
                                       cross_compile=args.cross_compile))
@@ -1085,45 +1134,6 @@ def main() -> None:
                             print(f"  [dry-run]   {k} → {wp.packages_dir}/{PACKAGES[k]['dir']}")
                     return
                 stage_all_for_windows_peer(no_cache=args.no_cache)
-                return
-
-            if action == "build-local":
-                if detect_env() != "wsl":
-                    print("[!] build-local 仅 WSL 环境支持"); sys.exit(2)
-                # 必须显式指定 --pkg
-                if not args.pkg:
-                    print("[!] build-local 必须指定 --pkg，例如：--pkg aek-mcp")
-                    print("   可选: go（所有 Go 包）或具体包名")
-                    sys.exit(2)
-                if args.dry_run:
-                    print("[dry-run] 将编译本机 Go 二进制:")
-                    for k in go_order:
-                        spec = PACKAGES[k]
-                        goos, goarch = current_platform()
-                        out = PACKAGES_DIR / spec["dir"] / "bin" / spec["bin_name"]
-                        print(f"  {k}: go build -o {out} {spec['go_cmd'][4]} (GOOS={goos}, GOARCH={goarch})")
-                    return
-                for k in go_order:
-                    build(k, also_peer=False)
-                return
-
-            if action == "build-win":
-                if detect_env() != "wsl":
-                    print("[!] build-win 仅 WSL 环境支持"); sys.exit(2)
-                # 必须显式指定 --pkg
-                if not args.pkg:
-                    print("[!] build-win 必须指定 --pkg，例如：--pkg aek-mcp")
-                    print("   可选: go（所有 Go 包）或具体包名")
-                    sys.exit(2)
-                if args.dry_run:
-                    print("[dry-run] 将交叉编译 Windows 二进制:")
-                    for k in go_order:
-                        spec = PACKAGES[k]
-                        out = PACKAGES_DIR / spec["dir"] / "platforms" / "win32-x64" / "bin" / f"{spec['bin_name']}.exe"
-                        print(f"  {k}: GOOS=windows GOARCH=amd64 go build -o {out} {spec['go_cmd'][4]}")
-                    return
-                for k in go_order:
-                    build_go(k, "windows", "amd64")
                 return
 
             if action == "install-win":
