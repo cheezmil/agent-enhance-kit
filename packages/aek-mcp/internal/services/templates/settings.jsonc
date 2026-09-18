@@ -1,8 +1,0 @@
-{
-  "port": 1352,
-  "host": "0.0.0.0",
-  "basePath": "/aek-mcp",
-  "disableWeb": false,
-  "autoLogin": true,
-  "showLoginHint": true
-}
