@@ -288,28 +288,86 @@ def build_go(pkg_key: str, target_goos: str, target_goarch: str, out_suffix: str
     return out_path
 
 
-def build(pkg_key: str, also_peer: bool) -> dict[str, Path]:
-    """构建当前平台 + 可选对端平台。返回 {goos: bin_path}。"""
+def build(pkg_key: str, also_peer: bool, target_windows_only: bool = False) -> dict[str, Path]:
+    """构建Go包二进制。
+
+    参数:
+        pkg_key: 包名
+        also_peer: 是否编译对端平台
+        target_windows_only: 仅编译Windows二进制（WSL环境下跳过本机Linux编译）
+
+    返回:
+        {goos: bin_path} 输出路径映射
+    """
     spec = PACKAGES[pkg_key]
     if spec["kind"] != "go-cli":
         print(f"  {pkg_key} 是纯 JS 包，无需构建")
         return {}
 
     env = detect_env()
-    goos, goarch = current_platform()
     outputs = {}
 
-    # 本机平台
-    outputs[goos] = build_go(pkg_key, goos, goarch)
+    if target_windows_only and env == "wsl":
+        # WSL环境只编译Windows二进制
+        print(f"  [win-only] 跳过本机Linux编译，仅编译Windows")
+        outputs["windows"] = build_go(pkg_key, "windows", "amd64")
+    else:
+        # 默认行为：编译本机 + 对端
+        goos, goarch = current_platform()
+        outputs[goos] = build_go(pkg_key, goos, goarch)
 
-    # 对端平台：仅 WSL/Windows 互推
-    if also_peer:
-        if env == "wsl":
-            outputs["windows"] = build_go(pkg_key, "windows", "amd64")
-        elif env == "windows":
-            outputs["linux"] = build_go(pkg_key, "linux", "amd64")
+        # 对端平台：仅 WSL/Windows 互推
+        if also_peer:
+            if env == "wsl":
+                outputs["windows"] = build_go(pkg_key, "windows", "amd64")
+            elif env == "windows":
+                outputs["linux"] = build_go(pkg_key, "linux", "amd64")
 
     return outputs
+
+
+def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str, dry_run: bool = False) -> None:
+    """通过 PowerShell 在 Windows 端编译 Go 二进制。
+
+    输出到 C:\\Users\\<user>\\.aek\\src\\packages\\<pkg>\\platforms\\win32-x64\\bin\\
+    """
+    spec = PACKAGES[pkg_key]
+    pkg_dir = spec["dir"]
+    bin_name = spec["bin_name"]
+    build_target = spec["go_cmd"][4] if len(spec["go_cmd"]) > 4 else "./cmd/aek"
+
+    # Windows 路径（供 pwsh 使用）
+    out_dir = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}\\platforms\\win32-x64\\bin"
+    out_file = f"{out_dir}\\{bin_name}.exe"
+
+    if dry_run:
+        print(f"  [dry-run] {pkg_key} → {out_file}")
+        return
+
+    # 确保目录存在
+    mkdir_cmd = f"New-Item -ItemType Directory -Force -Path '{out_dir}'"
+    subprocess.run([pwsh, "-Command", mkdir_cmd], capture_output=True, check=True)
+
+    # Go 编译命令
+    build_cmd = (
+        f"$env:GOOS='windows'; "
+        f"$env:GOARCH='amd64'; "
+        f"$env:CGO_ENABLED='0'; "
+        f"Set-Location '{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}'; "
+        f"go build -o '{out_file}' {build_target}"
+    )
+
+    print(f"  build {pkg_key} for windows/amd64 → {out_file}")
+    r = subprocess.run([pwsh, "-Command", build_cmd], capture_output=True, text=True, timeout=180)
+    if r.returncode != 0:
+        print(f"  [!] {pkg_key} Windows 编译失败:")
+        print(f"      stdout: {r.stdout[-500:]}")
+        print(f"      stderr: {r.stderr[-300:]}")
+        raise RuntimeError(f"{pkg_key} Windows 编译失败")
+    if r.stdout.strip():
+        print(f"  [info] {r.stdout.strip()[:200]}")
+
+    print(f"  ✓ {pkg_key} Windows 二进制已编译")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -367,8 +425,12 @@ def stage_for_windows_peer(pkg_key: str) -> str:
     pkg_dir = PACKAGES_DIR / spec["dir"]
     common_dir = PACKAGES_DIR / "aek-common"
 
-    win_user = os.path.basename(os.path.expanduser("~"))
-    staging_root = Path(f"/mnt/c/Users/{win_user}/.aek/dev-staging")
+    pwsh = find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 PowerShell")
+    wp = get_wsl_win_paths(pwsh)
+    # staging 使用用户约定的 dev-staging 子目录
+    staging_root = Path(wp.src_dir).parent / "dev-staging"
     staging_win = str(staging_root / spec["dir"])
     staging_common_win = str(staging_root / "aek-common")
 
@@ -684,7 +746,7 @@ def npm_install_on_wsl_peer(pkg_key: str) -> None:
 # 主流程
 # ──────────────────────────────────────────────────────────────────────────
 
-def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool) -> None:
+def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: str = None) -> None:
     spec = PACKAGES[pkg_key]
     env = detect_env()
     print(f"\n{'=' * 60}")
@@ -693,7 +755,8 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool) -> None:
 
     # 1) 构建（Go 包才有）
     print("\n[1/4] 构建...")
-    build(pkg_key, also_peer=not skip_peer)
+    target_windows_only = (target_platform == "windows" and env == "wsl")
+    build(pkg_key, also_peer=not skip_peer, target_windows_only=target_windows_only)
 
     if no_deploy:
         print("\n  --no-deploy 指定，跳过部署")
@@ -916,6 +979,8 @@ def main() -> None:
                         help="只打印路径和命令，不实际执行（可与 --only 配合使用）")
     parser.add_argument("--test", action="store_true",
                         help="运行 test_windows_workspace 验证 Windows workspace 配置")
+    parser.add_argument("--target-platform", default=None, choices=["linux", "windows", "both"],
+                        help="指定编译目标平台（仅 WSL 环境下有效）：\n  linux    仅编译本机 Linux 二进制（默认）\n  windows  仅编译 Windows 二进制\n  both     编译全部平台")
     args = parser.parse_args()
 
     print(f"PROJECT_ROOT: {PROJECT_ROOT}")
@@ -1010,7 +1075,7 @@ def main() -> None:
                         for bn in bin_map:
                             print(f"    shim: {bn}.ps1")
                         continue
-                    deploy_one(k, no_deploy=False, skip_peer=True)
+                    deploy_one(k, no_deploy=False, skip_peer=True, target_platform=args.target_platform)
                 return
 
             if action == "compile-win":
@@ -1019,15 +1084,15 @@ def main() -> None:
                 pwsh = find_pwsh()
                 if not pwsh:
                     print("[!] 找不到 PowerShell"); sys.exit(2)
-                win_up = subprocess.run([pwsh, "-Command", "$env:USERPROFILE"],
-                                        capture_output=True, text=True).stdout.strip()
+                wp = get_win_paths(pwsh)
                 if args.dry_run:
                     print("[dry-run] 将编译 Windows Go 二进制:")
                     for k in go_order:
                         spec = PACKAGES[k]
-                        out = f"{win_up}\\.aek\\src\\packages\\{spec['dir']}\\platforms\\win32-x64\\bin\\{spec['bin_name']}.exe"
+                        out = wp.platform_bin(spec["dir"], "win32-x64", f"{spec['bin_name']}.exe")
                         print(f"  {k} → {out}")
                     return
+                win_up = wp.user_profile
                 for k in go_order:
                     print(f"\n[compile-win] {k}")
                     _build_go_on_windows_via_pwsh(k, pwsh, win_up, dry_run=args.dry_run)
@@ -1035,7 +1100,7 @@ def main() -> None:
 
             if action == "all":
                 for k in all_order:
-                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer)
+                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer, target_platform=args.target_platform)
                 return
 
             print(f"[!] 未知动作: {action}"); sys.exit(2)
@@ -1055,9 +1120,9 @@ def main() -> None:
         order = ["aek-common", "aek-websearch", "aek-mcp", "aek-task-manager",
                  "aek-prompt-manager", "aek-skill-manager", "aek-browser", "aek"]
         for k in order:
-            deploy_one(k, args.no_deploy, args.skip_peer)
+            deploy_one(k, args.no_deploy, args.skip_peer, target_platform=args.target_platform)
     else:
-        deploy_one(target, args.no_deploy, args.skip_peer)
+        deploy_one(target, args.no_deploy, args.skip_peer, target_platform=args.target_platform)
 
     print("\n✓ 完成")
 
