@@ -1,3 +1,0 @@
-.cheestard_task_manager
-.cheezmil_quick_git
-.env

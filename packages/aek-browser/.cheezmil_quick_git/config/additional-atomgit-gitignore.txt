@@ -1,7 +1,0 @@
-# cqg-atomgit-all-project-ignore-head
-
-# cqg-atomgit-all-project-ignore-end
-
-# cqg-atomgit-this-project-ignore-head
-
-# cqg-atomgit-this-project-ignore-end
