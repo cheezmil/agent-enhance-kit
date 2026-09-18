@@ -13,13 +13,9 @@
 ### 编译部署流程
 - **统一入口**：`scripts/build_deploy.py`
 - **启动脚本**：`scripts/start.py`
-- **Go 包**：`go build` 编译本机 + 对端平台二进制
-- **JS 包**：直接复制文件到 `node_modules/@cheezmil/<pkg>`，不走 `npm install -g`
 
 ### 脚本放置规范
 - 所有脚本统一放 `scripts/` 目录
-- Windows 部署脚本放 `scripts/for-wsl/` 子目录
-- 命名规范：`start_<功能>.py`
 
 ### npm 包处理
 - **禁止**在开发脚本中执行 `npm publish`
@@ -42,11 +38,6 @@
 - WSL 可通过挂载点访问 Windows 文件系统
 - **禁止**假设用户名，必须动态获取
 - **禁止**硬编码系统路径，必须用动态查找
-
-### npm install -g 在 Windows 上的问题
-- `npm install -g` 在 Windows 上会创建 **Junction 符号链接**
-- Junction 符号链接会导致模块解析失败
-- **正确做法**：直接复制文件到 `node_modules/@cheezmil/<pkg>`
 
 ### ESM vs CJS 模块解析差异
 - **ESM** (`import`) 不认 `NODE_PATH` 环境变量
