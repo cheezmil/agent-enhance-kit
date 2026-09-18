@@ -41,7 +41,7 @@ from pathlib import Path
 # 添加 scripts 目录到路径以导入共享模块
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
-from shared.start_scripts_shared_logic import is_win, py_exe
+from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PACKAGES_DIR = PROJECT_ROOT / "packages"
@@ -430,77 +430,212 @@ def stage_for_windows_peer(pkg_key: str) -> str:
 
 
 def npm_install_on_windows_peer(pkg_key: str, staging_win: str) -> None:
-    """直接把包文件复制到 Windows 全局 node_modules，不走 npm install。"""
+    """通过 pnpm workspace install 安装到 Windows 侧，然后创建 shim。"""
     import json as _json
     import subprocess as _subprocess
-    import os as _os
 
     spec = PACKAGES[pkg_key]
     pwsh = find_pwsh()
     if not pwsh:
         raise RuntimeError("找不到 PowerShell")
 
-    # 解析路径
-    rest = staging_win[len("/mnt/c/"):]
-    win_staging = "C:" + rest.replace("/", "\\")
-    win_staging_root, pkg_dir_name = win_staging.rsplit("\\", 1)
+    # 获取 Windows 路径（通过共享模块）
+    wp = get_win_paths(pwsh)
+    src_dir = Path(wp.src_dir)
+    packages_dir = Path(wp.packages_dir)
+    npm_bin_dir = wp.npm_bin_dir
 
-    pkg_name = spec["npm"].split("/")[-1]
-    print(f"  [win] pkg_name={pkg_name}, pkg_dir={pkg_dir_name}")
+    print(f"  [win] workspace root: {wp.src_dir}")
+    print(f"  [win] packages_dir:   {wp.packages_dir}")
+    print(f"  [win] npm bin dir:    {npm_bin_dir}")
 
-    # 获取 npm root 和 bin 目录（在 PowerShell 中处理 Windows 路径）
-    npm_result = _subprocess.run(
-        [pwsh, "-Command", "npm root -g"],
-        capture_output=True, text=True
-    )
-    npm_root = npm_result.stdout.strip()
-    # npm root 返回 D:\...\node_modules，bin 目录是其父目录
-    npm_bin_dir = _subprocess.run(
-        [pwsh, "-Command", "Split-Path (npm root -g) -Parent"],
-        capture_output=True, text=True
-    ).stdout.strip()
-    print(f"  [win] npm_root={npm_root}")
-    print(f"  [win] npm_bin_dir={npm_bin_dir}")
+    # 步骤1: 确保 workspace 配置文件存在
+    pkg_json_path = src_dir / "package.json"
+    if not pkg_json_path.exists():
+        # 复制根 package.json（含 workspaces 字段）
+        root_pkg = PROJECT_ROOT / "package.json"
+        if root_pkg.exists():
+            import json as _root_json
+            with open(root_pkg) as f:
+                root_meta = _root_json.load(f)
+            if "workspaces" not in root_meta:
+                root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
+            pkg_json_path.write_text(
+                _root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8"
+            )
+            print("  [win] 写入 package.json (含 workspaces)")
 
-    # 读取 package.json 获取 bin 映射
+    workspace_yaml_path = src_dir / "pnpm-workspace.yaml"
+    if not workspace_yaml_path.exists():
+        workspace_yaml = PROJECT_ROOT / "pnpm-workspace.yaml"
+        if workspace_yaml.exists():
+            workspace_yaml_path.write_text(workspace_yaml.read_text(), encoding="utf-8")
+            print("  [win] 写入 pnpm-workspace.yaml")
+
+    # 步骤2: 运行 pnpm install --ignore-scripts
+    install_cmd = f"""
+$env:PATH = '{npm_bin_dir};$env:PATH'
+Set-Location '{wp.src_dir}'
+pnpm install --ignore-scripts
+"""
+    r = _subprocess.run([pwsh, "-Command", install_cmd], capture_output=True, text=True, timeout=180)
+    if r.returncode != 0:
+        print(f"  [!] pnpm install 失败:\n{r.stdout[-500:]}\n{r.stderr[-300:]}")
+        raise RuntimeError("pnpm install 失败")
+    if r.stdout.strip():
+        print(r.stdout[-500:])
+
+    # 步骤3: 创建 shim 脚本到 npm bin 目录
     pkg_json_path = PACKAGES_DIR / spec["dir"] / "package.json"
     with open(pkg_json_path) as f:
         pkg_meta = _json.load(f)
     bin_map = pkg_meta.get("bin", {})
     if not bin_map:
+        pkg_name = spec["npm"].split("/")[-1]
         bin_map = {pkg_name: f"bin/{pkg_name}.js"}
-    print(f"  [win] bin_map={bin_map}")
 
-    # 复制包文件
-    _subprocess.run([pwsh, "-Command", f"Set-Location C:\\; Copy-Item -Recurse -Force '{win_staging_root}/{pkg_dir_name}' '{npm_root}/@cheezmil/{pkg_name}'"], capture_output=True, text=True)
-    _subprocess.run([pwsh, "-Command", f"Set-Location C:\\; Copy-Item -Recurse -Force '{win_staging_root}/aek-common' '{npm_root}/aek-common'"], capture_output=True, text=True)
-    print("  [win] 复制包文件完成")
-
-    # 创建 shim 文件（通过 PowerShell 写入，因为 Python 在 WSL 上无法写入 Windows 路径）
     for _bin_name, _js_rel in bin_map.items():
-        _js_full = f"$basedir/node_modules/@cheezmil/{pkg_name}/{_js_rel}"
+        _js_full = f"$env:USERPROFILE\\.aek\\src\\packages\\{spec['dir']}\\{_js_rel}"
         _shim_content = (
-            "$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\n"
-            '$exe=""\n'
-            'if ($PSVersionTable.PSVersion -lt "6.0" -or $IsWindows) { $exe=".exe" }\n'
-            "$ret=0\n"
-            'if (Test-Path "$basedir/node$exe") {\n'
-            f'    & "$basedir/node$exe" "{_js_full}" $args\n'
-            "} else {\n"
-            f'    & "node$exe" "{_js_full}" $args\n'
-            "}\n"
-            "$ret=$LASTEXITCODE\n"
-            "exit $ret\n"
+            "$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\\n"
+            '$exe=""\\n'
+            'if ($PSVersionTable.PSVersion -lt "6.0" -or $IsWindows) { $exe=".exe" }\\n'
+            "$ret=0\\n"
+            'if (Test-Path "$basedir/node$exe") {\\n'
+            f'    & "$basedir/node$exe" "{_js_full}" $args\\n'
+            "} else {\\n"
+            f'    & "node$exe" "{_js_full}" $args\\n'
+            "}\\n"
+            "$ret=$LASTEXITCODE\\n"
+            "exit $ret\\n"
         )
-        # 直接通过 WSL 路径写入 Windows 文件（/mnt/c/ 可在 WSL 中读写）
-        # npm_bin_dir 是 Windows 路径，需要转为 WSL 路径
         _wsl_bin_dir = "/mnt/" + npm_bin_dir[0].lower() + npm_bin_dir[2:].replace("\\", "/")
-        _wsl_path = _wsl_bin_dir + "/" + _bin_name + ".ps1"
+        _wsl_path = Path(_wsl_bin_dir) / f"{_bin_name}.ps1"
+        _wsl_path.parent.mkdir(parents=True, exist_ok=True)
         with open(_wsl_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(_shim_content)
         print(f"  [win] 创建 shim: {_bin_name}")
 
     print("  [win] 安装完成")
+
+
+def stage_all_for_windows_peer(no_cache: bool = False) -> None:
+    """把所有包复制到 Windows workspace staging 目录。"""
+    import json as _root_json
+    import hashlib as _hashlib
+
+    pwsh = find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 PowerShell")
+
+    # Windows 路径（供 pwsh 使用）
+    wp_win = get_win_paths(pwsh)
+    src_dir_win = Path(wp_win.src_dir)
+    packages_dir_win = Path(wp_win.packages_dir)
+
+    # WSL 路径（供 Python 读写 /mnt/c/...）
+    wp = get_wsl_win_paths(pwsh)
+    src_dir_wsl = Path(wp.src_dir)
+    packages_dir_wsl = Path(wp.packages_dir)
+
+    src_dir_wsl.mkdir(parents=True, exist_ok=True)
+    packages_dir_wsl.mkdir(parents=True, exist_ok=True)
+
+    # 写入根 package.json（含 workspaces）
+    root_pkg = PROJECT_ROOT / "package.json"
+    dst_pkg = src_dir_wsl / "package.json"
+    with open(root_pkg) as f:
+        root_meta = _root_json.load(f)
+    if "workspaces" not in root_meta:
+        root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
+    dst_pkg.write_text(_root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"  [copy] package.json → {dst_pkg}")
+
+    # 写入 pnpm-workspace.yaml
+    ws_yaml = PROJECT_ROOT / "pnpm-workspace.yaml"
+    dst_ws = src_dir_wsl / "pnpm-workspace.yaml"
+    if ws_yaml.exists() and not dst_ws.exists():
+        dst_ws.write_text(ws_yaml.read_text(), encoding="utf-8")
+        print(f"  [copy] pnpm-workspace.yaml → {dst_ws}")
+
+    # 复制所有包
+    EXCLUDE_DIRS = {"node_modules", ".git", "build", "__pycache__", ".venv", ".next"}
+
+    def compute_key(pkg_dir: Path) -> str:
+        pkg_json = pkg_dir / "package.json"
+        if not pkg_json.exists():
+            return ""
+        with open(pkg_json) as f:
+            meta = _root_json.load(f)
+        ver = meta.get("version", "")
+        has_build = bool(meta.get("scripts", {}).get("build"))
+        exclude = set(EXCLUDE_DIRS)
+        if not has_build:
+            exclude.add("dist")
+        hashes = []
+        for root, dirs, files in os.walk(pkg_dir):
+            dirs[:] = [d for d in dirs if d not in exclude]
+            for fn in sorted(files):
+                if fn in (".gitignore", "package.json"):
+                    continue
+                fp = Path(root) / fn
+                try:
+                    h = _hashlib.md5(fp.read_bytes()).hexdigest()[:8]
+                    rel = str(fp.relative_to(pkg_dir))
+                    hashes.append(f"{rel}::{h}")
+                except Exception:
+                    pass
+        return _hashlib.md5(f"{ver}::{'::'.join(hashes)}".encode()).hexdigest()[:16]
+
+    for pkg_key, spec in PACKAGES.items():
+        src = PACKAGES_DIR / spec["dir"]
+        dst = packages_dir_wsl / spec["dir"]
+        if not src.exists():
+            print(f"  [!] 跳过 {pkg_key}: 不存在 {src}", file=sys.stderr)
+            continue
+        key_src = compute_key(src)
+        key_dst = ""
+        if dst.exists():
+            cache = dst / ".aek_deploy_cache"
+            if cache.exists():
+                key_dst = cache.read_text().strip()
+        if no_cache or not key_dst or key_src != key_dst or dst.is_symlink():
+            # 删除旧目录
+            if dst.exists() and not dst.is_symlink():
+                shutil.rmtree(dst, ignore_errors=True)
+            dst.mkdir(parents=True, exist_ok=True)
+            for item in src.iterdir():
+                if item.name in EXCLUDE_DIRS:
+                    continue
+                dst_item = dst / item.name
+                if item.is_dir():
+                    dst_item.mkdir(parents=True, exist_ok=True)
+                    for sub in item.rglob("*"):
+                        rel = sub.relative_to(item)
+                        dst_sub = dst_item / rel
+                        if sub.is_dir():
+                            dst_sub.mkdir(parents=True, exist_ok=True)
+                        else:
+                            dst_sub.write_bytes(sub.read_bytes())
+                else:
+                    dst_item.write_bytes(item.read_bytes())
+            # 写缓存
+            if key_src:
+                (dst / ".aek_deploy_cache").write_text(key_src)
+            print(f"  [copy] {pkg_key} → {dst}")
+        else:
+            print(f"  [skip] {pkg_key} (缓存命中)")
+
+    # 平台二进制只保留 win32-x64
+    for pkg_key, spec in PACKAGES.items():
+        dst = packages_dir_wsl / spec["dir"]
+        plat = dst / "platforms"
+        if plat.exists():
+            for d in plat.iterdir():
+                if d.is_dir() and d.name != "win32-x64":
+                    shutil.rmtree(d, ignore_errors=True)
+                    print(f"  [rm] 剔除平台: {d.name}")
 
 
 def stage_for_wsl_peer(pkg_key: str) -> str:
@@ -578,8 +713,8 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool) -> None:
     print("\n[4/4] 对端同步...")
     if env == "wsl":
         uninstall_cloud_conflicts(pkg_key, "windows-peer")
-        staging = stage_for_windows_peer(pkg_key)
-        npm_install_on_windows_peer(pkg_key, staging)
+        stage_all_for_windows_peer(no_cache=False)
+        npm_install_on_windows_peer(pkg_key, staging_win="")
     elif env == "windows":
         uninstall_cloud_conflicts(pkg_key, "wsl-peer")
         npm_install_on_wsl_peer(pkg_key)
@@ -742,11 +877,31 @@ def sync_versions() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AEK 统一开发构建+部署脚本")
+    parser = argparse.ArgumentParser(
+        description="AEK 统一开发构建+部署脚本",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+--only 动作（逗号分隔）：
+  stage          仅 stage 源码到 Windows workspace（仅 WSL 环境）
+  build-local    仅编译本机 Go 二进制（仅 WSL 环境）
+  build-win      仅交叉编译 Windows 二进制（仅 WSL 环境）
+  install-win    仅 Windows pnpm install + shim（不含 Go 编译）
+  compile-win    仅通过 pwsh 在 Windows 端 go build
+  all            完整流水线（默认）
+
+示例：
+  python3 scripts/build_deploy.py --only stage
+  python3 scripts/build_deploy.py --only compile-win
+  python3 scripts/build_deploy.py --only install-win --no-cache
+  python3 scripts/build_deploy.py --only stage,compile-win,install-win --no-cache
+        """,
+    )
     parser.add_argument("target", nargs="?", choices=list(PACKAGES.keys()) + ["all-npm"],
                         help="要构建/部署的目标包")
     parser.add_argument("--no-deploy", action="store_true", help="只构建不部署")
     parser.add_argument("--skip-peer", action="store_true", help="跳过对端同步")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="跳过缓存，强制全量复制所有包到 Windows workspace")
     parser.add_argument("--build-platform-bins", action="store_true",
                         help="编译本机和对端平台二进制（默认行为；加 --cross-compile 可编译全部平台）")
     parser.add_argument("--cross-compile", action="store_true",
@@ -755,11 +910,24 @@ def main() -> None:
                         help="只构建某个包的平台二进制（如 aek-websearch）")
     parser.add_argument("--sync-versions", action="store_true",
                         help="同步平台子包版本号到主包版本")
+    parser.add_argument("--only", default=None,
+                        help="细粒度动作：stage,build-local,build-win,install-win,compile-win,all（逗号分隔）")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="只打印路径和命令，不实际执行（可与 --only 配合使用）")
+    parser.add_argument("--test", action="store_true",
+                        help="运行 test_windows_workspace 验证 Windows workspace 配置")
     args = parser.parse_args()
 
     print(f"PROJECT_ROOT: {PROJECT_ROOT}")
     print(f"当前环境: {detect_env()}")
     print(f"当前平台: {current_platform()}")
+
+    # --test 模式：验证 Windows workspace
+    if args.test:
+        pwsh = find_pwsh()
+        if not pwsh:
+            print("[!] 找不到 PowerShell，仅 WSL 环境支持 --test"); sys.exit(2)
+        sys.exit(test_windows_workspace(pwsh, verbose=True))
 
     # --build-platform-bins 模式：直接编译平台二进制
     if args.build_platform_bins:
@@ -769,6 +937,116 @@ def main() -> None:
     # --sync-versions 模式：对齐版本
     if args.sync_versions:
         sync_versions()
+        return
+
+    # --only 模式：细粒度动作
+    if args.only:
+        actions = [a.strip() for a in args.only.split(",") if a.strip()]
+        target = args.target or "all-npm"
+        if target == "all-npm":
+            go_order = ["aek-websearch", "aek-mcp", "aek-task-manager"]
+            js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
+                        "aek-browser", "aek"]
+            all_order = go_order + js_order
+        else:
+            go_order = [target] if PACKAGES[target]["kind"] == "go-cli" else []
+            js_order = [target] if PACKAGES[target]["kind"] != "go-cli" else []
+            all_order = [target]
+
+        def run_action(action: str) -> None:
+            if action == "stage":
+                if detect_env() != "wsl":
+                    print("[!] stage 动作仅 WSL 环境支持"); sys.exit(2)
+                if args.dry_run:
+                    pwsh = find_pwsh()
+                    if pwsh:
+                        wp = get_wsl_win_paths(pwsh)
+                        print(f"  [dry-run] Windows workspace: {wp.src_dir}")
+                        print(f"  [dry-run] packages_dir:     {wp.packages_dir}")
+                        for k in all_order:
+                            print(f"  [dry-run]   {k} → {wp.packages_dir}/{PACKAGES[k]['dir']}")
+                    return
+                stage_all_for_windows_peer(no_cache=args.no_cache)
+                return
+
+            if action == "build-local":
+                if detect_env() != "wsl":
+                    print("[!] build-local 仅 WSL 环境支持"); sys.exit(2)
+                if args.dry_run:
+                    print("[dry-run] 将编译本机 Go 二进制:")
+                    for k in go_order:
+                        spec = PACKAGES[k]
+                        goos, goarch = current_platform()
+                        out = PACKAGES_DIR / spec["dir"] / "bin" / spec["bin_name"]
+                        print(f"  {k}: go build -o {out} {spec['go_cmd'][4]} (GOOS={goos}, GOARCH={goarch})")
+                    return
+                for k in go_order:
+                    build(k, also_peer=False)
+                return
+
+            if action == "build-win":
+                if detect_env() != "wsl":
+                    print("[!] build-win 仅 WSL 环境支持"); sys.exit(2)
+                if args.dry_run:
+                    print("[dry-run] 将交叉编译 Windows 二进制:")
+                    for k in go_order:
+                        spec = PACKAGES[k]
+                        out = PACKAGES_DIR / spec["dir"] / "platforms" / "win32-x64" / "bin" / f"{spec['bin_name']}.exe"
+                        print(f"  {k}: GOOS=windows GOARCH=amd64 go build -o {out} {spec['go_cmd'][4]}")
+                    return
+                for k in go_order:
+                    build_go(k, "windows", "amd64")
+                return
+
+            if action == "install-win":
+                if detect_env() != "wsl":
+                    print("[!] install-win 仅 WSL 环境支持"); sys.exit(2)
+                stage_all_for_windows_peer(no_cache=args.no_cache)
+                for k in all_order:
+                    if args.dry_run:
+                        print(f"  [dry-run] {k}: pnpm install (workspace)")
+                        spec = PACKAGES[k]
+                        bin_map = spec.get("bin", {})
+                        for bn in bin_map:
+                            print(f"    shim: {bn}.ps1")
+                        continue
+                    deploy_one(k, no_deploy=False, skip_peer=True)
+                return
+
+            if action == "compile-win":
+                if detect_env() != "wsl":
+                    print("[!] compile-win 仅 WSL 环境支持"); sys.exit(2)
+                pwsh = find_pwsh()
+                if not pwsh:
+                    print("[!] 找不到 PowerShell"); sys.exit(2)
+                win_up = subprocess.run([pwsh, "-Command", "$env:USERPROFILE"],
+                                        capture_output=True, text=True).stdout.strip()
+                if args.dry_run:
+                    print("[dry-run] 将编译 Windows Go 二进制:")
+                    for k in go_order:
+                        spec = PACKAGES[k]
+                        out = f"{win_up}\\.aek\\src\\packages\\{spec['dir']}\\platforms\\win32-x64\\bin\\{spec['bin_name']}.exe"
+                        print(f"  {k} → {out}")
+                    return
+                for k in go_order:
+                    print(f"\n[compile-win] {k}")
+                    _build_go_on_windows_via_pwsh(k, pwsh, win_up, dry_run=args.dry_run)
+                return
+
+            if action == "all":
+                for k in all_order:
+                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer)
+                return
+
+            print(f"[!] 未知动作: {action}"); sys.exit(2)
+
+        for action in actions:
+            print(f"\n{'=' * 60}")
+            print(f"  动作: {action}")
+            print(f"{'=' * 60}")
+            run_action(action)
+
+        print("\n✓ 完成")
         return
 
     # 默认 deploy 模式
@@ -782,6 +1060,85 @@ def main() -> None:
         deploy_one(target, args.no_deploy, args.skip_peer)
 
     print("\n✓ 完成")
+
+
+def test_windows_workspace(pwsh: str, verbose: bool = True) -> int:
+    """测试 Windows 侧 pnpm workspace 是否正确配置。"""
+    import json as _json
+
+    errors: list[str] = []
+    # 用 WSL 挂载路径（/mnt/c/...）让 WSL Python 能直接读写
+    wp = get_wsl_win_paths(pwsh)
+    src_dir = Path(wp.src_dir)
+    packages_dir = Path(wp.packages_dir)
+
+    # 1. package.json 有 workspaces
+    pkg_json_path = src_dir / "package.json"
+    if pkg_json_path.exists():
+        with open(pkg_json_path) as f:
+            root_meta = _json.load(f)
+        wss = root_meta.get("workspaces", [])
+        if "packages/*" not in wss:
+            errors.append(f"package.json 缺少 workspaces='packages/*': {wss}")
+        if verbose:
+            print(f"  [workspaces] {wss}")
+    else:
+        errors.append("package.json 不存在")
+
+    # 2. aek/package.json 依赖是 workspace:*
+    aek_pkg_json = packages_dir / "aek" / "package.json"
+    if aek_pkg_json.exists():
+        with open(aek_pkg_json) as f:
+            aek_meta = _json.load(f)
+        deps = aek_meta.get("dependencies", {})
+        bad_deps = {k: v for k, v in deps.items() if v != "workspace:*" and k.startswith("@cheezmil/")}
+        if bad_deps:
+            errors.append(f"aek/package.json 有非 workspace:* 依赖: {bad_deps}")
+        if verbose:
+            print(f"  [aek deps] {deps}")
+    else:
+        errors.append("aek/package.json 不存在")
+
+    # 3. 所有包存在
+    for pkg_key, spec in PACKAGES.items():
+        pkg_path = packages_dir / spec["dir"]
+        if not pkg_path.exists():
+            errors.append(f"包 {pkg_key} 不在 {pkg_path}")
+        elif verbose:
+            print(f"  [✓] {pkg_key}: {pkg_path}")
+
+    # 4. pnpm install --dry-run 检查
+    if not errors:
+        check_cmd = f"""
+Set-Location '{wp.src_dir}'
+$ErrorActionPreference = 'Stop'
+try {{
+    $result = pnpm install --dry-run 2>&1 | Out-String
+    if ($result -match 'ERR_PNPM_FETCH_404') {{
+        Write-Host "FAIL:$result"
+        exit 1
+    }}
+    Write-Host "PASS:workspace resolved"
+}} catch {{
+    Write-Host "ERROR:$_"
+    exit 1
+}}
+"""
+        r = subprocess.run([pwsh, "-Command", check_cmd], capture_output=True, text=True, timeout=60)
+        out = r.stdout.strip()
+        if r.returncode != 0 or "FAIL" in out or "ERROR" in out:
+            errors.append(f"pnpm install --dry-run 失败: {out[:500]}")
+        elif verbose:
+            print(f"  [✓] pnpm workspace 解析正常")
+
+    if errors:
+        print("\n[✗] 验证失败:")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+    else:
+        print("\n[✓] Windows workspace 验证通过")
+        return 0
 
 
 if __name__ == "__main__":
