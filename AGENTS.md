@@ -1,5 +1,7 @@
 # 本项目必须遵守的规则
 
+## 改完代码必须在'~/.aek/test-projects'测试。windows在"$env:USERPROFILE\.aek\test"测试。
+
 ## 不准在packages各个包的文件夹中写README
 
 ## CWD的skills文件夹有具体的使用方法说明，务必查看
@@ -69,3 +71,7 @@
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录
+
+<!-- head-codex -->
+# test codex rule\n
+<!-- end-codex -->

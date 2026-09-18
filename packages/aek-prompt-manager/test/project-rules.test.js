@@ -56,6 +56,8 @@ function agentSourceRelPath(agent) {
 async function withCwd(dir, fn) {
   const prev = process.cwd();
   await mkdir(dir, { recursive: true });
+  // 创建 .git 目录使目录成为 git repo（findGitRoot 需要）
+  await mkdir(join(dir, '.git'), { recursive: true });
   process.chdir(dir);
   try {
     return await fn();
@@ -254,6 +256,29 @@ test('gen backs up old non-empty file and keeps at most 2 backups', async () => 
       assert.equal(await readFile(join(backupDir, 'AGENTS.md.bak.2'), 'utf8'), '# stale v2\n');
       await assert.rejects(readFile(join(backupDir, 'AGENTS.md.bak.3'), 'utf8'), /ENOENT/);
     });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('init and gen reject when not in a git repo', async () => {
+  const root = join(tmpdir(), 'aekpr-nogit-' + Date.now());
+  try {
+    await mkdir(root, { recursive: true });
+    // NOT creating .git — this dir is outside any repo
+    const errInit = await initProjectRules(root).then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(errInit instanceof Error);
+    assert.match(errInit.message, /git/);
+
+    const errGen = await generateProjectRules('all', root).then(
+      () => null,
+      (e) => e
+    );
+    assert.ok(errGen instanceof Error);
+    assert.match(errGen.message, /git/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

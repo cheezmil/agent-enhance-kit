@@ -173,6 +173,7 @@ aekpm pr gen <agent>
 - **脚本只是 wrapper**：`scripts/*.mjs` 调 `aekpm pr gen <agent>`，真实逻辑在 `src/project-rules.js`。
 - **ESM 禁止 require**：src 全部使用顶层 `import`。
 - **路径惰性**：全局 prompt 源路径调用时读取 `HOME`，避免模块加载时快照。
+- **backupFileName**：备份文件名使用目标相对路径（如 `AGENTS.md` → `AGENTS.md.bak.1`），通过 `path.relative()` 计算。禁止直接拼接绝对路径作为文件名。
 
 ## Verification
 
