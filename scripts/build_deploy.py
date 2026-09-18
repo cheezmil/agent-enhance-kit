@@ -47,7 +47,7 @@ from pathlib import Path
 # 添加 scripts 目录到路径以导入共享模块
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
-from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl, get_wsl_unc_paths, get_wsl_pkg_unc_paths
+from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl, get_wsl_unc_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PACKAGES_DIR = PROJECT_ROOT / "packages"
@@ -1067,8 +1067,6 @@ def main() -> None:
                         help="只打印路径和命令，不实际执行（可与 --only 配合使用）")
     parser.add_argument("--test", action="store_true",
                         help="运行 test_windows_workspace 验证 Windows workspace 配置")
-    parser.add_argument("--test-windows", action="store_true",
-                        help="运行 test_windows_project_rules 测试 Windows 侧项目规则生成")
     parser.add_argument("--target-platform", default=None, choices=["linux", "windows", "both"],
                         help="指定编译目标平台（仅 WSL 环境下有效）：\n  linux    仅编译本机 Linux 二进制（默认）\n  windows  仅编译 Windows 二进制\n  both     编译全部平台")
     parser.add_argument("--pkg", default=None, choices=list(PACKAGES.keys()) + ["js", "go"],
@@ -1085,13 +1083,6 @@ def main() -> None:
         if not pwsh:
             print("[!] 找不到 PowerShell，仅 WSL 环境支持 --test"); sys.exit(2)
         sys.exit(test_windows_workspace(pwsh, verbose=True))
-
-    # --test-windows 模式：测试 Windows 侧项目规则生成
-    if args.test_windows:
-        pwsh = find_pwsh()
-        if not pwsh:
-            print("[!] 找不到 PowerShell，仅 WSL 环境支持 --test-windows"); sys.exit(2)
-        sys.exit(test_windows_project_rules(pkg_key=args.pkg or "aek-prompt-manager"))
 
     # --build-platform-bins 模式：直接编译平台二进制（已弃用，保留兼容）
     if args.build_platform_bins:
@@ -1291,99 +1282,6 @@ try {{
     else:
         print("\n[✓] Windows workspace 验证通过")
         return 0
-
-
-def test_windows_project_rules(pkg_key: str = "aek-prompt-manager") -> int:
-    """在 Windows 侧测试项目规则生成（project-rules.js）。
-
-    流程：
-    1. WSL 写入 package.json + pnpm-workspace.yaml 到 src 目录
-    2. PowerShell 从 UNC 复制包到 Windows
-    3. PowerShell 运行 node --test
-    """
-    import json as _root_json
-
-    pwsh = find_pwsh()
-    if not pwsh:
-        raise RuntimeError("找不到 PowerShell")
-
-    spec = PACKAGES[pkg_key]
-    pkg_dir = PACKAGES_DIR / spec["dir"]
-
-    # 步骤1: 写入根 package.json（含 workspaces）
-    src_dir_wsl = PROJECT_ROOT
-    src_pkg_json = src_dir_wsl / "package.json"
-    src_ws_yaml = src_dir_wsl / "pnpm-workspace.yaml"
-
-    if src_pkg_json.exists():
-        with open(src_pkg_json) as f:
-            root_meta = _root_json.load(f)
-        if "workspaces" not in root_meta:
-            root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
-        (src_dir_wsl / "package.json").write_text(
-            _root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8"
-        )
-    else:
-        root_meta = {"name": "aek-src-root", "workspaces": ["packages/*", "packages/*/platforms/*"]}
-        (src_dir_wsl / "package.json").write_text(
-            _root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8"
-        )
-
-    # 写入 pnpm-workspace.yaml
-    if not (src_dir_wsl / "pnpm-workspace.yaml").exists() and src_ws_yaml.exists():
-        (src_dir_wsl / "pnpm-workspace.yaml").write_text(src_ws_yaml.read_text(), encoding="utf-8")
-
-    # 步骤2: PowerShell 从 UNC 复制到 Windows，并运行测试
-    # 路径计算全部委托给 shared 模块
-    wp_unc = get_wsl_pkg_unc_paths(pwsh, PROJECT_ROOT, spec["dir"])
-    test_dir_win = "$env:USERPROFILE\\.aek\\test_" + pkg_key.replace("-", "_")
-    src_src_unc = wp_unc.src_dir
-    src_test_unc = wp_unc.packages_dir + "\\" + spec["dir"] + "\\test".replace("/", "\\")
-    src_pkg_unc = wp_unc.packages_dir + "\\" + spec["dir"] + "\\package.json".replace("/", "\\")
-
-    # 构建 PowerShell 脚本（用字符串拼接避免 f-string 解析 $）
-    # 注意：包含 $ 的路径必须用双引号，其他路径可用单引号
-    test_cmd_lines = [
-        "$ErrorActionPreference = 'Stop'",
-        "Set-Location $env:USERPROFILE",
-        "",
-        "# 清空并创建测试目录",
-        'if (Test-Path "' + test_dir_win + '") { Remove-Item "' + test_dir_win + '" -Recurse -Force }',
-        'New-Item -ItemType Directory -Path "' + test_dir_win + '" -Force | Out-Null',
-        "",
-        "# 复制源码和测试文件（不复制 node_modules）",
-        'Copy-Item -Path "' + src_src_unc + '" -Destination "' + test_dir_win + '\\src' + '" -Recurse -Force',
-        'Copy-Item -Path "' + src_test_unc + '" -Destination "' + test_dir_win + '\\test' + '" -Recurse -Force',
-        'Copy-Item -Path "' + src_pkg_unc + '" -Destination "' + test_dir_win + '\\package.json' + '" -Force',
-        "",
-        "# 运行测试",
-        'Set-Location "' + test_dir_win + '"',
-        "try {",
-        "    $result = node --test test/project-rules.test.js 2>&1 | Out-String",
-        "    Write-Host $result",
-        "    if ($result -match '✖ .*failed') { exit 1 }",
-        "    if ($result -match 'fail 1') { exit 1 }",
-        "    exit 0",
-        "} catch {",
-        "    Write-Host 'ERROR: ' + $_.Exception.Message",
-        "    exit 1",
-        "}",
-    ]
-    test_cmd = "\n".join(test_cmd_lines)
-
-    print("  [win] 运行 Windows 测试...")
-    r = subprocess.run([pwsh, "-Command", test_cmd], capture_output=True, text=True, timeout=120)
-    if r.stdout:
-        print(r.stdout[-2000:])
-    if r.stderr:
-        print("  [stderr] " + r.stderr[-500:])
-    if r.returncode != 0:
-        print("\n[✗] Windows 测试失败")
-        return 1
-    print("\n[✓] Windows 测试通过")
-    return 0
 
 
 if __name__ == "__main__":
