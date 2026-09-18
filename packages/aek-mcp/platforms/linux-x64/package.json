@@ -1,0 +1,18 @@
+{
+  "name": "@cheezmil/aek-mcp-linux-x64",
+  "version": "0.11.2",
+  "description": "AEK — Agent Enhance Kit (MCP Management module) platform binary for linux-x64",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@cheezmil/aek-mcp-linux-x64": "link:"
+  }
+}

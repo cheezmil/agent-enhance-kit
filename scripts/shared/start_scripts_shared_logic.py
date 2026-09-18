@@ -270,6 +270,46 @@ def get_win_src_pkg_dir(pkg_dir: str) -> str:
     return f"{wp.packages_dir}/{pkg_dir}"
 
 
+def get_wsl_pkg_unc_paths(pwsh: str, project_root: Path, pkg_dir_name: str) -> WinPaths:
+    """返回某包在 WSL 的 UNC 路径（src/test/package.json）。
+
+    返回的 WinPaths 字段：
+      - packages_dir: UNC base（如 \\\\wsl.localhost\\Distro\\home\\user\\...\\packages）
+      - src_dir: UNC src/ 路径
+      - test_dir: UNC test/ 路径
+      - pkg_json: UNC package.json 路径
+    """
+    import os as _os
+    import subprocess as _subprocess
+
+    # 动态获取 distro 名
+    distro = _os.environ.get("WSL_DISTRO_NAME", "")
+    if not distro:
+        try:
+            r = _subprocess.run(["wsl.exe", "-l", "-q"], capture_output=True, text=True, timeout=5)
+            if r.returncode == 0 and r.stdout.strip():
+                distro = r.stdout.strip().splitlines()[0]
+        except Exception:
+            distro = "Linux"
+
+    # 从 project_root 推导 home 目录和相对路径
+    parts = project_root.resolve().parts
+    home_user = parts[2] if len(parts) >= 3 else "user"
+    rel_path = str(project_root.resolve().relative_to(Path("/home") / home_user)).replace("/", "\\\\")
+    unc_base = f"\\\\wsl.localhost\\{distro}\\home\\{home_user}"
+    unc_project = f"{unc_base}\\{rel_path}"
+    unc_packages = f"{unc_project}\\packages"
+
+    return WinPaths(
+        user_profile=unc_base,
+        aek_dir="",
+        src_dir=unc_packages + "\\" + pkg_dir_name + "\\src".replace("/", "\\\\"),
+        packages_dir=unc_packages,
+        bin_win_dir="",
+        npm_bin_dir="",
+    )
+
+
 def get_win_platform_bin_dir(pkg_dir: str, platform: str = "win32-x64") -> str:
     """便捷：返回某包某平台在 Windows 侧的二进制目录（WSL 挂载路径）。"""
     pwsh = find_pwsh()
