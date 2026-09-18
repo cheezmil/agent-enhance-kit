@@ -1,6 +1,6 @@
 // aek-prompt-manager — project rules generation
 import { mkdir, readFile, writeFile, rename, access } from 'node:fs/promises';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative, sep } from 'node:path';
 
 export const PR_ROOT_DIR = 'project-rules';
 export const AGENTS_DIR = 'for-certain-agents';
@@ -149,9 +149,9 @@ export function prBackupDir(projectRoot) {
 
 // 用目标相对路径（相对于 projectRoot）作为备份文件名，避免同名冲突
 function backupFileName(target, projectRoot) {
-  const rel = path.relative(resolve(projectRoot), resolve(target));
+  const rel = relative(resolve(projectRoot), resolve(target));
   // 统一用正斜杠（避免 Windows 反斜杠在文件名中出错）
-  return rel.split(path.sep).join('/');
+  return rel.split(sep).join('/');
 }
 
 export function prAllFile(projectRoot) {
