@@ -222,6 +222,45 @@ def get_wsl_win_paths(pwsh: str) -> WinPaths:
     )
 
 
+def get_wsl_unc_paths(pwsh: str, project_root: Path) -> WinPaths:
+    """返回 WSL 项目源码路径的 UNC 格式（供 Windows pwsh 读取）。
+
+    WSL 不碰 /mnt/c/，而是通过 UNC 暴露给 Windows。
+    distro 名从 WSL_DISTRO_NAME 环境变量或 wsl.exe 动态获取，不硬编码。
+    home 目录从 project_root 推导，不硬编码用户名。
+    """
+    import os as _os
+    import subprocess as _subprocess
+
+    # 动态获取 distro 名
+    distro = _os.environ.get("WSL_DISTRO_NAME", "")
+    if not distro:
+        try:
+            r = _subprocess.run(["wsl.exe", "-l", "-q"], capture_output=True, text=True, timeout=5)
+            if r.returncode == 0 and r.stdout.strip():
+                distro = r.stdout.strip().splitlines()[0]
+        except Exception:
+            distro = "Linux"
+
+    # 从 project_root 推导 home 目录和相对路径
+    # project_root 形如 /home/xdx/CodeRelated/agent-enhance-kit
+    parts = project_root.resolve().parts  # ('/', 'home', 'xdx', 'CodeRelated', ...)
+    home_user = parts[2] if len(parts) >= 3 else "user"  # 从 /home/<user>/ 提取
+    # 相对路径：去掉 /home/<user>/ 前缀，统一用反斜杠（UNC 规范）
+    rel_path = str(project_root.resolve().relative_to(Path("/home") / home_user)).replace("/", "\\")
+    # UNC 格式
+    unc_base = f"\\\\wsl.localhost\\{distro}\\home\\{home_user}"
+    unc_project = f"{unc_base}\\{rel_path}"
+    return WinPaths(
+        user_profile=unc_base,
+        aek_dir=f"{unc_base}\\\\.aek",
+        src_dir=unc_project,
+        packages_dir=f"{unc_project}\\\\packages",
+        bin_win_dir="",
+        npm_bin_dir="",
+    )
+
+
 def get_win_src_pkg_dir(pkg_dir: str) -> str:
     """便捷：WSL 环境下返回某包在 Windows staging 目录的挂载路径。"""
     pwsh = find_pwsh()

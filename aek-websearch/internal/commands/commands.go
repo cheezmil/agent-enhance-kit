@@ -1,0 +1,498 @@
+// Package commands contains the shared business logic for all aek-websearch
+// sub-commands. Both the CLI (cobra) and MCP server call into this package,
+// so adding a new command here automatically makes it available on both sides.
+package commands
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"agent-enhance-kit/internal/broker"
+	"agent-enhance-kit/internal/config"
+	"agent-enhance-kit/internal/models"
+	"agent-enhance-kit/internal/persistence"
+	"agent-enhance-kit/internal/providers"
+)
+
+// ── shared helpers ──────────────────────────────────────────────────────────
+
+var statusDisplay = map[string]string{
+	"enabled":                             "OK",
+	"disabled_by_config":                  "DISABLED (config)",
+	"unavailable_missing_key":             "MISSING KEY",
+	"temporarily_disabled_after_failures": "COOLDOWN",
+	"budget_exhausted":                    "BUDGET EXHAUSTED",
+	"degraded":                            "DEGRADED",
+	"healthy":                             "HEALTHY",
+}
+
+func newBroker() *broker.SearchBroker {
+	persist := persistence.NewStore("aek-data.json")
+	_ = persist.Load()
+	b := broker.NewSearchBrokerWithPersistence(persist)
+	b.RegisterProvider(providers.NewDuckDuckGoProvider())
+	b.RegisterProvider(providers.NewMockProvider())
+	b.RegisterProvider(providers.NewYahooProvider())
+	b.RegisterProvider(providers.NewSerperProvider())
+	b.RegisterProvider(providers.NewTavilyProvider())
+	b.RegisterProvider(providers.NewExaProvider())
+	b.RegisterProvider(providers.NewLinkupProvider())
+	b.RegisterProvider(providers.NewWolframProvider())
+	b.RegisterProvider(providers.NewYouProvider())
+	b.RegisterProvider(providers.NewParallelProvider())
+	b.RegisterProvider(providers.NewContext7Provider())
+	return b
+}
+
+// DefaultBroker returns the default broker (for callers that don't bring their own).
+func DefaultBroker() *broker.SearchBroker { return newBroker() }
+
+// ── Search ─────────────────────────────────────────────────────────────────
+
+// SearchInput holds parameters for a web search.
+type SearchInput struct {
+	Query      string
+	Mode       string   // default "discovery"
+	Providers  []string // nil = use config defaults
+	MaxResults int      // 0 → 10
+	SessionID  string
+}
+
+// SearchOutput is the result of a search command.
+type SearchOutput struct {
+	Text   string // Human-readable formatted text
+	JSON   string // JSON of models.SearchResponse
+	Traces []models.ProviderTrace
+}
+
+// Search executes a web search and returns formatted output.
+func Search(b *broker.SearchBroker, input SearchInput) (*SearchOutput, error) {
+	if input.Mode == "" {
+		input.Mode = "discovery"
+	}
+	if input.MaxResults <= 0 {
+		input.MaxResults = 10
+	}
+
+	var providersList []models.ProviderName
+	for _, p := range input.Providers {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			providersList = append(providersList, models.ProviderName(p))
+		}
+	}
+
+	// Fusion search (explicit multiple providers via -p): show ALL results, no truncation.
+	// Single-provider / default search keeps a sane default cap of 10.
+	if len(providersList) > 1 {
+		input.MaxResults = 0
+	} else if input.MaxResults <= 0 {
+		input.MaxResults = 10
+	}
+
+	sq := models.SearchQuery{
+		Query:      input.Query,
+		Mode:       models.SearchMode(input.Mode),
+		MaxResults: input.MaxResults,
+		Providers:  providersList,
+	}
+
+	var resp *models.SearchResponse
+	var err error
+	ctx := context.Background()
+	if input.SessionID != "" {
+		resp, err = b.SearchWithSession(ctx, sq, input.SessionID)
+	} else {
+		resp, err = b.Search(ctx, sq)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Search: %q (mode=%s, results=%d)\n\n", resp.Query, resp.Mode, resp.TotalResults))
+
+	for i, r := range resp.Results {
+		provider := ""
+		if r.Provider != nil {
+			provider = fmt.Sprintf("[%s] ", *r.Provider)
+		}
+		snippet := r.Snippet
+		meta := ""
+		if r.Metadata != nil {
+			if pub, ok := r.Metadata["publishedDate"].(string); ok && pub != "" && pub != "null" {
+				meta += "   Published: " + pub + "\n"
+			}
+			if auth, ok := r.Metadata["author"].(string); ok && auth != "" && auth != "null" {
+				meta += "   Author: " + auth + "\n"
+			}
+		}
+		sb.WriteString(fmt.Sprintf("%d. %s%s\n   %s\n   %s\n%s\n", i+1, provider, r.Title, r.URL, snippet, meta))
+	}
+
+	if len(resp.Traces) > 0 {
+		for _, t := range resp.Traces {
+			errMsg := ""
+			if t.Error != nil {
+				errMsg = " err=" + *t.Error
+			}
+			sb.WriteString(fmt.Sprintf("  %s: %s %d results %dms%s\n", t.Provider, t.Status, t.ResultsCount, t.LatencyMs, errMsg))
+		}
+	}
+	if len(resp.BudgetWarnings) > 0 {
+		for _, w := range resp.BudgetWarnings {
+			sb.WriteString(fmt.Sprintf("  budget: %s\n", w))
+		}
+	}
+
+	jsonData, _ := json.MarshalIndent(resp, "", "  ")
+	return &SearchOutput{Text: sb.String(), JSON: string(jsonData), Traces: resp.Traces}, nil
+}
+
+// ── Extract ────────────────────────────────────────────────────────────────
+
+// Extract fetches clean text content from a URL via Exa Contents API.
+func Extract(url string) (string, error) {
+	return providers.ExaContents([]string{url})
+}
+
+// ── CodeSearch ─────────────────────────────────────────────────────────────
+
+// CodeSearchOutput is the result of a code search.
+type CodeSearchOutput struct {
+	Response     string
+	OutputTokens int
+	CostDollars  float64
+}
+
+// CodeSearch searches code snippets via Exa Code Context API.
+func CodeSearch(query string, tokens int) (*CodeSearchOutput, error) {
+	response, outputTokens, costDollars, err := providers.ExaCodeContext(query, tokens)
+	if err != nil {
+		return nil, err
+	}
+	return &CodeSearchOutput{
+		Response:     response,
+		OutputTokens: outputTokens,
+		CostDollars:  costDollars,
+	}, nil
+}
+
+// ── Doctor ─────────────────────────────────────────────────────────────────
+
+// Doctor diagnoses provider setup.
+func Doctor(b *broker.SearchBroker) (string, error) {
+	cfg := config.Load()
+	statuses := b.GetAllProviderStatus()
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Config: port=%d\n", cfg.Port))
+
+	ready := 0
+	needsKey := 0
+	for _, status := range statuses {
+		raw := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[raw]
+		if display == "OK" || display == "HEALTHY" {
+			ready++
+		} else if display == "MISSING KEY" {
+			needsKey++
+		}
+	}
+	sb.WriteString(fmt.Sprintf("Providers: %d ready, %d need API keys\n\n", ready, needsKey))
+
+	for name, status := range statuses {
+		raw := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[raw]
+		if display == "" {
+			display = raw
+		}
+		tag := "on-demand"
+		if config.IsProviderDefault(name) {
+			tag = "default"
+		}
+		sb.WriteString(fmt.Sprintf("  %-12s %-12s %s\n", name, display, tag))
+	}
+	return sb.String(), nil
+}
+
+// ── InitConfig ──────────────────────────────────────────────────────────────
+
+// InitConfig creates empty template files under ~/.aek/websearch/ (settings +
+// all provider key files). Existing files are NEVER overwritten.
+func InitConfig() (string, error) {
+	created, err := config.WriteTemplateFiles()
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	if len(created) == 0 {
+		sb.WriteString("All config files already exist, nothing created.\n")
+	} else {
+		sb.WriteString("Created template files:\n")
+		for path, kind := range created {
+			sb.WriteString(fmt.Sprintf("  [%s] %s\n", kind, path))
+		}
+	}
+	sb.WriteString("\nEdit these files to configure providers, then restart the server (aek serve / aek mcp).\n")
+	sb.WriteString("API keys go in <provider>.txt, one key per line (// lines are ignored).\n")
+	return sb.String(), nil
+}
+
+// ── Budgets ────────────────────────────────────────────────────────────────
+
+// Budgets returns provider budget summary.
+func Budgets(b *broker.SearchBroker) (string, error) {
+	summary := b.BudgetSummary()
+	data, _ := json.MarshalIndent(summary, "", "  ")
+	return string(data), nil
+}
+
+// ── TestProvider ───────────────────────────────────────────────────────────
+
+// TestProvider smoke-tests a single provider.
+func TestProvider(b *broker.SearchBroker, provider, query string) (string, error) {
+	if query == "" {
+		query = "aek test"
+	}
+
+	pname := models.ProviderName(provider)
+	statuses := b.GetAllProviderStatus()
+	status, exists := statuses[provider]
+	if !exists {
+		return "", fmt.Errorf("provider not found: %s", provider)
+	}
+
+	sq := models.SearchQuery{
+		Query:      query,
+		Mode:       models.SearchModeDiscovery,
+		MaxResults: 3,
+	}
+	resp, err := b.Search(context.Background(), sq)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Testing %s... status=%v\n", provider, status["status"]))
+	sb.WriteString(fmt.Sprintf("Results: %d\n", resp.TotalResults))
+	for i, r := range resp.Results {
+		if r.Provider != nil && *r.Provider == pname {
+			sb.WriteString(fmt.Sprintf("  - %s: %s\n", r.Title, r.URL))
+		}
+		if i >= 2 {
+			break
+		}
+	}
+	return sb.String(), nil
+}
+
+// ── TestProviderTrace ────────────────────────────────────────────────────────
+
+// TestProviderTrace 单独对指定 provider 跑一次真实调用，输出其 ProviderTrace。
+// 用于诊断：为什么这个 provider 没有返回结果（哪个 key、什么 HTTP 状态、是否 failover）。
+// 所有 key 输出均已 mask，绝不出现明文。
+func TestProviderTrace(b *broker.SearchBroker, provider, query string) (string, error) {
+	if query == "" {
+		query = "aek test"
+	}
+	pname := models.ProviderName(provider)
+
+	// 强制只跑这一个 provider，避免被默认路由覆盖。
+	sq := models.SearchQuery{
+		Query:      query,
+		Mode:       models.SearchModeDiscovery,
+		MaxResults: 5,
+		Providers:  []models.ProviderName{pname},
+	}
+	resp, err := b.Search(context.Background(), sq)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Trace for provider=%s (total_results=%d)\n", provider, resp.TotalResults))
+	for _, t := range resp.Traces {
+		sb.WriteString(fmt.Sprintf("  provider=%s status=%s results=%d latency=%dms",
+			t.Provider, t.Status, t.ResultsCount, t.LatencyMs))
+		if t.Error != nil {
+			sb.WriteString(fmt.Sprintf(" error=%s", *t.Error))
+		}
+		sb.WriteString("\n")
+	}
+	return sb.String(), nil
+}
+
+// ── KeyPoolStatus ──────────────────────────────────────────────────────────
+
+// KeyPoolStatus returns API key pool status for all providers.
+func KeyPoolStatus() (string, error) {
+	providerNames := []string{"exa", "tavily", "serper", "you", "parallel", "linkup", "wolfram", "context7", "duckduckgo", "yahoo"}
+
+	var sb strings.Builder
+	for _, name := range providerNames {
+		pool := providers.NewKeyPool(name)
+		if pool.Count() > 0 {
+			rr := ""
+			if config.IsRoundRobin(name) {
+				rr = " [round-robin]"
+			}
+			sb.WriteString(fmt.Sprintf("%s:%s %d keys\n", name, rr, pool.Count()))
+			for _, k := range pool.Status() {
+				masked := k["key"].(string)
+				failures := k["failures"].(int)
+				disabled := k["disabled"].(bool)
+				cooldown := ""
+				if cr, ok := k["cooldown_remaining"]; ok {
+					cooldown = cr.(string)
+				}
+				status := "ready"
+				if disabled {
+					status = "disabled"
+				} else if cooldown != "" && cooldown != "ready" {
+					status = "cooling " + cooldown
+				}
+				sb.WriteString(fmt.Sprintf("  [%d] %s failures=%d status=%s\n", k["index"].(int), masked, failures, status))
+			}
+		}
+	}
+	if sb.Len() == 0 {
+		sb.WriteString("No API keys configured.\n")
+	}
+	return sb.String(), nil
+}
+
+// ── KeyPoolDisable ─────────────────────────────────────────────────────────
+
+// KeyPoolDisable permanently disables an API key by index.
+func KeyPoolDisable(provider string, index int) (string, error) {
+	pool := providers.NewKeyPool(provider)
+	if err := pool.DisableKeyByIdx(index); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Disabled key [%d] for %s\n", index, provider), nil
+}
+
+// ── KeyPoolEnable ──────────────────────────────────────────────────────────
+
+// KeyPoolEnable re-enables a disabled API key by index.
+func KeyPoolEnable(provider string, index int) (string, error) {
+	pool := providers.NewKeyPool(provider)
+	if err := pool.EnableKeyByIdx(index); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Enabled key [%d] for %s\n", index, provider), nil
+}
+
+// ── SelfTest ───────────────────────────────────────────────────────────────
+
+// SelfTest runs a comprehensive self-test on all configured providers.
+func SelfTest(b *broker.SearchBroker) (string, error) {
+	var sb strings.Builder
+	sb.WriteString("Running self-test for all providers...\n\n")
+
+	statuses := b.GetAllProviderStatus()
+	testQuery := "aek self-test"
+
+	for name, status := range statuses {
+		statusStr := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[statusStr]
+		if display == "" {
+			display = statusStr
+		}
+
+		sb.WriteString(fmt.Sprintf("[%s] Status: %s\n", name, display))
+
+		// Only test providers with OK or HEALTHY status
+		if statusStr != "enabled" && statusStr != "healthy" {
+			sb.WriteString("  Skipped (not ready)\n\n")
+			continue
+		}
+
+		// Run a quick test
+		sq := models.SearchQuery{
+			Query:      testQuery,
+			Mode:       models.SearchModeDiscovery,
+			MaxResults: 1,
+		}
+		resp, err := b.Search(context.Background(), sq)
+		if err != nil {
+			sb.WriteString(fmt.Sprintf("  Error: %v\n\n", err))
+			continue
+		}
+
+		// Find results from this provider
+		var found bool
+		for _, r := range resp.Results {
+			if r.Provider != nil && *r.Provider == models.ProviderName(name) {
+				sb.WriteString(fmt.Sprintf("  Test: PASS (%d results)\n", resp.TotalResults))
+				found = true
+				break
+			}
+		}
+		if !found && resp.TotalResults > 0 {
+			sb.WriteString(fmt.Sprintf("  Test: PASS (results from other providers)\n"))
+		} else if !found {
+			sb.WriteString(fmt.Sprintf("  Test: NO RESULTS\n"))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String(), nil
+}
+
+// ── Diag ────────────────────────────────────────────────────────────────────
+
+// Diag returns detailed diagnostic information.
+func Diag(b *broker.SearchBroker) (string, error) {
+	cfg := config.Load()
+	statuses := b.GetAllProviderStatus()
+
+	var sb strings.Builder
+	sb.WriteString("=== AEK WebSearch Diagnostic ===\n\n")
+
+	// Config info
+	sb.WriteString("Config:\n")
+	sb.WriteString(fmt.Sprintf("  Port: %d\n", cfg.Port))
+	sb.WriteString(fmt.Sprintf("  Bind Host: %s\n", cfg.BindHost))
+	sb.WriteString(fmt.Sprintf("  RRF Enabled: %v\n\n", cfg.RRF))
+
+	// Provider statuses
+	sb.WriteString("Provider Status:\n")
+	for name, status := range statuses {
+		raw := fmt.Sprintf("%v", status["status"])
+		display := statusDisplay[raw]
+		if display == "" {
+			display = raw
+		}
+		tag := "on-demand"
+		if config.IsProviderDefault(name) {
+			tag = "default"
+		}
+		sb.WriteString(fmt.Sprintf("  %-15s %-20s %s\n", name, display, tag))
+	}
+
+	// Key pool summary
+	sb.WriteString("\nAPI Key Pool:\n")
+	providerNames := []string{"exa", "tavily", "serper", "you", "parallel", "linkup", "wolfram", "context7", "duckduckgo", "yahoo"}
+	totalKeys := 0
+	readyKeys := 0
+	for _, name := range providerNames {
+		pool := providers.NewKeyPool(name)
+		if pool.Count() > 0 {
+			totalKeys += pool.Count()
+			for _, k := range pool.Status() {
+				if disabled, ok := k["disabled"].(bool); !ok || !disabled {
+					readyKeys++
+				}
+			}
+			sb.WriteString(fmt.Sprintf("  %-15s %d keys (%d ready)\n", name, pool.Count(), readyKeys))
+		}
+	}
+	sb.WriteString(fmt.Sprintf("\nTotal: %d keys (%d ready)\n", totalKeys, readyKeys))
+
+	return sb.String(), nil
+}

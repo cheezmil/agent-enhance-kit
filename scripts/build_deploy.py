@@ -41,7 +41,7 @@ from pathlib import Path
 # 添加 scripts 目录到路径以导入共享模块
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
-from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl
+from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl, get_wsl_unc_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PACKAGES_DIR = PROJECT_ROOT / "packages"
@@ -329,6 +329,7 @@ def build(pkg_key: str, also_peer: bool, target_windows_only: bool = False) -> d
 def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str, dry_run: bool = False) -> None:
     """通过 PowerShell 在 Windows 端编译 Go 二进制。
 
+    前提：Windows 侧必须有源码（通过 stage 或手动复制）。
     输出到 C:\\Users\\<user>\\.aek\\src\\packages\\<pkg>\\platforms\\win32-x64\\bin\\
     """
     spec = PACKAGES[pkg_key]
@@ -339,12 +340,22 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
     # Windows 路径（供 pwsh 使用）
     out_dir = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}\\platforms\\win32-x64\\bin"
     out_file = f"{out_dir}\\{bin_name}.exe"
+    src_on_win = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}"
 
     if dry_run:
         print(f"  [dry-run] {pkg_key} → {out_file}")
         return
 
-    # 确保目录存在
+    # 检查 Windows 侧是否有源码（stage 已复制到 /mnt/c/Users/xdx/.aek/src/packages/）
+    check_src_cmd = f"Test-Path '{src_on_win}\\package.json'"
+    r = subprocess.run([pwsh, "-Command", check_src_cmd], capture_output=True, text=True)
+    if r.stdout.strip().lower() != "true":
+        raise RuntimeError(
+            f"[!] {pkg_key} Windows 侧缺少源码（{src_on_win}）。\\n"
+            f"    请先运行: python3 scripts/build_deploy.py --only stage"
+        )
+
+    # 确保输出目录存在
     mkdir_cmd = f"New-Item -ItemType Directory -Force -Path '{out_dir}'"
     subprocess.run([pwsh, "-Command", mkdir_cmd], capture_output=True, check=True)
 
@@ -353,7 +364,7 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
         f"$env:GOOS='windows'; "
         f"$env:GOARCH='amd64'; "
         f"$env:CGO_ENABLED='0'; "
-        f"Set-Location '{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}'; "
+        f"Set-Location '{src_on_win}'; "
         f"go build -o '{out_file}' {build_target}"
     )
 
@@ -583,7 +594,13 @@ pnpm install --ignore-scripts
 
 
 def stage_all_for_windows_peer(no_cache: bool = False) -> None:
-    """把所有包复制到 Windows workspace staging 目录。"""
+    """WSL 写源码到自身文件系统，PowerShell 通过 UNC 复制到 Windows。
+
+    流程：
+    1. WSL Python 写入 root package.json / pnpm-workspace.yaml（WSL 自身文件系统）
+    2. WSL Python 校验包存在
+    3. 返回 UNC 路径，让 PowerShell 从 UNC 复制到 C:\\Users\\<user>\\.aek\\src\\
+    """
     import json as _root_json
     import hashlib as _hashlib
 
@@ -591,20 +608,14 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
     if not pwsh:
         raise RuntimeError("找不到 PowerShell")
 
-    # Windows 路径（供 pwsh 使用）
-    wp_win = get_win_paths(pwsh)
-    src_dir_win = Path(wp_win.src_dir)
-    packages_dir_win = Path(wp_win.packages_dir)
-
-    # WSL 路径（供 Python 读写 /mnt/c/...）
-    wp = get_wsl_win_paths(pwsh)
-    src_dir_wsl = Path(wp.src_dir)
-    packages_dir_wsl = Path(wp.packages_dir)
+    # WSL 自身路径（写回 WSL 文件系统，不碰 /mnt/c/）
+    src_dir_wsl = PROJECT_ROOT  # /home/xdx/CodeRelated/agent-enhance-kit
+    packages_dir_wsl = PACKAGES_DIR  # .../packages
 
     src_dir_wsl.mkdir(parents=True, exist_ok=True)
     packages_dir_wsl.mkdir(parents=True, exist_ok=True)
 
-    # 写入根 package.json（含 workspaces）
+    # 写入根 package.json（含 workspaces）— 写到 WSL 自身文件系统
     root_pkg = PROJECT_ROOT / "package.json"
     dst_pkg = src_dir_wsl / "package.json"
     with open(root_pkg) as f:
@@ -612,16 +623,20 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
     if "workspaces" not in root_meta:
         root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
     dst_pkg.write_text(_root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"  [copy] package.json → {dst_pkg}")
+    print(f"  [wsl] package.json written: {dst_pkg}")
 
-    # 写入 pnpm-workspace.yaml
+    # 写入 pnpm-workspace.yaml — 写到 WSL 自身文件系统
     ws_yaml = PROJECT_ROOT / "pnpm-workspace.yaml"
     dst_ws = src_dir_wsl / "pnpm-workspace.yaml"
     if ws_yaml.exists() and not dst_ws.exists():
         dst_ws.write_text(ws_yaml.read_text(), encoding="utf-8")
-        print(f"  [copy] pnpm-workspace.yaml → {dst_ws}")
+        print(f"  [wsl] pnpm-workspace.yaml written: {dst_ws}")
 
-    # 复制所有包
+    # 计算 UNC 路径，让 PowerShell 读取
+    wp_unc = get_wsl_unc_paths(pwsh, PROJECT_ROOT)
+    packages_unc = wp_unc.packages_dir  # \\wsl.localhost\Ubuntu-22.04\home\xdx\CodeRelated\agent-enhance-kit\packages
+
+    # 复制所有包：WSL 写入 WSL 文件系统（幂等操作），然后 PowerShell 从 UNC 复制到 Windows
     EXCLUDE_DIRS = {"node_modules", ".git", "build", "__pycache__", ".venv", ".next"}
 
     def compute_key(pkg_dir: Path) -> str:
@@ -652,52 +667,76 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
 
     for pkg_key, spec in PACKAGES.items():
         src = PACKAGES_DIR / spec["dir"]
-        dst = packages_dir_wsl / spec["dir"]
         if not src.exists():
             print(f"  [!] 跳过 {pkg_key}: 不存在 {src}", file=sys.stderr)
             continue
         key_src = compute_key(src)
-        key_dst = ""
-        if dst.exists():
-            cache = dst / ".aek_deploy_cache"
-            if cache.exists():
-                key_dst = cache.read_text().strip()
-        if no_cache or not key_dst or key_src != key_dst or dst.is_symlink():
-            # 删除旧目录
-            if dst.exists() and not dst.is_symlink():
-                shutil.rmtree(dst, ignore_errors=True)
-            dst.mkdir(parents=True, exist_ok=True)
-            for item in src.iterdir():
-                if item.name in EXCLUDE_DIRS:
-                    continue
-                dst_item = dst / item.name
-                if item.is_dir():
-                    dst_item.mkdir(parents=True, exist_ok=True)
-                    for sub in item.rglob("*"):
-                        rel = sub.relative_to(item)
-                        dst_sub = dst_item / rel
-                        if sub.is_dir():
-                            dst_sub.mkdir(parents=True, exist_ok=True)
-                        else:
-                            dst_sub.write_bytes(sub.read_bytes())
-                else:
-                    dst_item.write_bytes(item.read_bytes())
-            # 写缓存
-            if key_src:
-                (dst / ".aek_deploy_cache").write_text(key_src)
-            print(f"  [copy] {pkg_key} → {dst}")
-        else:
-            print(f"  [skip] {pkg_key} (缓存命中)")
+        print(f"  [wsl] {pkg_key} 就绪: {src}  (key={key_src})")
 
-    # 平台二进制只保留 win32-x64
-    for pkg_key, spec in PACKAGES.items():
-        dst = packages_dir_wsl / spec["dir"]
-        plat = dst / "platforms"
-        if plat.exists():
-            for d in plat.iterdir():
-                if d.is_dir() and d.name != "win32-x64":
-                    shutil.rmtree(d, ignore_errors=True)
-                    print(f"  [rm] 剔除平台: {d.name}")
+    # 构建 PowerShell 命令：从 UNC 复制源码到 Windows staging
+    wp_win = get_win_paths(pwsh)
+    packages_win = wp_win.packages_dir  # C:\\Users\\<user>\\.aek\\src\\packages
+
+    # 构建 ps1 脚本
+    import textwrap as _tw
+    ps_script = _tw.dedent(f"""\
+        $ErrorActionPreference = 'Continue'
+        $Error.Clear()
+
+        $uncPackages = '{packages_unc}'
+        $winPackages = r'{packages_win.replace(chr(92), chr(92)+chr(92))}'
+
+        # 确保目标目录存在
+        if (-not (Test-Path $winPackages)) {{
+            New-Item -ItemType Directory -Force -Path $winPackages | Out-Null
+        }}
+
+        $pkgs = @('aek-websearch','aek-mcp','aek-task-manager','aek-common',
+                   'aek-prompt-manager','aek-skill-manager','aek-browser','aek')
+
+        foreach ($p in $pkgs) {{
+            $uncSrc = Join-Path $uncPackages $p
+            $winDst = Join-Path $winPackages $p
+            if (-not (Test-Path $uncSrc)) {{
+                Write-Warning "UNC 源不存在: $uncSrc"
+                continue
+            }}
+            # 删除旧目录（避免残留）
+            if (Test-Path $winDst) {{
+                Remove-Item $winDst -Recurse -Force
+            }}
+            # 复制
+            Copy-Item $uncSrc -Destination $winDst -Recurse -Force
+            Write-Host "  [pwsh] copied $p"
+        }}
+
+        # 剔除非 win32-x64 平台目录
+        foreach ($p in $pkgs) {{
+            $platDir = Join-Path (Join-Path $winPackages $p) 'platforms'
+            if (Test-Path $platDir) {{
+                Get-ChildItem $platDir -Directory | Where-Object {{ $_.Name -ne 'win32-x64' }} | ForEach-Object {{
+                    Remove-Item $_.FullName -Recurse -Force
+                    Write-Host "  [pwsh] rm platform: $($_.Name)"
+                }}
+            }}
+        }}
+
+        if ($Error.Count -gt 0) {{
+            Write-Error "Stage 失败"
+            exit 1
+        }}
+    """)
+
+    r = subprocess.run([pwsh, "-Command", ps_script], capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        print(f"  [!] PowerShell stage 失败:\n{r.stderr[-500:]}", file=sys.stderr)
+        raise RuntimeError(f"stage 失败: {r.stderr[:200]}")
+    if r.stdout.strip():
+        print(r.stdout.rstrip())
+    if r.stderr.strip():
+        print(f"  [pwsh stderr] {r.stderr.rstrip()}", file=sys.stderr)
+
+    print("\n✓ 完成")
 
 
 def stage_for_wsl_peer(pkg_key: str) -> str:
@@ -981,6 +1020,8 @@ def main() -> None:
                         help="运行 test_windows_workspace 验证 Windows workspace 配置")
     parser.add_argument("--target-platform", default=None, choices=["linux", "windows", "both"],
                         help="指定编译目标平台（仅 WSL 环境下有效）：\n  linux    仅编译本机 Linux 二进制（默认）\n  windows  仅编译 Windows 二进制\n  both     编译全部平台")
+    parser.add_argument("--pkg", default=None, choices=list(PACKAGES.keys()) + ["js", "go"],
+                        help="只编译指定包（或 'go' 只编所有 Go 包，'js' 只编所有 JS 包）")
     args = parser.parse_args()
 
     print(f"PROJECT_ROOT: {PROJECT_ROOT}")
@@ -1009,9 +1050,21 @@ def main() -> None:
         actions = [a.strip() for a in args.only.split(",") if a.strip()]
         target = args.target or "all-npm"
         if target == "all-npm":
-            go_order = ["aek-websearch", "aek-mcp", "aek-task-manager"]
-            js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
-                        "aek-browser", "aek"]
+            # 根据 --pkg 过滤
+            if args.pkg == "go":
+                go_order = ["aek-websearch", "aek-mcp", "aek-task-manager"]
+                js_order = []
+            elif args.pkg == "js":
+                go_order = []
+                js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
+                            "aek-browser", "aek"]
+            elif args.pkg:
+                go_order = [args.pkg] if PACKAGES[args.pkg]["kind"] == "go-cli" else []
+                js_order = [args.pkg] if PACKAGES[args.pkg]["kind"] != "go-cli" else []
+            else:
+                go_order = ["aek-websearch", "aek-mcp", "aek-task-manager"]
+                js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
+                            "aek-browser", "aek"]
             all_order = go_order + js_order
         else:
             go_order = [target] if PACKAGES[target]["kind"] == "go-cli" else []
@@ -1037,6 +1090,11 @@ def main() -> None:
             if action == "build-local":
                 if detect_env() != "wsl":
                     print("[!] build-local 仅 WSL 环境支持"); sys.exit(2)
+                # 必须显式指定 --pkg
+                if not args.pkg:
+                    print("[!] build-local 必须指定 --pkg，例如：--pkg aek-mcp")
+                    print("   可选: go（所有 Go 包）或具体包名")
+                    sys.exit(2)
                 if args.dry_run:
                     print("[dry-run] 将编译本机 Go 二进制:")
                     for k in go_order:
@@ -1052,6 +1110,11 @@ def main() -> None:
             if action == "build-win":
                 if detect_env() != "wsl":
                     print("[!] build-win 仅 WSL 环境支持"); sys.exit(2)
+                # 必须显式指定 --pkg
+                if not args.pkg:
+                    print("[!] build-win 必须指定 --pkg，例如：--pkg aek-mcp")
+                    print("   可选: go（所有 Go 包）或具体包名")
+                    sys.exit(2)
                 if args.dry_run:
                     print("[dry-run] 将交叉编译 Windows 二进制:")
                     for k in go_order:
@@ -1081,6 +1144,11 @@ def main() -> None:
             if action == "compile-win":
                 if detect_env() != "wsl":
                     print("[!] compile-win 仅 WSL 环境支持"); sys.exit(2)
+                # 必须显式指定 --pkg
+                if not args.pkg:
+                    print("[!] compile-win 必须指定 --pkg，例如：--pkg aek-mcp")
+                    print("   可选: go（所有 Go 包）或具体包名")
+                    sys.exit(2)
                 pwsh = find_pwsh()
                 if not pwsh:
                     print("[!] 找不到 PowerShell"); sys.exit(2)
