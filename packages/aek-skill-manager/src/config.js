@@ -12,9 +12,14 @@ import { CENTER_REPO_NAME } from './skills.js';
 const CONFIG_FILE_NAME = 'settings.jsonc';
 
 export const DEFAULT_CONFIG = {
+  // WSL ↔ Windows 中心仓库双向同步开关（仅在 WSL/Windows 环境下生效，macOS/Linux 原生无此功能）
   transferSyncBeforeSync: true,
   transferBackupKeep: 3,
   wslDistro: null, // Windows 侧缓存探测到的 WSL 发行版名，失效自动清理
+  // 默认同步的工具列表（不带 --tools 时生效），默认为空则同步全部
+  // 示例：只同步 hermes 和 deepseek-harness，取消下面注释并填写
+  // syncDefaultTools: ['hermes', 'deepseek-harness'],
+  syncDefaultTools: [],
 };
 
 export function getConfigPath(options = {}) {
