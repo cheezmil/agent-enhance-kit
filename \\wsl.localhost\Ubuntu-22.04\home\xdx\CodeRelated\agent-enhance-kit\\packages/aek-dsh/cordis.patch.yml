@@ -1,7 +1,0 @@
-# aek-dsh bundle patch: inserts the host row into the profile's plugin
-# roster. The browser half rides the package's `dsh.client` manifest (the client
-# registry serves lib/client.js), and the host row materializes the `wsl` agent
-# preset on boot. Install with `dsh plugin --profile <name> add <path-or-git-url>`.
-- insert:
-    - id: wsl-workspace
-      name: 'aek-dsh'
