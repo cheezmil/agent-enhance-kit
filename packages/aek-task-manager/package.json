@@ -1,29 +1,22 @@
 {
   "name": "@cheezmil/aek-task-manager",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Task management for AI agents",
   "type": "module",
-  "description": "AEK \u2014 Agent Enhance Kit (Task Manager module)",
+  "main": "src/index.js",
   "bin": {
     "aek-tm": "bin/aek-tm.js",
-    "aek": "bin/aek-shim.cjs"
+    "aektm": "bin/aektm.js"
   },
-  "scripts": {
-    "build": "go build -o bin/aek-task-manager ./src/cmd/aek-task-manager/",
-    "test": "go test ./..."
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "@cheezmil/aek-common": "workspace:*"
   },
-  "optionalDependencies": {
-    "@cheezmil/aek-task-manager-darwin-arm64": "workspace:*",
-    "@cheezmil/aek-task-manager-darwin-x64": "workspace:*",
-    "@cheezmil/aek-task-manager-linux-arm64": "workspace:*",
-    "@cheezmil/aek-task-manager-linux-x64": "workspace:*",
-    "@cheezmil/aek-task-manager-win32-x64": "workspace:*"
-  },
   "files": [
     "bin/",
+    "src/",
     "package.json"
-  ],
-  "license": "MIT"
+  ]
 }
