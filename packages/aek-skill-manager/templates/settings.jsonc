@@ -8,6 +8,10 @@
   // transfer-sync 覆盖前备份保留的份数（最近 N 个）
   "transferBackupKeep": 3,
 
+  // 默认同步的工具列表（不带 --tools 时生效），不填写则同步全部
+  // 示例：["hermes", "deepseek-harness"]
+  "syncDefaultTools": ["hermes", "deepseek-harness"],
+
   // 缓存探测到的 WSL 发行版名（Windows 侧使用），失效时自动清理重新探测
   // "wslDistro": null
 }

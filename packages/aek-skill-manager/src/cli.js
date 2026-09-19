@@ -92,6 +92,7 @@ function printUsage() {
   console.log('用法:');
   console.log('  aek sm sync                  从中心仓库同步 skill 到各工具');
   console.log('  aek sm sync --tools claude,cursor  同步到指定工具');
+  console.log('  aek sm sync --allagents      同步到所有支持的 agent 工具');
   console.log('  aek sm transfer-sync         对齐 WSL 与 Windows 的中心仓库（以最新为准）');
   console.log('  aek sm pull <source>         从某个工具拉取 skill 到中心仓库');
   console.log('  aek sm remove <skill-name>...   从各工具中移除指定 skill（支持多个名称）');
@@ -196,13 +197,37 @@ async function runTransferSync(args) {
 }
 
 // 按配置决定是否自动执行 transfer-sync（sync 前）
+// 检测策略：优先检查 record.jsonc 的 mtime，若近 1 分钟内更新过则跳过 transfer-sync
 async function maybeTransferSync() {
   const cfg = await loadConfig();
-  if (!cfg.transferSyncBeforeSync) {
+  // 仅在 WSL 或 Windows 下才执行 transfer-sync
+  const isWSLorWin = process.platform === 'win32' || !!process.env.WSL_DISTRO_NAME;
+  if (!isWSLorWin || !cfg.transferSyncBeforeSync) {
     return;
+  }
+  // 快速检查：record.jsonc 是否最近有更新（表示刚做过 transfer-sync）
+  const recordPath = path.join(os.homedir(), '.aek', 'skill-manager', 'record.jsonc');
+  try {
+    const stat = await stat(recordPath);
+    if (Date.now() - stat.mtimeMs < 60_000) {
+      return; // record 刚更新，跳过 transfer-sync
+    }
+  } catch {}
+  // backup 目录最近是否有更新
+  const backupDir = path.join(os.homedir(), '.aek', 'skill-manager', 'backup');
+  let backupExists = false;
+  try {
+    const entries = await readdir(backupDir);
+    const recent = entries.find(e => e.startsWith('skills.bak.') && (Date.now() - new Date(e.slice(11).replace(/-/g, '/').replace(/T/,' ').slice(0,19)).getTime()) < 60_000);
+    backupExists = !!recent;
+  } catch {}
+  if (backupExists) {
+    return; // 跳过，避免重复 transfer-sync
   }
   try {
     await doTransferSync({ quiet: true });
+    // 强制等待一下，确保 record.jsonc 已写入
+    await new Promise(r => setTimeout(r, 100));
   } catch (err) {
     console.log(`[aek sm] transfer-sync 自动执行失败（不影响后续 sync）: ${err.message}`);
   }
@@ -248,16 +273,32 @@ async function runInit(scope) {
 }
 
 async function runSync(scope, args) {
-  // 解析 --tools 参数
+  // 解析 --tools 和 --allagents 参数
   let tools = null;
+  let allAgents = false;
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i] === '--tools') {
+    if (args[i] === '--allagents') {
+      allAgents = true;
+    } else if (args[i] === '--tools') {
       tools = args[i + 1].split(',').map((t) => t.trim());
       break;
     }
     if (args[i].startsWith('--tools=')) {
       tools = args[i].slice('--tools='.length).split(',').map((t) => t.trim());
       break;
+    }
+  }
+
+  // 如果指定了 --allagents，则同步所有工具
+  if (allAgents) {
+    tools = PLATFORMS.map(p => p.id);
+  }
+
+  // 如果 tools 未指定，从配置读取默认工具列表
+  if (!tools && scope === 'global') {
+    const cfg = await loadConfig();
+    if (cfg.syncDefaultTools && cfg.syncDefaultTools.length > 0) {
+      tools = cfg.syncDefaultTools;
     }
   }
 
@@ -268,20 +309,20 @@ async function runSync(scope, args) {
 
   const centerDir = resolveCenterRepoDir({ scope });
   await ensureSystemSkills(scope);
-  const centerSkills = await listSkillFolders(centerDir);
   const systemSkillsDir = await getSystemSkillsDir(scope);
   const systemSkills = await listSkillFolders(systemSkillsDir);
 
-  if (centerSkills.length === 0 && systemSkills.length === 0) {
+  if (systemSkills.length === 0) {
     console.log(`[aek sm] 中心仓库为空: ${formatPathForDisplay(centerDir)}`);
     console.log(`[aek sm] 先放 skill 进去，或运行 "aek sm pull <source>" 拉取。`);
     return;
   }
 
-  const { results } = await syncFromCenterRepo({ scope, tools });
+  const { results, centerSkills } = await syncFromCenterRepo({ scope, tools });
 
   let totalCopy = 0;
   let totalOverwrite = 0;
+  const totalSkills = centerSkills?.length ?? 0;
   for (const r of results) {
     if (r.copied.length > 0 || r.overwritten.length > 0) {
       const label = r.platform ? `${r.platform.name} (${r.platform.id})` : '?';
@@ -293,7 +334,8 @@ async function runSync(scope, args) {
   }
 
   if (totalCopy === 0 && totalOverwrite === 0) {
-    console.log(`[aek sm] 无变更。中心仓库 ${formatPathForDisplay(centerDir)} 有 ${centerSkills.length} 个 skill。`);
+    const skillCount = (centerSkills?.length ?? 0);
+    console.log(`[aek sm] 无变更。中心仓库 ${formatPathForDisplay(centerDir)} 有 ${skillCount} 个 skill。`);
   } else {
     console.log(`[aek sm] 完成: ${totalCopy} 新增, ${totalOverwrite} 更新`);
   }

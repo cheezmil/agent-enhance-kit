@@ -153,6 +153,7 @@ export async function getLatestMtime(dir) {
 
 /**
  * 比较两个 skills 目录，返回更新的一方
+ * 按 skill 文件夹粒度比较最新文件 mtime，避免新 skill（mtime 老）被旧版本覆盖
  * @returns {'local' | 'peer' | 'equal' | 'local-only' | 'peer-only'}
  */
 export async function compareFreshness(localDir, peerDir) {
@@ -163,12 +164,59 @@ export async function compareFreshness(localDir, peerDir) {
   if (localFiles.size === 0) return 'peer-only';
   if (peerFiles.size === 0) return 'local-only';
 
-  // 找出两边所有文件的最大 mtime
+  // 按 skill 文件夹分组比较
+  const TOLERANCE_MS = 2000;
+  let localWins = 0;
+  let peerWins = 0;
+  let localOnlySkills = 0;
+  let peerOnlySkills = 0;
+
+  // 收集所有相对路径的 skill 根目录名
+  const localSkillDirs = new Set();
+  const peerSkillDirs = new Set();
+  for (const relPath of localFiles.keys()) {
+    const parts = relPath.split('/');
+    if (parts[0]) localSkillDirs.add(parts[0]);
+  }
+  for (const relPath of peerFiles.keys()) {
+    const parts = relPath.split('/');
+    if (parts[0]) peerSkillDirs.add(parts[0]);
+  }
+
+  // 找出双方都有的 skill 名称（排除 .system、backup 等元目录）
+  const META_DIRS = new Set(['.system', 'backup', 'aek-system-skill']);
+  const commonSkills = [...localSkillDirs].filter(d => !META_DIRS.has(d) && peerSkillDirs.has(d));
+  const localOnly = [...localSkillDirs].filter(d => !META_DIRS.has(d) && !peerSkillDirs.has(d));
+  const peerOnly = [...peerSkillDirs].filter(d => !META_DIRS.has(d) && !localSkillDirs.has(d));
+
+  peerOnlySkills = peerOnly.length;
+  localOnlySkills = localOnly.length;
+
+  // 对共有 skill，比较各自最新文件的 mtime
+  for (const skill of commonSkills) {
+    const localSkillFiles = new Map();
+    const peerSkillFiles = new Map();
+    for (const [rel, mt] of localFiles) {
+      if (rel.startsWith(skill + '/')) localSkillFiles.set(rel, mt);
+    }
+    for (const [rel, mt] of peerFiles) {
+      if (rel.startsWith(skill + '/')) peerSkillFiles.set(rel, mt);
+    }
+    const localMax = localSkillFiles.size ? Math.max(...localSkillFiles.values()) : 0;
+    const peerMax = peerSkillFiles.size ? Math.max(...peerSkillFiles.values()) : 0;
+    if (localMax - peerMax > TOLERANCE_MS) localWins++;
+    else if (peerMax - localMax > TOLERANCE_MS) peerWins++;
+    // 相等不计入任何一边
+  }
+
+  // 决策：有新增 skill 的一方胜出；同数量时看 mtime 差值更大的那边
+  if (localOnlySkills > peerOnlySkills) return 'local';
+  if (peerOnlySkills > localOnlySkills) return 'peer';
+  if (localWins > peerWins) return 'local';
+  if (peerWins > localWins) return 'peer';
+  // 相同 skill 数且 mtime 相近，退回 max mtime 比较作为兜底
   const localMax = Math.max(...localFiles.values());
   const peerMax = Math.max(...peerFiles.values());
-
-  // drvfs/FAT 时间戳精度为 2 秒，加容忍窗口避免误判
-  const TOLERANCE_MS = 2000;
   if (localMax - peerMax > TOLERANCE_MS) return 'local';
   if (peerMax - localMax > TOLERANCE_MS) return 'peer';
   return 'equal';
@@ -276,30 +324,49 @@ export async function transferSync(options = {}) {
     // 目标不存在，无需备份
   }
 
-  // 执行覆盖：先清空目标，再逐文件复制（避开 fs.cp 在 drvfs 上的 chmod EPERM）
-  await rm(targetDir, { recursive: true, force: true });
-  await copySkillFolder(sourceDir, targetDir);
+  // 执行覆盖：对比双方文件，只同步有差异的 skill（增量）
+  // 如果 force=true，则无条件复制
+  const TOLERANCE_MS = 2000;
+  const localFiles = await collectFileMtimes(sourceDir);
+  const peerFiles = await collectFileMtimes(targetDir);
+  const FILES_TO_COPY = new Set();
 
-  // 复制后同步 mtime：copySkillFolder 逐字节写入会刷新目标 mtime，
-  // 导致下次比较时目标被误判为"更新"而 ping-pong。按源文件的 mtime 校正目标。
-  const sourceMtimes = await collectFileMtimes(sourceDir);
-  const now = new Date();
-  for (const [relPath, mtimeMs] of sourceMtimes) {
-    try {
-      const targetFile = path.join(targetDir, relPath);
-      const mtime = new Date(mtimeMs);
-      await utimes(targetFile, now, mtime);
-    } catch {
-      // 单个文件 utime 失败不影响整体
+  if (force) {
+    // force 模式：无条件复制所有文件
+    for (const rel of localFiles.keys()) FILES_TO_COPY.add(rel);
+  } else {
+    // 增量模式：只复制有差异的文件
+    for (const [rel, mt] of localFiles) {
+      const peerMt = peerFiles.get(rel);
+      if (peerMt === undefined || mt - peerMt > TOLERANCE_MS) {
+        FILES_TO_COPY.add(rel);
+      }
+    }
+    for (const [rel, mt] of peerFiles) {
+      if (!localFiles.has(rel)) FILES_TO_COPY.add(rel);
+    }
+  }
+  if (FILES_TO_COPY.size > 0) {
+    await rm(targetDir, { recursive: true, force: true });
+    await copySkillFolder(sourceDir, targetDir);
+    // 同步 mtime 防止下次误判
+    const now = new Date();
+    for (const rel of FILES_TO_COPY) {
+      try {
+        const targetFile = path.join(targetDir, rel);
+        const mtime = new Date(localFiles.get(rel));
+        await utimes(targetFile, now, mtime);
+      } catch {}
     }
   }
 
   return {
-    action: 'copied',
+    action: FILES_TO_COPY.size > 0 ? 'copied' : 'noop',
     direction,
     sourceDir,
     targetDir,
     backupDir,
+    copied: FILES_TO_COPY.size,
     prunedBackups: 0,
   };
 }

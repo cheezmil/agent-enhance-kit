@@ -12,21 +12,21 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 
 ## 必装系统 skill（6 个）
 
-`aek sm sync` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/skills/.system/` 同步到所有 AI 工具的 skills 目录：
+`aek sm sync` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/aek-system-skill/` 同步到所有 AI 工具的 skills 目录：
 
 | Skill | 包源码路径 | 说明 |
 |-------|--------|------|
-| `aek-install-and-init` | `packages/aek-skill-manager`(CLI) | 本 skill |
+| `aek-install-and-init` | `packages/aek-skill-manager/aek-system-skill/` | 本 skill |
 | `aek-mcp` | `packages/aek-mcp` | MCP 代理网关 |
 | `aek-prompt-manager` | `packages/aek-prompt-manager` | 全局提示词注入 |
-| `aek-skill-manager` | `packages/aek-skill-manager` | Skill 同步 |
+| `aek-skill-manager` | `packages/aek-skill-manager/aek-system-skill/` | Skill 同步 |
 | `aek-task-manager` | `packages/aek-task-manager` | 长任务管理 |
 | `aek-websearch` | `packages/aek-websearch` | 上网搜索 |
 
 ### 系统 skill 的来源
 
-- **源码开发**（clone 本项目）：`aek sm init` / `aek sm sync` 从 `skills/aek-system/` 复制到 `~/.aek/skill-manager/skills/.system/`
-- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了 `system-skills/`，`aek sm init` / `aek sm sync` 自动从包内读取
+- **源码开发**（clone 本项目）：`aek sm init` / `aek sm sync` 从 `aek-system-skill/` 复制到中心仓库
+- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了系统 skill，`aek sm init` / `aek sm sync` 自动从包内读取
 
 ## 初始化（npm 安装后完整流程）
 
@@ -36,10 +36,7 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 aek sm init
 ```
 
-自动创建 `~/.aek/skill-manager/skills/` 并复制 6 个系统 skill 到 `.system/` 子目录。
-
-- **npm 安装**：从 `node_modules/@cheezmil/aek-skill-manager/system-skills/` 读取（包内已捆绑）
-- **源码开发**：从 `skills/aek-system/` 读取（当前目录下）
+自动创建 `~/.aek/skill-manager/` 并复制系统 skill 到 `aek-system-skill/` 目录。
 
 ### 2. 初始化系统提示词注入源
 
@@ -57,28 +54,36 @@ aek pm init
 aek pm patch all    # 末尾追加（only-patch 源），幂等
 ```
 
-从 `only-patch/aek_system_prompt/all_agents_shared/` 读取默认 AEK 系统提示词，注入到所有 17 个工具的全局提示词文件。
+从 `only-patch/aek_system_prompt/all_agents_shared/` 读取默认 AEK 系统提示词，注入到所有 25 个工具的全局提示词文件。
 
-### 4. 同步 skill 到所有工具
+### 4. 同步 skill 到工具
+
+默认只同步 `settings.jsonc` 中 `syncDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
 
 ```bash
 aek sm sync
 ```
 
-同步 6 个系统 skill + 其他自定义 skill 到所有已安装的 AI 工具。
+同步全部支持的 agent：
+
+```bash
+aek sm sync --allagents
+```
 
 ### 5. 验证状态
 
 ```bash
 aek pm status       # 各工具 patched / not-patched
-aek sm sync --tools hermes  # 查看同步结果
+aek sm sync         # 查看同步结果（秒完成）
+cat ~/.aek/skill-manager/record.jsonc  # 各工具最后同步时间
+tail ~/.aek/skill-manager/log.txt     # 同步日志
 ```
 
 ## 生效条件
 
 要使 AEK 系统被 AI 有效使用，必须同时满足两个条件：
 
-1. **系统 skill 生效**：6 个系统 skill 在 `~/.aek/skill-manager/skills/.system/` 中，且 `aek sm sync` 已同步到各工具
+1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aek sm sync` 已同步到各工具
 2. **系统提示词生效**：`aek pm patch all` 成功执行，注入后的提示词文件包含 `head-aek-system-built-in-prompt` 标记块
 
 ## 关键文件路径
@@ -86,11 +91,13 @@ aek sm sync --tools hermes  # 查看同步结果
 | 用途 | 路径 |
 |------|------|
 | 中心仓库 | `~/.aek/skill-manager/skills/` |
-| 系统 skill（.system） | `~/.aek/skill-manager/skills/.system/` |
+| 系统 skill 源（源码开发） | `~/.aek/skill-manager/aek-system-skill/` |
 | 提示词源（only-patch） | `~/.aek/prompt-manager/only-patch/` |
 | 系统内置提示词 | `~/.aek/prompt-manager/only-patch/aek_system_prompt/all_agents_shared/` |
-| 提示词源（mapping） | `~/.aek/prompt-manager/global-prompt-mapping/` |
-| 包内捆绑系统 skill（npm） | `node_modules/@cheezmil/aek-skill-manager/system-skills/` |
+| 同步记录 | `~/.aek/skill-manager/record.jsonc` |
+| 同步日志 | `~/.aek/skill-manager/log.txt` |
+| 配置文件 | `~/.aek/skill-manager/settings.jsonc` |
+| 包内捆绑系统 skill（npm） | `node_modules/@cheezmil/aek-skill-manager/aek-system-skill/` |
 | 系统提示词模板（npm） | `node_modules/@cheezmil/aek-prompt-manager/templates/only-patch/aek_system_prompt/all_agents_shared/` |
 
 ## 升级
@@ -103,4 +110,4 @@ npm update -g @cheezmil/aek
 
 ## 平台支持
 
-linux x64/arm64, macOS x64/arm64, Windows x64。
+linux x64/arm64, macOS x64/arm64, Windows x64, WSL2。
