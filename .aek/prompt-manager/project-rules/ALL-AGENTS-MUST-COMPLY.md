@@ -1,6 +1,27 @@
 # 本项目必须遵守的规则
 
-## 改完代码必须在'~/.aek/test-projects'测试。windows在"$env:USERPROFILE\.aek\test"测试。
+## （AI经常不遵守这些规则，用户可手动复制重新发给AI）
+- 必须cd到'~/.aek/test'测试。windows在"$env:USERPROFILE\.aek\test测试
+- 除了可直接调用windows里面的pwsh，其他任何情况禁止使用/mnt挂载路径，脚本中禁止访问/mnt/c/Users/<用户名>/.aek/src/，其没有任何必要在wsl中访问，因为windows环境可间接用UNC路径得到WSL里面的文件夹或文件。不准直接用UNC路径，应该从UNC复制文件夹到用户所说的合适位置，这是一切的前提，然后再windows调用这个合适位置，之后就禁止再用UNC路径。注意用UNC路径的脚本执行者只能是windows环境这边的终端，WSL是用不了UNC路径的。UNC路径禁止硬编码wsl.localhost\\<wsl发行版型号>\\
+- 不准永久修改 PATH；可手动添加一次性的PATH，
+- 不准硬编码用户名，注意用~/或$env:USERPROFILE
+- 除非特殊的，最好不要硬编码任何路径；例如硬编码D盘任何路径就是完全错误的
+- 禁止复制任何node_moudules，只要复制那必然会出错
+- 问题解决不了就上网搜索网友讨论和解决办法
+- 本地搜索禁止用老土grep，务必用rg。
+- 若当前用的框架不支持的别的系统就别强行支持，若支持跨平台则写的代码必须尽可能支持windows、linux、macos
+- 禁止循环思考，禁止循环发送同样的消息给我，禁止循环做同样的事情
+- 禁止用sed修改文件，必须用你agent自带的系统工具修改文件
+- 禁止在win终端对着win路径使用linux命令和cmd命令，只能在win终端执行pwsh命令，禁止带-NoProfile参数！禁止带-NoProfile参数！禁止带-NoProfile参数！
+- 执行危险的命令务必谨慎，确保100%安全
+- 写代码时逻辑尽可能不要冗余，如果可以共用逻辑就拆分出来。
+- 若环境是WSL，若要执行win命令。则例如"/mnt/c/Program Files/PowerShell/7/pwsh.exe" -c "win命令"这样就能执行命令。带上-NoProfile参数会出错。有pwsh7就禁止使用powershell5
+- 不要在wsl编译windows的go，让windows自己编译
+- 要结合源码修改，而不是硬是用编译部署脚本替换参数。。
+- 注意细分build_deploy.py的参数，节约测试时间，有的包已经正常就没必要再编译
+- 把路径计算处理问题全部放到start_scripts_shared_logic.py得到完全准确的路径再被build_deploy.py使用。禁止在build_deploy.py计算任何路径。注意方法解耦，不要重复写计算方法。。
+- 改进对应包的源码后，必须去packages\aek-skill-manager\aek-system-skill改进对应包的skill文档，然后用aek-skill-manager将skill同步到所有agent工具。
+- 除了npm install -g和uninstall -g，其他一律用pnpm
 
 ## 不准在packages各个包的文件夹中写README
 
@@ -18,11 +39,6 @@
 
 ### 脚本放置规范
 - 所有脚本统一放 `scripts/` 目录
-
-### npm 包处理
-- **禁止**在开发脚本中执行 `npm publish`
-- **禁止**引用云端 npm 包，只用本地源码
-- WSL↔Windows 双端同步通过 staging 目录实现
 
 ## WSL↔Windows 跨平台部署铁律（违规会出事故，必须遵守）
 
@@ -59,15 +75,8 @@
 
 ## aek-skill-manager 系统 skill 更新铁律
 
-修改 `packages/aek-skill-manager/aek-system-skill/<skill-name>/SKILL.md` 后，**禁止手动 cp 到任何工具目录**，必须走正确流程：
-
-```
-1. 改 repo 里的源文件
-2. cqg acp 提交推送
-3. aek sm sync
-```
-
+修改各个 `packages/aek-skill-manager/aek-system-skill/<skill-name>/` 后，**禁止手动 cp 到任何工具目录**，然后
 `aek sm sync` 会：
-- transfer-sync 先对齐 WSL ↔ Windows 中心仓库
+- transfer-sync 先对齐 WSL ↔ Windows 中心仓库（macOS不生效）
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录

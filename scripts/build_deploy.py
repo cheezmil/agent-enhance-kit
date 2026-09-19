@@ -13,6 +13,7 @@
     aek-prompt-manager 纯 JS npm 包
     aek-skill-manager  纯 JS npm 包
     aek-browser        纯 JS npm 包
+    aek-dsh            纯 JS npm 包（DeepSeek Harness WSL 插件）
     aek-common         纯 JS npm 包
     aek                纯 JS npm 元包
     all-npm            所有 npm 包（不含 mcp 前端/后端服务）
@@ -114,6 +115,13 @@ PACKAGES = {
         "kind": "js-cli",
         "npm": "@cheezmil/aek-common",
         "conflict_npm_names": ["@cheezmil/aek-common"],
+    },
+    "aek-dsh": {
+        "dir": "aek-dsh",
+        "kind": "js-plugin",  # DSH插件，不全局安装
+        "npm": "@cheezmil/aek-dsh",
+        "conflict_npm_names": ["@cheezmil/aek-dsh"],
+        "plugin": True,
     },
     "aek": {
         "dir": "aek",
@@ -363,6 +371,29 @@ def build(
         outputs[goos] = build_go(pkg_key, goos, goarch)
 
     return outputs
+
+
+def build_js(pkg_key: str) -> None:
+    """运行 JS 包的构建脚本（npm run build），跳过已有 lib/ 的包。"""
+    spec = PACKAGES[pkg_key]
+    pkg_dir = PACKAGES_DIR / spec["dir"]
+    pkg_json_path = pkg_dir / "package.json"
+    if not pkg_json_path.exists():
+        print(f"  [!] {pkg_key} 无 package.json，跳过构建")
+        return
+    import json as _json
+    with open(pkg_json_path) as f:
+        meta = _json.load(f)
+    build_cmd = meta.get("scripts", {}).get("build", "")
+    if not build_cmd:
+        print(f"  {pkg_key} 无 build 脚本，跳过构建")
+        return
+    # lib/ 已存在说明已构建过，跳过
+    if (pkg_dir / "lib").exists():
+        print(f"  {pkg_key}: lib/ 已存在，跳过构建")
+        return
+    print(f"  {pkg_key}: npm run build")
+    run(["npm", "run", "build"], cwd=pkg_dir)
 
 
 def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str, dry_run: bool = False) -> None:
@@ -731,7 +762,7 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
         }}
 
         $pkgs = @('aek-websearch','aek-mcp','aek-task-manager','aek-common',
-                   'aek-prompt-manager','aek-skill-manager','aek-browser','aek')
+                   'aek-prompt-manager','aek-skill-manager','aek-browser','aek-dsh','aek')
 
         foreach ($p in $pkgs) {{
             $uncSrc = Join-Path $uncPackages $p
@@ -826,6 +857,7 @@ def npm_install_on_wsl_peer(pkg_key: str) -> None:
 
 def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: str = None) -> None:
     spec = PACKAGES[pkg_key]
+    pkg_dir = PACKAGES_DIR / spec["dir"]
     env = detect_env()
     print(f"\n{'=' * 60}")
     print(f"  目标: {pkg_key}  (kind={spec['kind']})  环境: {env}")
@@ -835,32 +867,69 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
     print("\n[1/4] 构建...")
     # target_platform 为 None 时仅编译本机；"both"/"windows"/"linux" 显式指定
     build(pkg_key, target_platform=target_platform if not skip_peer else "local")
+    # JS 包有 build 脚本时也需要构建
+    if spec["kind"] != "go-cli":
+        build_js(pkg_key)
 
     if no_deploy:
         print("\n  --no-deploy 指定，跳过部署")
         return
 
     # 2) 本机卸载云端冲突 + 安装本地
-    print("\n[2/4] 本机卸载云端冲突包...")
-    uninstall_cloud_conflicts(pkg_key, "local")
-    print("\n[3/4] 本机 npm install -g ...")
-    npm_install_local(pkg_key)
+    # DSH插件不需要全局安装，跳过
+    if not spec.get("plugin"):
+        print("\n[2/4] 本机卸载云端冲突包...")
+        uninstall_cloud_conflicts(pkg_key, "local")
+        print("\n[3/4] 本机 npm install -g ...")
+        npm_install_local(pkg_key)
+    else:
+        print("\n[2/4] DSH插件，跳过全局安装")
 
-    # 3) 对端同步
+    # 3) 对端同步（仅对插件包执行 dsh plugin add）
     if skip_peer:
         print("\n[4/4] --skip-peer 指定，跳过对端同步")
         return
 
     print("\n[4/4] 对端同步...")
-    if env == "wsl":
-        uninstall_cloud_conflicts(pkg_key, "windows-peer")
-        stage_all_for_windows_peer(no_cache=False)
-        npm_install_on_windows_peer(pkg_key, staging_win="")
-    elif env == "windows":
-        uninstall_cloud_conflicts(pkg_key, "wsl-peer")
-        npm_install_on_wsl_peer(pkg_key)
+    if spec.get("plugin"):
+        if env == "wsl":
+            # WSL 端直接安装插件
+            print("  WSL 端: dsh plugin --profile web add ...")
+            run(["dsh", "plugin", "--profile", "web", "add", str(pkg_dir)], cwd=PROJECT_ROOT)
+            # Windows 对端：只复制本插件（不用 stage_all）
+            print("  Windows 对端: 复制插件 + dsh plugin add ...")
+            wp_unc = get_wsl_unc_paths(find_pwsh(), PROJECT_ROOT)
+            win_pkg_dir = Path(wp_unc.packages_dir) / spec["dir"]
+            win_pkg_dir.mkdir(parents=True, exist_ok=True)
+            import shutil as _shutil
+            if win_pkg_dir.exists():
+                _shutil.rmtree(win_pkg_dir)
+            _shutil.copytree(pkg_dir, win_pkg_dir, symlinks=True)
+            run_pwsh(find_pwsh(), f'dsh plugin --profile web add "{win_pkg_dir}"', "Windows 端 dsh plugin add")
+        elif env == "windows":
+            print("  Windows 端: dsh plugin --profile web add ...")
+            import subprocess as _sub
+            pwsh = find_pwsh()
+            win_path = pkg_dir.as_posix().replace("/", "\\")
+            _sub.run([pwsh, "-Command", f'dsh plugin --profile web add "{win_path}"'], check=True)
+            # WSL 对端：通过 WSL 安装
+            wsl = find_wsl_exe()
+            if wsl:
+                wsl_path = pkg_dir.as_posix()
+                run_wsl_in_windows(wsl, f'dsh plugin --profile web add "{wsl_path}"', "WSL 对端 dsh plugin add")
+        else:
+            print(f"  当前环境 {env} 无对端概念，跳过")
     else:
-        print(f"  当前环境 {env} 无对端概念，跳过")
+        # 非插件包：原有逻辑
+        if env == "wsl":
+            uninstall_cloud_conflicts(pkg_key, "windows-peer")
+            stage_all_for_windows_peer(no_cache=False)
+            npm_install_on_windows_peer(pkg_key, staging_win="")
+        elif env == "windows":
+            uninstall_cloud_conflicts(pkg_key, "wsl-peer")
+            npm_install_on_wsl_peer(pkg_key)
+        else:
+            print(f"  当前环境 {env} 无对端概念，跳过")
 
 
 def infer_pkg_key(short: str) -> str | None:
@@ -1106,7 +1175,7 @@ def main() -> None:
             elif args.pkg == "js":
                 go_order = []
                 js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
-                            "aek-browser", "aek"]
+                            "aek-browser", "aek-dsh", "aek"]
             elif args.pkg:
                 go_order = [args.pkg] if PACKAGES[args.pkg]["kind"] == "go-cli" else []
                 js_order = [args.pkg] if PACKAGES[args.pkg]["kind"] != "go-cli" else []
@@ -1196,7 +1265,7 @@ def main() -> None:
     target = args.target or "all-npm"
     if target == "all-npm":
         order = ["aek-common", "aek-websearch", "aek-mcp", "aek-task-manager",
-                 "aek-prompt-manager", "aek-skill-manager", "aek-browser", "aek"]
+                 "aek-prompt-manager", "aek-skill-manager", "aek-browser", "aek-dsh", "aek"]
         for k in order:
             deploy_one(k, args.no_deploy, args.skip_peer, target_platform=args.target_platform)
     else:
