@@ -27,37 +27,37 @@ Sync Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skill-ma
 默认只同步 `~/.aek/skill-manager/settings.jsonc` 中 `syncDefaultTools` 配置的 agent（如 `["hermes", "deepseek-harness"]`），秒完成。
 
 ```bash
-aek sm sync
+aeksm sync
 ```
 
 ### 同步所有支持的 agent
 
 ```bash
-aek sm sync --allagents
+aeksm sync --allagents
 ```
 
 ### 同步指定工具
 
 ```bash
-aek sm sync --tools claude,cursor,opencode
+aeksm sync --tools claude,cursor,opencode
 ```
 
 ### Pull skills from a tool back to central repo
 
 ```bash
-aek sm pull claude
+aeksm pull claude
 ```
 
 ### Initialize central repo
 
 ```bash
-aek sm init
+aeksm init
 ```
 
 ### Transfer-sync（仅 WSL / Windows 生效）
 
 ```bash
-aek sm transfer-sync
+aeksm transfer-sync
 ```
 
 WSL 与 Windows 中心仓库双向对齐，以最新修改的一方为准，覆盖前自动备份。
@@ -67,9 +67,9 @@ WSL 与 Windows 中心仓库双向对齐，以最新修改的一方为准，覆�
 ### Remove skills
 
 ```bash
-aek sm remove <skill-name>...
-aek sm remove --all
-aek sm remove <skill-name>... --tools claude,cursor
+aeksm remove <skill-name>...
+aeksm remove --all
+aeksm remove <skill-name>... --tools claude,cursor
 ```
 
 从各工具目录移除指定 skill（支持多个名称），或清空全部。
@@ -79,7 +79,7 @@ aek sm remove <skill-name>... --tools claude,cursor
 Run without arguments for a guided interactive setup:
 
 ```bash
-aek sm
+aeksm
 ```
 
 ## Scopes

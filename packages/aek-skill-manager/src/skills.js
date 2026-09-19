@@ -357,41 +357,11 @@ export async function syncFromCenterRepo(options = {}) {
 
   const centerDir = resolveCenterRepoDir({ scope });
 
-  // 尝试从 record 读取已知的 skill 列表（避免每次都遍历目录）
-  let centerSkills = [];
-  if (useRecord) {
-    try {
-      const record = await readRecord(os.homedir());
-      if (record && record.skills && record.skills.length > 0) {
-        // 验证 record 是否有效（检查关键 skill 是否还存在）
-        const verifyNames = record.skills.slice(0, 5);
-        const validNames = await Promise.all(
-          verifyNames.map(async (name) => {
-            const skillPath = path.join(centerDir, name);
-            const hasFrontmatter = await readSkillFrontmatter(skillPath);
-            return hasFrontmatter !== null ? name : null;
-          })
-        );
-        const validSkills = validNames.filter(Boolean);
-        if (validSkills.length > 0 && validSkills.length >= verifyNames.length * 0.8) {
-          // record 有效，使用它
-          centerSkills = validSkills.map(name => ({ name, path: path.join(centerDir, name), description: '', frontmatter: {} }));
-        }
-      }
-    } catch {}
-  }
-
-  // 如果 record 不可用或验证失败，回退到扫描目录
-  if (centerSkills.length === 0) {
-    centerSkills = await listSkillFolders(centerDir);
-  }
-
-  // Also scan the aek-system-skill/ directory (sibling of skills/) for system skills.
-  // The system skills are defined in the project's skills/aek-system-skill/ and auto-copied
-  // to <skill-manager-root>/aek-system-skill/ by `aek sm init` / `aek sm sync`.
+  // 始终从实际目录扫描获取真实 skill 列表（避免 record 缓存与目录不一致）
+  const centerSkills = await listSkillFolders(centerDir);
   const systemDir = path.resolve(path.join(centerDir, '..', 'aek-system-skill'));
   const systemSkills = await listSkillFolders(systemDir);
-  centerSkills = [...centerSkills, ...systemSkills];
+  centerSkills.push(...systemSkills);
 
   if (centerSkills.length === 0) {
     return { centerDir, results: [] };
@@ -404,27 +374,20 @@ export async function syncFromCenterRepo(options = {}) {
   const results = [];
   const winRoot = isWSL() ? getWindowsNativeRoot() : null;
 
-  // 如果 record 存在且未过期，只同步那些未同步或最近有变更的 tool
   const record = useRecord ? await readRecord(os.homedir()) : null;
-  const needsFullSync = !record || !(await isRecordFresh(record));
 
   for (const platform of platforms) {
     const targetDir = resolveSkillsDir(platform, { scope });
     if (path.resolve(centerDir) === path.resolve(targetDir)) continue;
 
-    // 检查是否需要同步到这个 tool（优先使用 record 缓存）
+    // 只检查 record 中该 tool 的 synced 时间戳：
+    // record 有效且最近同步过则跳过（fast path），否则总是同步（保守安全）
     let shouldSync = true;
-    if (!needsFullSync && record.synced && record.synced[platform.id]) {
-      // record 有效且该 tool 最近已同步，跳过
-      shouldSync = false;
-      log(`skip ${platform.id} (cached)`);
-    } else if (record?.synced?.[platform.id]) {
-      // record 过期但仍可参考，检查目标目录的 skill 数量是否与中心仓库一致
-      const existingSkills = await listSkillFolders(targetDir);
-      if (existingSkills.length > 0 && Math.abs(existingSkills.length - centerSkills.length) < 2) {
-        // 数量相近，假设已同步，跳过
+    if (record && record.synced && record.synced[platform.id]) {
+      const fresh = await isRecordFresh(record);
+      if (fresh) {
         shouldSync = false;
-        log(`skip ${platform.id} (count check: ${existingSkills.length} ≈ ${centerSkills.length})`);
+        log(`skip ${platform.id} (cached)`);
       }
     }
 

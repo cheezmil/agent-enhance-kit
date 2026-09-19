@@ -2,7 +2,7 @@
 //
 // 格式（JSONC，注释友好）：
 // {
-//   // 自动生成的记录，不要手动编辑。运行 "aek sm sync" 后自动更新。
+//   // 自动生成的记录，不要手动编辑。运行 "aeksm sync" 后自动更新。
 //   "version": 1,
 //   // 中心仓库当前已知的所有 skill 名称
 //   "skills": ["browser-harness", "superpowers", ...],
