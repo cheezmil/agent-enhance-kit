@@ -12,7 +12,7 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 
 ## 必装系统 skill（6 个）
 
-`aek sm sync` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/aek-system-skill/` 同步到所有 AI 工具的 skills 目录：
+`aeksm sync` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/aek-system-skill/` 同步到所有 AI 工具的 skills 目录：
 
 | Skill | 包源码路径 | 说明 |
 |-------|--------|------|
@@ -25,15 +25,15 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 
 ### 系统 skill 的来源
 
-- **源码开发**（clone 本项目）：`aek sm init` / `aek sm sync` 从 `aek-system-skill/` 复制到中心仓库
-- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了系统 skill，`aek sm init` / `aek sm sync` 自动从包内读取
+- **源码开发**（clone 本项目）：`aeksm init` / `aeksm sync` 从 `aek-system-skill/` 复制到中心仓库
+- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了系统 skill，`aeksm init` / `aeksm sync` 自动从包内读取
 
 ## 初始化（npm 安装后完整流程）
 
 ### 1. 初始化中心仓库 + 安装系统 skill
 
 ```bash
-aek sm init
+aeksm init
 ```
 
 自动创建 `~/.aek/skill-manager/` 并复制系统 skill 到 `aek-system-skill/` 目录。
@@ -61,20 +61,20 @@ aek pm patch all    # 末尾追加（only-patch 源），幂等
 默认只同步 `settings.jsonc` 中 `syncDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
 
 ```bash
-aek sm sync
+aeksm sync
 ```
 
 同步全部支持的 agent：
 
 ```bash
-aek sm sync --allagents
+aeksm sync --allagents
 ```
 
 ### 5. 验证状态
 
 ```bash
 aek pm status       # 各工具 patched / not-patched
-aek sm sync         # 查看同步结果（秒完成）
+aeksm sync         # 查看同步结果（秒完成）
 cat ~/.aek/skill-manager/record.jsonc  # 各工具最后同步时间
 tail ~/.aek/skill-manager/log.txt     # 同步日志
 ```
@@ -83,7 +83,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 
 要使 AEK 系统被 AI 有效使用，必须同时满足两个条件：
 
-1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aek sm sync` 已同步到各工具
+1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aeksm sync` 已同步到各工具
 2. **系统提示词生效**：`aek pm patch all` 成功执行，注入后的提示词文件包含 `head-aek-system-built-in-prompt` 标记块
 
 ## 关键文件路径
@@ -106,7 +106,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 npm update -g @cheezmil/aek
 ```
 
-升级后重新运行 `aek sm sync` 以确保系统 skill 为最新版本，运行 `aek pm patch all` 更新系统提示词。
+升级后重新运行 `aeksm sync` 以确保系统 skill 为最新版本，运行 `aek pm patch all` 更新系统提示词。
 
 ## 平台支持
 

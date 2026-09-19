@@ -90,17 +90,17 @@ function parseArgs(argv) {
 
 function printUsage() {
   console.log('用法:');
-  console.log('  aek sm sync                  从中心仓库同步 skill 到各工具');
-  console.log('  aek sm sync --tools claude,cursor  同步到指定工具');
-  console.log('  aek sm sync --allagents      同步到所有支持的 agent 工具');
-  console.log('  aek sm transfer-sync         对齐 WSL 与 Windows 的中心仓库（以最新为准）');
-  console.log('  aek sm pull <source>         从某个工具拉取 skill 到中心仓库');
-  console.log('  aek sm remove <skill-name>...   从各工具中移除指定 skill（支持多个名称）');
-  console.log('  aek sm remove --all             从各工具中移除全部 skill');
-  console.log('  aek sm remove <skill-name>... --tools claude,cursor  只从指定工具移除');
-  console.log('  aek sm init                  初始化中心仓库目录');
+  console.log('  aeksm sync                        从中心仓库同步 skill 到各工具');
+  console.log('  aeksm sync --tools claude,cursor   同步到指定工具');
+  console.log('  aeksm sync --allagents             同步到所有支持的 agent 工具');
+  console.log('  aeksm transfer-sync                对齐 WSL 与 Windows 的中心仓库（以最新为准）');
+  console.log('  aeksm pull <source>               从某个工具拉取 skill 到中心仓库');
+  console.log('  aeksm remove <skill-name>...       从各工具中移除指定 skill（支持多个名称）');
+  console.log('  aeksm remove --all                 从各工具中移除全部 skill');
+  console.log('  aeksm remove <skill-name>... --tools claude,cursor  只从指定工具移除');
+  console.log('  aeksm init                         初始化中心仓库目录');
   console.log('');
-  console.log('  aek sm <source> <target>     [--scope global|project] 直接复制');
+  console.log('  aeksm <source> <target> [--scope global|project] 直接复制');
   console.log('  无参数运行进入交互式向导');
   console.log('');
   console.log('全局范围（默认）: ~/.aek/skill-manager/skills/ → 各工具 ~/.xxx/skills/');
@@ -343,7 +343,7 @@ async function runSync(scope, args) {
 
 async function runPull(scope, args) {
   if (args.length === 0 || args[0].startsWith('--')) {
-    throw new Error('请指定源工具，例如: aek sm pull claude');
+    throw new Error('请指定源工具，例如: aeksm pull claude');
   }
 
   const sourceKeyword = args[0];
@@ -391,7 +391,7 @@ async function runRemove(scope, args) {
   }
 
   if (skillNames.length === 0 && !removeAll) {
-    throw new Error('请指定要移除的 skill 名称，例如: aek sm remove my-skill-1 my-skill-2，或使用 --all 移除全部');
+    throw new Error('请指定要移除的 skill 名称，例如: aeksm remove my-skill-1 my-skill-2，或使用 --all 移除全部');
   }
 
   const platforms = tools
@@ -478,7 +478,7 @@ async function runDirectSync(sourceKeyword, targetKeyword, { scope }) {
 
 async function runInteractiveSync() {
   clearTerminal();
-  console.log('\x1b[44m ***** Welcome to aek sm interactive mode. ***** \x1b[0m');
+  console.log('\x1b[44m ***** Welcome to aeksm interactive mode. ***** \x1b[0m');
 
   const mode = await select({
     message: '选择模式:',

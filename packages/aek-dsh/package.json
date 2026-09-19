@@ -1,0 +1,62 @@
+{
+  "name": "@cheezmil/aek-dsh",
+  "description": "AEK DSH WSL Workspace plugin for DeepSeek Harness",
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./shell": "./lib/shell.js",
+    "./fs": "./lib/fs.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "tsdown": "^0.13.5",
+    "typescript": "^5.8.3",
+    "@types/node": "^22.15.21"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "wsl",
+    "workspace",
+    "plugin",
+    "windows",
+    "aek"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-fs": "*",
+    "@deepseek-ai/dsh-fs-local": "*",
+    "@deepseek-ai/dsh-shell": "*",
+    "@deepseek-ai/dsh-subprocess": "*",
+    "@deepseek-ai/dsh-timeout": "*"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "src",
+    "package.json"
+  ]
+}
