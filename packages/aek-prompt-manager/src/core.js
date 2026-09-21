@@ -42,7 +42,7 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
-import { getWindowsNativeRoot } from '@cheezmil/aek-common';
+import { getWindowsNativeRoot } from '@cheezmil/aek/common';
 
 export const HEAD = '<!-- head-aek-pm-patch -->';
 export const HEAD_SHARED = '<!-- head-aek-pm-patch-shared -->';

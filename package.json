@@ -3,14 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "build": "python3 scripts/build_deploy.py",
+    "build:linux": "python3 scripts/build_deploy.py --target-platform linux",
+    "build:win": "python3 scripts/build_deploy.py --target-platform windows",
+    "build:macos": "python3 scripts/build_deploy.py --target-platform darwin",
+    "build:no-deploy": "python3 scripts/build_deploy.py --no-deploy",
+    "test": "python3 scripts/test/test.py"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.1"
-  },
-  "workspaces": [
-    "packages/*",
-    "packages/*/platforms/*"
-  ]
+  }
 }

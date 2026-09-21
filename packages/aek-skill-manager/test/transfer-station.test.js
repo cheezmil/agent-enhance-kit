@@ -105,7 +105,7 @@ test('pruneBackups keeps only N most recent', async (t) => {
 });
 
 test('transferSync skips when peer is unreachable', async (t) => {
-  const { isWSL } = await import('@cheezmil/aek-common');
+  const { isWSL } = await import('@cheezmil/aek/common');
   if (process.platform === 'win32' || isWSL()) {
     t.skip('仅在非 WSL/非 Windows 环境测试跳过逻辑');
     return;

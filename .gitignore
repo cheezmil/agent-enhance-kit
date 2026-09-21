@@ -62,21 +62,9 @@ node_modules/
 .pnpm-store/
 locks/
 
-# Go binaries
-packages/aek/bin/
-packages/aek/platforms/
-packages/aek-websearch/bin/
-packages/aek-websearch/aek
-packages/aek-mcp/bin/
-packages/aek-mcp/aek-mcp
-packages/aek-mcp/tmp/
-packages/aek-task-manager/bin/
-bin/
-aek-mcp/
-aek-websearch/
-
-# Platform subpackage binaries (esbuild-style, built by CI, not committed)
-packages/*/platforms/*/bin/
+# Go 编译产物：bin/<linux|macos|win>/<binary>
+# bin/ 根目录的 .js/.cjs/.mjs 是启动器脚本，必须纳入版本控制
+packages/*/bin/*/*
 
 # Build artifacts
 *.exe
@@ -107,11 +95,10 @@ package-lock.json
 pnpm-lock.yaml
 
 # Build
+# 注意：不带前导斜杠的模式在任意层级匹配，不需要写 packages/<pkg>/xxx 这种绝对路径
 dist/
 build/
-packages/aek-mcp/frontend/dist/
-packages/aek-mcp/frontend/node_modules/
-packages/aek-mcp/frontend/.next/
+.next/
 
 # cqg-head
 # cqg-all-platforms-ignore-head
@@ -127,3 +114,7 @@ node_modules/
 # cqg-end
 # npm pack 产物
 *.tgz
+!.cheezmil_quick_git/
+!.cheezmil_quick_git/config/
+!.cheezmil_quick_git/config/**
+.git-nested-managed-by-cqg/

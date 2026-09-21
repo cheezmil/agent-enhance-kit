@@ -1,0 +1,2 @@
+.cheezmil_quick_git
+.cheezmil_task_manager
