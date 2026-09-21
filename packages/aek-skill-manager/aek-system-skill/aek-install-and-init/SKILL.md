@@ -84,7 +84,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 要使 AEK 系统被 AI 有效使用，必须同时满足两个条件：
 
 1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aeksm sync` 已同步到各工具
-2. **系统提示词生效**：`aek pm patch all` 成功执行，注入后的提示词文件包含 `head-aek-system-built-in-prompt` 标记块
+2. **系统提示词生效**：`aekpm patch all` 成功执行，注入后的提示词文件包含 `head-aek-system-built-in-prompt` 标记块
 
 ## 关键文件路径
 
@@ -106,7 +106,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 npm update -g @cheezmil/aek
 ```
 
-升级后重新运行 `aeksm sync` 以确保系统 skill 为最新版本，运行 `aek pm patch all` 更新系统提示词。
+升级后重新运行 `aeksm sync` 以确保系统 skill 为最新版本，运行 `aekpm patch all` 更新系统提示词。
 
 ## 平台支持
 

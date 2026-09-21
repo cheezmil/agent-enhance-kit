@@ -114,8 +114,8 @@ MCP proxy gateway for centralized management of all MCP server connections.
 
 Sync Agent Skills (SKILL.md folders) from a central repository to every AI coding tool's global or project directory.
 
-- **CLI**: `aek sm sync` — sync skills to all configured tools (Claude Code, Cursor, Codex, Gemini, Copilot, OpenCode, etc.)
-- **Bi-directional**: `aek sm pull` — pull skills from a tool back to the central repo
+- **CLI**: `aeksm sync` — sync skills to all configured tools (Claude Code, Cursor, Codex, Gemini, Copilot, OpenCode, etc.)
+- **Bi-directional**: `aeksm pull` — pull skills from a tool back to the central repo
 - **Two scopes**: global (`~/.aek/skill-manager/skills/`) and project (`.aek/skill-manager/skills/`)
 - **Interactive wizard**: run without arguments for a guided setup
 

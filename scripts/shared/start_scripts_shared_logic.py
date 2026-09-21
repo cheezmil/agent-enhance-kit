@@ -126,10 +126,7 @@ def find_wsl_exe() -> str | None:
 
 def get_win_user_profile_via_pwsh(pwsh: str) -> str:
     """通过 pwsh 获取 Windows USERPROFILE 的绝对路径。"""
-    r = subprocess.run(
-        [pwsh, "-Command", "$env:USERPROFILE"],
-        capture_output=True, text=True, timeout=10,
-    )
+    r = run_pwsh_cmd(pwsh, "$env:USERPROFILE", timeout=10)
     out = r.stdout.strip()
     if not out:
         raise RuntimeError(f"无法获取 Windows USERPROFILE: {r.stderr}")
@@ -155,6 +152,134 @@ def wsl_path_to_windows(wsl_path: str) -> str:
     drive = parts[2][0].upper()
     rest = "\\".join(parts[3:])
     return f"{drive}:\\{rest}"
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# WSL → Windows pwsh 执行器（唯一入口）
+# ──────────────────────────────────────────────────────────────────────────
+# 铁律：禁止 -NoProfile。项目规则要求保留 Windows 端 profile（PATH 等副作用）。
+# 所有「从 WSL 丢脚本给 Windows pwsh 原生执行」的代码都必须走这里，
+# 不要在业务脚本里直接 subprocess.run([pwsh, "-Command", ...])。
+
+_PWSH_DEFAULT_TIMEOUT = 600  # 秒；覆盖 go build / pnpm install / stage 等长任务
+
+
+class PwshResult:
+    """pwsh -Command 的返回值。调用方按需消费 stdout/stderr 或调 check()。"""
+
+    def __init__(self, args: tuple, stdout: str, stderr: str, returncode: int):
+        self.args = args
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+
+    def check(self, label: str = "pwsh command") -> "PwshResult":
+        """非零退出码则抛 CalledProcessError（等价 subprocess check=True）。"""
+        if self.returncode != 0:
+            raise subprocess.CalledProcessError(
+                self.returncode, list(self.args),
+                output=self.stdout, stderr=self.stderr,
+            )
+        return self
+
+    def ok(self) -> bool:
+        return self.returncode == 0
+
+    @property
+    def timed_out(self) -> bool:
+        """run_pwsh_cmd 把超时转成 returncode=-1；用此判断是否超时。"""
+        return self.returncode == -1
+
+
+def run_pwsh_cmd(
+    pwsh: str,
+    command: str,
+    *,
+    timeout: int | None = _PWSH_DEFAULT_TIMEOUT,
+    no_profile: bool = False,
+) -> PwshResult:
+    """从 WSL 调用 Windows pwsh 原生执行脚本，返回 PwshResult（不抛异常）。
+
+    参数
+    ----
+    pwsh:      pwsh.exe 路径（用 find_pwsh() 获取，不要硬编码）。
+    command:   要执行的 PowerShell 脚本/表达式。
+    timeout:   秒；None 表示不超时。默认 600s。
+    no_profile: **禁止在业务代码里设为 True**。此处仅为该旋钮集中一处，
+                并默认 False，以强制遵守「禁止 -NoProfile」铁律。
+    """
+    if not pwsh:
+        raise RuntimeError("pwsh 为空：请先 find_pwsh()")
+    args = [pwsh]
+    if no_profile:
+        args.append("-NoProfile")
+    args += ["-Command", command]
+    try:
+        r = _run_pwsh_raw(tuple(args), timeout)
+    except subprocess.TimeoutExpired as e:
+        # 不抛异常：把超时转成 PwshResult，returncode 用 -1 表示超时
+        # 调用方用 r.returncode 或 r.timed_out 判断；上层 run_pwsh_on_windows 负责报错
+        stderr = (e.stderr or "").decode("utf-8", errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+        stdout = (e.stdout or "").decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+        return PwshResult(
+            args=tuple(args),
+            stdout=stdout,
+            stderr=stderr or f"[timeout after {timeout}s]",
+            returncode=-1,
+        )
+    return PwshResult(
+        args=tuple(args),
+        stdout=r.stdout,
+        stderr=r.stderr,
+        returncode=r.returncode,
+    )
+
+
+def _run_pwsh_raw(args: tuple, timeout: int | None) -> subprocess.CompletedProcess:
+    """底层 subprocess 调用：捕获输出、可超时。
+
+    不用 text=True —— Windows pwsh 默认用 cp1252，UTF-8 解码会崩。
+    改为捕获 bytes 后手动 decode(errors="replace")，保证任何输出都能处理。
+    """
+    cp = subprocess.run(
+        list(args),
+        capture_output=True,
+        timeout=timeout,
+    )
+    return subprocess.CompletedProcess(
+        args=list(args),
+        returncode=cp.returncode,
+        stdout=(cp.stdout or b"").decode("utf-8", errors="replace"),
+        stderr=(cp.stderr or b"").decode("utf-8", errors="replace"),
+    )
+
+
+def run_pwsh_on_windows(
+    command: str,
+    *,
+    label: str = "pwsh",
+    timeout: int | None = _PWSH_DEFAULT_TIMEOUT,
+    fail_on_error: bool = True,
+    pwsh: str | None = None,
+) -> PwshResult:
+    """高层便捷：自动 find_pwsh() 并执行，失败时抛 RuntimeError（除非 fail_on_error=False）。
+
+    用于「失败即中断」的部署步骤。需要细粒度错误消息/消费 stdout 的场合，
+    请改用 run_pwsh_cmd()。
+    """
+    pwsh = pwsh or find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 pwsh.exe（WSL 侧？）")
+    try:
+        r = run_pwsh_cmd(pwsh, command, timeout=timeout)
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"{label} 超时（{timeout}s）: {e}") from e
+    if r.returncode != 0:
+        msg = f"{label} 失败（exit={r.returncode}）\nstdout: {r.stdout[-500:]}\nstderr: {r.stderr[-300:]}"
+        if fail_on_error:
+            raise RuntimeError(msg)
+        return r
+    return r
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -192,8 +317,7 @@ def get_win_paths(pwsh: str) -> WinPaths:
         $npmBin = Split-Path $npmRoot -Parent
         Write-Output $npmBin
     """
-    r = subprocess.run([pwsh, "-Command", find_npm_cmd],
-                      capture_output=True, text=True)
+    r = run_pwsh_cmd(pwsh, find_npm_cmd, timeout=30)
     npm_bin_dir = r.stdout.strip().splitlines()[0] if r.stdout.strip() else ""
 
     return WinPaths(
@@ -277,6 +401,15 @@ def get_win_platform_bin_dir(pkg_dir: str, platform: str = "win32-x64") -> str:
         raise RuntimeError("找不到 pwsh")
     wp = get_wsl_win_paths(pwsh)
     return f"{wp.packages_dir}/{pkg_dir}/platforms/{platform}/bin"
+
+
+def get_wsl_win_aek_test_dir() -> str:
+    """便捷：返回 Windows 端测试目录 $env:USERPROFILE\\.aek\\test 的 WSL 挂载路径。"""
+    pwsh = find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 pwsh")
+    wp = get_wsl_win_paths(pwsh)
+    return f"{wp.aek_dir}/test"
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -422,10 +555,7 @@ def check_win_paths(pwsh: str, pkg_dirs: list[str]) -> int:
         (".aek\\src\\packages", win_paths.packages_dir),
         ("npm bin", win_paths.npm_bin_dir),
     ]:
-        ok = subprocess.run(
-            [pwsh, "-Command", f"Test-Path '{p}'"],
-            capture_output=True, text=True,
-        ).stdout.strip() == "True"
+        ok = run_pwsh_cmd(pwsh, f"Test-Path '{p}'", timeout=10).stdout.strip().lower() == "true"
         status = "✓" if ok else "✗"
         if not ok:
             errors += 1
@@ -434,10 +564,7 @@ def check_win_paths(pwsh: str, pkg_dirs: list[str]) -> int:
     print("\n  === 各包 staging 目录 ===")
     for pkg_dir in pkg_dirs:
         p = win_paths.package_dir(pkg_dir)
-        ok = subprocess.run(
-            [pwsh, "-Command", f"Test-Path '{p}'"],
-            capture_output=True, text=True,
-        ).stdout.strip() == "True"
+        ok = run_pwsh_cmd(pwsh, f"Test-Path '{p}'", timeout=10).stdout.strip().lower() == "true"
         status = "✓" if ok else "✗"
         if not ok:
             errors += 1
@@ -445,27 +572,17 @@ def check_win_paths(pwsh: str, pkg_dirs: list[str]) -> int:
 
         # platforms/win32-x64/bin
         plat_dir = win_paths.platform_bin(pkg_dir, "win32-x64")
-        ok_plat = subprocess.run(
-            [pwsh, "-Command", f"Test-Path '{plat_dir}'"],
-            capture_output=True, text=True,
-        ).stdout.strip() == "True"
+        ok_plat = run_pwsh_cmd(pwsh, f"Test-Path '{plat_dir}'", timeout=10).stdout.strip().lower() == "true"
         status_p = "✓" if ok_plat else "○"
         print(f"  [{status_p}]   platforms/win32-x64/bin : {plat_dir}")
 
     # go 是否可用
-    go_r = subprocess.run(
-        [pwsh, "-Command", "go version 2>$null"],
-        capture_output=True, text=True,
-    )
-    go_ver = go_r.stdout.strip()
+    go_ver = run_pwsh_cmd(pwsh, "go version 2>$null", timeout=15).stdout.strip()
     print(f"\n  go version         : {go_ver if go_ver else '(未安装)'}")
 
     # pnpm 是否可用
-    pnpm_r = subprocess.run(
-        [pwsh, "-Command", "pnpm --version 2>$null"],
-        capture_output=True, text=True,
-    )
-    pnpm_ver = pnpm_r.stdout.strip().splitlines()[0] if pnpm_r.stdout.strip() else ""
+    pnpm_out = run_pwsh_cmd(pwsh, "pnpm --version 2>$null", timeout=15).stdout.strip()
+    pnpm_ver = pnpm_out.splitlines()[0] if pnpm_out else ""
     print(f"  pnpm version     : {pnpm_ver if pnpm_ver else '(未安装)'}")
 
     print(f"\n=== 检查完成，{errors} 个错误 ===")

@@ -48,7 +48,11 @@ from pathlib import Path
 # 添加 scripts 目录到路径以导入共享模块
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
-from shared.start_scripts_shared_logic import is_win, py_exe, get_win_paths, get_wsl_win_paths, windows_path_to_wsl, get_wsl_unc_paths
+from shared.start_scripts_shared_logic import (
+    is_win, py_exe, get_win_paths, get_wsl_win_paths,
+    windows_path_to_wsl, get_wsl_unc_paths, get_wsl_win_aek_test_dir,
+    find_pwsh, run_pwsh_cmd, run_pwsh_on_windows,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PACKAGES_DIR = PROJECT_ROOT / "packages"
@@ -159,32 +163,8 @@ def detect_env() -> str:
     return sys.platform
 
 
-def find_pwsh() -> str | None:
-    """在 WSL 中找 Windows PowerShell，动态查找避免硬编码路径。"""
-    if detect_env() != "wsl":
-        return None
-    # 通过 where.exe 动态查找 pwsh.exe，不硬编码路径
-    try:
-        r = subprocess.run(
-            ["/mnt/c/Windows/System32/where.exe", "pwsh"],
-            capture_output=True, text=True, timeout=5,
-        )
-        for line in r.stdout.strip().splitlines():
-            p = line.strip()
-            if p and Path(p).exists():
-                return p
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-    # 兜底：尝试常见位置
-    for p in [
-        "/mnt/c/Program Files/PowerShell/7/pwsh.exe",
-        "/mnt/c/Program Files (x86)/PowerShell/7/pwsh.exe",
-        "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
-    ]:
-        if Path(p).exists():
-            return p
-    return None
-
+# find_pwsh() 已上移到 shared.start_scripts_shared_logic（WSL→Windows pwsh 唯一入口）。
+# 需要 pwsh.exe 路径时直接 import 使用，禁止在此处重复实现。
 
 def find_wsl_exe() -> str | None:
     """在 Windows 中找 wsl.exe，动态查找避免硬编码路径。"""
@@ -222,15 +202,19 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bo
 
 
 def run_pwsh(pwsh: str, script: str, label: str) -> None:
-    """从 WSL 调 Windows pwsh 执行脚本。"""
+    """从 WSL 调 Windows pwsh 执行脚本（失败即退出）。
+
+    实际执行委托给 shared.run_pwsh_on_windows，本函数只保留打印/退出语义，
+    以免改动所有调用点。禁止 -NoProfile（见 shared 模块注释）。
+    """
     print(f"  [pwsh] {label}")
-    r = subprocess.run([pwsh, "-Command", script], capture_output=True, text=True)
-    if r.returncode != 0:
-        print(r.stdout)
-        print(r.stderr, file=sys.stderr)
-        raise SystemExit(f"[✗] {label} 失败（exit={r.returncode}）")
+    try:
+        r = run_pwsh_on_windows(script, label=label, pwsh=pwsh)
+    except RuntimeError:
+        print(f"[✗] {label} 失败", file=sys.stderr)
+        raise SystemExit(f"[✗] {label} 失败") from None
     if r.stdout.strip():
-        print(r.stdout)
+        print(r.stdout.rstrip())
 
 
 def run_wsl_in_windows(wsl_exe: str, bash_cmd: str, label: str) -> None:
@@ -262,6 +246,270 @@ def current_platform() -> tuple[str, str]:
     else:
         goarch = machine
     return goos, goarch
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 环境信息 + 部署目标强制校验
+#
+# 核心原则：
+#   - 编译（--target-platform）：不限环境，任意系统都能编任意目标平台的包
+#   - 部署（--deploy-target）：严格强制，当前执行环境不能部署不属于自己的目标
+#     违规即截停并显著打印错误
+# ──────────────────────────────────────────────────────────────────────────
+
+# 当前执行环境 → 本机平台
+# 注：wsl 就是 linux（WSL 的根文件系统就是 Linux），不单独列 cur_platform
+CURRENT_ENV_TO_PLATFORM = {
+    "wsl":     "linux",
+    "linux":   "linux",
+    "darwin":  "darwin",
+    "windows": "windows",
+}
+
+# 当前执行环境 → 允许的 --deploy-target 集合（= 该环境能触达的平台）
+# 规则：
+#   - wsl 能触达 windows（通过委派 Windows 跑本脚本）和 linux（本机）
+#   - linux/darwin 单端环境，只能触达自己
+#   - windows 只能触达 windows（本机）；windows→wsl 委派已 deprecated
+# 跨端部署不直接做，会走 delegate_to_peer() 触发对端跑本脚本
+ALLOWED_DEPLOY_TARGETS = {
+    "wsl":     {"linux", "windows"},
+    "linux":   {"linux"},
+    "darwin":  {"darwin"},
+    "windows": {"windows"},  # 仅本机；windows→wsl 委派已 deprecated
+}
+
+# 当前执行环境 → 可委派到的对端环境（用于跨端委派）
+# 只保留 wsl→windows 一个方向；windows→wsl 已 deprecated
+PEER_ENV_OF = {
+    "wsl":     "windows",
+    "linux":   None,
+    "darwin":  None,
+    "windows": None,   # deprecated：windows 端不再委派到 wsl
+}
+
+# 部署目标平台 → 该平台的委派环境（用于跨端委派）
+# 目前只支持一个方向：wsl 端委派到 windows 跑本脚本
+DEPLOY_PLATFORM_TO_ENV = {
+    "windows": "windows",  # wsl + --deploy-target windows → 委派到 windows env
+    # "linux": "wsl",    # deprecated：windows→wsl 委派已关闭
+    # "darwin": "darwin",# deprecated
+}
+
+_ENV_LABELS = {
+    "wsl":     "WSL（根文件系统是 Linux，cur_platform 视为 linux）",
+    "linux":   "Linux 原生",
+    "darwin":  "macOS",
+    "windows": "Windows 原生",
+}
+
+
+def describe_current_env() -> dict:
+    """返回当前执行环境的完整描述，供 banner / 校验共用。"""
+    env = detect_env()
+    cur_platform = CURRENT_ENV_TO_PLATFORM.get(env)
+    peer_env = PEER_ENV_OF.get(env)
+    return {
+        "env": env,
+        "label": _ENV_LABELS.get(env, env),
+        "cur_platform": cur_platform,
+        "peer_env": peer_env,
+        "allowed_deploy_targets": sorted(ALLOWED_DEPLOY_TARGETS.get(env, set())),
+    }
+
+
+def resolve_deploy_targets(env: str, deploy_target: str | None) -> list[str]:
+    """把 --deploy-target 解析成"本机要部署到的平台"列表。
+
+    只允许单端：windows→["windows"]、linux/wsl→["linux"]、darwin→["darwin"]。
+    越界立即抛 ValueError 由调用方截停。
+
+    跨端部署不在这里处理，走 delegate_to_peer() 委派对端跑本脚本。
+
+    返回: 用户显式指定的平台（单元素列表）。
+    校验: deploy_target 必须在 ALLOWED_DEPLOY_TARGETS[env] 里。
+    """
+    cur_platform = CURRENT_ENV_TO_PLATFORM.get(env)
+    allowed = ALLOWED_DEPLOY_TARGETS.get(env, set())
+
+    # 默认 = 当前环境对应的本机平台
+    if deploy_target is None:
+        deploy_target = cur_platform
+
+    if deploy_target not in allowed:
+        raise ValueError(
+            f"当前环境 {env} 不支持 --deploy-target {deploy_target!r}。\n"
+            f"  允许的取值：{sorted(allowed)}\n"
+            f"  当前环境 {env} 的本机平台是 {cur_platform}，\n"
+            f"  跨端部署（如 wsl → windows）请改用 --deploy-peer 委派对端执行。\n"
+            f"  若你要在 windows 终端跑本脚本部署到 windows，请用 --deploy-target windows。"
+        )
+
+    # 返回用户实际指定的平台（可能是本机，也可能是对端 → 触发委派）
+    return [deploy_target]
+
+
+def print_env_banner(deploy_target: str | None = None, target_platform: str | None = None,
+                     deploy_peer: bool = False) -> None:
+    """显著打印当前执行环境 + 部署目标校验结果。
+
+    这是脚本的"入口契约"：每次运行都能在输出开头明确看到
+    "我在哪个系统" + "我要往哪些平台部署"，避免"不知道 py 在哪执行"。
+    """
+    info = describe_current_env()
+    env = info["env"]
+    cur_platform = info["cur_platform"]
+    peer_env = info["peer_env"]
+
+    print("=" * 72)
+    print("  ▶ 当前执行环境")
+    print("=" * 72)
+    print(f"  环境类型        : {info['label']}  ({env})")
+    print(f"  本机平台        : {cur_platform}")
+    if peer_env:
+        print(f"  对端环境        : {peer_env}  （用 --deploy-peer 委派）")
+    else:
+        print(f"  对端环境        : （无）")
+    print(f"  允许的 deploy 目标: {info['allowed_deploy_targets']}")
+
+    # 解析部署目标（校验就在这里发生）
+    try:
+        targets = resolve_deploy_targets(env, deploy_target)
+    except ValueError as e:
+        print()
+        print("!" * 72)
+        print("  ✗ 部署目标非法 —— 截停")
+        print("!" * 72)
+        print(f"  {e}")
+        print("!" * 72)
+        sys.exit(2)
+
+    print()
+    print(f"  ▶ 部署目标        : --deploy-target={deploy_target or cur_platform} → {targets}")
+    if deploy_peer:
+        if peer_env:
+            print(f"  ▶ 委派对端        : --deploy-peer → 委派 {peer_env} 执行（本端不做任何事）")
+        else:
+            print(f"  ▶ 委派对端        : --deploy-peer 指定但 {env} 无对端，忽略")
+    else:
+        print(f"  ▶ 委派对端        : 关闭（默认，对端不部署）")
+    print(f"  ▶ 编译目标        : --target-platform={target_platform or '(默认=本机)'}"
+          f"  (任意环境可编任意平台，不拦截)")
+    print("=" * 72)
+
+
+def ensure_deploy_target_allowed(env: str, deploy_target: str | None) -> list[str]:
+    """部署前的二次强制校验（banner 已调用过，这里是 fail-fast 兜底）。"""
+    try:
+        return resolve_deploy_targets(env, deploy_target)
+    except ValueError as e:
+        print()
+        print("!" * 72)
+        print("  ✗ 部署目标非法 —— 截停")
+        print("!" * 72)
+        print(f"  {e}")
+        print("!" * 72)
+        sys.exit(2)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# 跨端委派（delegate）
+#
+# 语义：
+#   --deploy-target windows + 当前 wsl  → wsl 只做一件事：触发 Windows 端跑本脚本
+#                                          本端不 build / stage / install 任何事
+#   --deploy-target linux  + 当前 windows → windows 只做一件事：触发 WSL 端跑本脚本
+#
+# 实现：把当前 argv 原样转发给对端，让对端在自己环境里跑本脚本。
+# 对端跑起来后 banner 会再次打印"我在哪个系统"，链路透明。
+# ──────────────────────────────────────────────────────────────────────────
+
+def delegate_to_peer(peer_env: str, extra_args: list[str], dry_run: bool = False) -> None:
+    """委派对端执行本脚本。本端不做任何事。
+
+    peer_env: 目标对端环境（"windows" 或 "linux"）
+    extra_args: 传给对端的额外参数（不含原 argv 之外的内容）
+    """
+    cur_env = detect_env()
+    print()
+    print("=" * 72)
+    print(f"  ▶ 委派对端执行")
+    print("=" * 72)
+    print(f"  当前环境        : {cur_env}")
+    print(f"  委派到          : {peer_env}")
+    print(f"  本端动作        : 仅触发对端跑本脚本，不做 build / stage / install")
+    print("=" * 72)
+
+    # 构造对端 argv：保留原 argv，但去掉 --deploy-peer 和 --deploy-target，
+    # 加上 --deploy-target <本机平台> 让对端部署到它自己的本机
+    import shlex
+    my_args = sys.argv[1:]
+    peer_args: list[str] = []
+    drop_next = False
+    for i, a in enumerate(my_args):
+        if drop_next:
+            drop_next = False
+            continue
+        if a == "--deploy-peer":
+            continue
+        if a == "--deploy-target":
+            drop_next = True
+            continue
+        peer_args.append(a)
+    # 对端要部署到它自己的本机平台
+    peer_platform = CURRENT_ENV_TO_PLATFORM.get(peer_env)
+    if peer_platform:
+        peer_args.extend(["--deploy-target", peer_platform])
+    if extra_args:
+        peer_args.extend(extra_args)
+    if dry_run and "--dry-run" not in peer_args:
+        peer_args.append("--dry-run")
+
+    if peer_env == "windows":
+        pwsh = find_pwsh()
+        if not pwsh:
+            print("[!] 找不到 PowerShell，无法委派到 Windows")
+            sys.exit(2)
+        script_path = os.path.abspath(__file__)
+        # 用 python 执行（Windows 上 python 通常可用）
+        ps_cmd = (
+            f"$ErrorActionPreference = 'Continue'\n"
+            f"$Error.Clear()\n"
+            f"python '{script_path}'"
+        )
+        # 把参数逐个加进去（pwsh 字符串拼接）
+        for a in peer_args:
+            ps_cmd += " " + shlex.quote(a)
+        ps_cmd += "\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+        print(f"  [pwsh] python {os.path.basename(script_path)} {' '.join(peer_args)}")
+        r = run_pwsh_cmd(pwsh, ps_cmd, timeout=3600)
+        print(r.stdout, end="")
+        if r.returncode != 0:
+            print(r.stderr, file=sys.stderr, end="")
+            raise SystemExit(f"[✗] 委派到 Windows 失败 (exit={r.returncode})")
+        return
+
+    if peer_env == "linux":
+        wsl = find_wsl_exe()
+        if not wsl:
+            print("[!] 找不到 wsl.exe，无法委派到 WSL")
+            sys.exit(2)
+        import shlex
+        script_path = os.path.abspath(__file__)
+        bash_cmd_parts = [f"python3 {shlex.quote(script_path)}"]
+        bash_cmd_parts.extend(shlex.quote(a) for a in peer_args)
+        bash_cmd = " ".join(bash_cmd_parts)
+        print(f"  [wsl] python3 {os.path.basename(script_path)} {' '.join(peer_args)}")
+        r = subprocess.run(
+            [wsl, "-e", "bash", "-c", bash_cmd],
+            capture_output=False, text=True,
+        )
+        if r.returncode != 0:
+            raise SystemExit(f"[✗] 委派到 WSL 失败 (exit={r.returncode})")
+        return
+
+    print(f"[!] 未知对端环境 {peer_env}")
+    sys.exit(2)
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -316,61 +564,42 @@ GOOS_ARCH_TO_NPM_PLATFORM = {
 def build(
     pkg_key: str,
     target_platform: str | None = None,
-    also_peer: bool = False,
 ) -> dict[str, Path]:
     """构建 Go 包二进制。
 
-    默认行为：只编译本机平台。
-    要编译对端平台，使用 target_platform="both" 或 also_peer=True。
+    默认行为：只编译本机平台（goarch 固定 amd64）。
 
     参数:
         pkg_key: 包名
-        target_platform: 目标平台选择
-            - None / "local"   → 只编译本机平台（默认）
-            - "windows"         → 只编译 Windows 二进制
-            - "linux"           → 只编译 Linux 二进制
-            - "both" / also_peer=True → 编译本机 + 对端
-        also_peer: 向后兼容参数，等价于 target_platform="both"
+        target_platform: 目标平台
+            - None           → 编译本机平台（linux 端 = linux/amd64）
+            - "windows"      → 编译 windows/amd64
+            - "linux"        → 编译 linux/amd64
+            - "darwin"       → 编译 darwin/arm64
 
-    返回:
-        {goos: bin_path} 输出路径映射
+    编译阶段不限执行环境：linux/wsl/windows/darwin 任何环境都能编译任意目标平台。
+    不再有 "both" 选项；要编对端就显式传 --target-platform <平台>。
     """
     spec = PACKAGES[pkg_key]
     if spec["kind"] != "go-cli":
         print(f"  {pkg_key} 是纯 JS 包，无需构建")
         return {}
 
-    env = detect_env()
-
-    # 统一 also_peer → target_platform 语义
-    if also_peer:
-        target_platform = "both"
-
-    # 计算要编译的平台列表
-    targets: list[tuple[str, str]] = []  # [(goos, goarch), ...]
     native = current_platform()  # (goos, goarch)
 
-    if target_platform in (None, "local"):
-        targets.append(native)
+    if target_platform is None:
+        goos, goarch = native
     elif target_platform == "windows":
-        targets.append(("windows", "amd64"))
+        goos, goarch = "windows", "amd64"
     elif target_platform == "linux":
-        targets.append(("linux", "amd64"))
-    elif target_platform == "both":
-        targets.append(native)
-        # 仅 WSL↔Windows 有对端概念；其他平台无对端
-        if env == "wsl":
-            targets.append(("windows", "amd64"))
-        elif env == "windows":
-            targets.append(("linux", "amd64"))
+        goos, goarch = "linux", "amd64"
+    elif target_platform == "darwin":
+        goos, goarch = "darwin", "arm64"
     else:
         raise ValueError(f"未知 target_platform: {target_platform!r}")
 
-    outputs: dict[str, Path] = {}
-    for goos, goarch in targets:
-        outputs[goos] = build_go(pkg_key, goos, goarch)
-
-    return outputs
+    out_path = build_go(pkg_key, goos, goarch)
+    return {goos: out_path}
 
 
 def build_js(pkg_key: str) -> None:
@@ -418,7 +647,7 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
 
     # 检查 Windows 侧是否有源码（stage 已复制到 /mnt/c/Users/xdx/.aek/src/packages/）
     check_src_cmd = f"Test-Path '{src_on_win}\\package.json'"
-    r = subprocess.run([pwsh, "-Command", check_src_cmd], capture_output=True, text=True)
+    r = run_pwsh_cmd(pwsh, check_src_cmd, timeout=15)
     if r.stdout.strip().lower() != "true":
         raise RuntimeError(
             f"[!] {pkg_key} Windows 侧缺少源码（{src_on_win}）。\\n"
@@ -427,7 +656,7 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
 
     # 确保输出目录存在
     mkdir_cmd = f"New-Item -ItemType Directory -Force -Path '{out_dir}'"
-    subprocess.run([pwsh, "-Command", mkdir_cmd], capture_output=True, check=True)
+    run_pwsh_cmd(pwsh, mkdir_cmd, timeout=15).check(f"{pkg_key} 创建输出目录")
 
     # Go 编译命令
     build_cmd = (
@@ -439,7 +668,7 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
     )
 
     print(f"  build {pkg_key} for windows/amd64 → {out_file}")
-    r = subprocess.run([pwsh, "-Command", build_cmd], capture_output=True, text=True, timeout=180)
+    r = run_pwsh_cmd(pwsh, build_cmd, timeout=180)
     if r.returncode != 0:
         print(f"  [!] {pkg_key} Windows 编译失败:")
         print(f"      stdout: {r.stdout[-500:]}")
@@ -572,24 +801,21 @@ def stage_for_windows_peer(pkg_key: str) -> str:
     return staging_win
 
 
-def npm_install_on_windows_peer(pkg_key: str, staging_win: str) -> None:
-    """通过 pnpm workspace install 安装到 Windows 侧，然后创建 shim。"""
-    import json as _json
-    import subprocess as _subprocess
+def win_workspace_pnpm_install() -> None:
+    """在 Windows 端 workspace（$env:USERPROFILE\\.aek\\src）执行一次 pnpm install。
 
-    spec = PACKAGES[pkg_key]
+    幂等：整条流水线（--only install-win / 默认 deploy）只应调用一次，
+    不要每个包重复跑。
+    """
     pwsh = find_pwsh()
     if not pwsh:
         raise RuntimeError("找不到 PowerShell")
 
-    # 获取 Windows 路径（通过共享模块）
     wp = get_win_paths(pwsh)
     src_dir = Path(wp.src_dir)
-    packages_dir = Path(wp.packages_dir)
     npm_bin_dir = wp.npm_bin_dir
 
     print(f"  [win] workspace root: {wp.src_dir}")
-    print(f"  [win] packages_dir:   {wp.packages_dir}")
     print(f"  [win] npm bin dir:    {npm_bin_dir}")
 
     # 步骤1: 确保 workspace 配置文件存在
@@ -622,21 +848,37 @@ $env:PATH = '{npm_bin_dir};$env:PATH'
 Set-Location '{wp.src_dir}'
 pnpm install --ignore-scripts
 """
-    r = _subprocess.run([pwsh, "-Command", install_cmd], capture_output=True, text=True, timeout=180)
+    r = run_pwsh_cmd(pwsh, install_cmd, timeout=600)
     if r.returncode != 0:
         print(f"  [!] pnpm install 失败:\n{r.stdout[-500:]}\n{r.stderr[-300:]}")
         raise RuntimeError("pnpm install 失败")
     if r.stdout.strip():
-        print(r.stdout[-500:])
+        print(r.stdout[-300:])
+    print("  [win] pnpm install 完成")
 
-    # 步骤3: 创建 shim 脚本到 npm bin 目录
+
+def create_win_shims(pkg_key: str) -> None:
+    """为 pkg_key 声明的全部 bin 在 Windows npm bin 目录生成 .ps1 shim（幂等覆盖）。
+
+    bin 声明以 WSL 侧源码 package.json 为准（stage 已同步到 Windows）。
+    新增 bin（如 9/19 重构的 aeksm/aektm/aekmcp/aekws）靠这里重建。
+    """
+    import json as _json
+
+    spec = PACKAGES[pkg_key]
+    pwsh = find_pwsh()
+    if not pwsh:
+        raise RuntimeError("找不到 PowerShell")
+    wp = get_win_paths(pwsh)
+    npm_bin_dir = wp.npm_bin_dir
+
     pkg_json_path = PACKAGES_DIR / spec["dir"] / "package.json"
     with open(pkg_json_path) as f:
         pkg_meta = _json.load(f)
     bin_map = pkg_meta.get("bin", {})
     if not bin_map:
-        pkg_name = spec["npm"].split("/")[-1]
-        bin_map = {pkg_name: f"bin/{pkg_name}.js"}
+        print(f"  [win] {pkg_key}: 无 bin 声明，跳过 shim")
+        return
 
     for _bin_name, _js_rel in bin_map.items():
         _js_full = f"$env:USERPROFILE\\.aek\\src\\packages\\{spec['dir']}\\{_js_rel}"
@@ -660,7 +902,17 @@ pnpm install --ignore-scripts
             f.write(_shim_content)
         print(f"  [win] 创建 shim: {_bin_name}")
 
-    print("  [win] 安装完成")
+    print(f"  [win] {pkg_key} shim 完成")
+
+
+def npm_install_on_windows_peer(pkg_key: str, staging_win: str = "") -> None:
+    """兼容旧调用：pnpm install + 该包 shim。
+
+    新代码请改用 win_workspace_pnpm_install() + create_win_shims(pkg_key)，
+    避免每个包重复跑 pnpm install。
+    """
+    win_workspace_pnpm_install()
+    create_win_shims(pkg_key)
 
 
 def stage_all_for_windows_peer(no_cache: bool = False) -> None:
@@ -797,7 +1049,7 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
         }}
     """)
 
-    r = subprocess.run([pwsh, "-Command", ps_script], capture_output=True, text=True, timeout=120)
+    r = run_pwsh_cmd(pwsh, ps_script, timeout=120)
     if r.returncode != 0:
         print(f"  [!] PowerShell stage 失败:\n{r.stderr[-500:]}", file=sys.stderr)
         raise RuntimeError(f"stage 失败: {r.stderr[:200]}")
@@ -855,21 +1107,40 @@ def npm_install_on_wsl_peer(pkg_key: str) -> None:
 # 主流程
 # ──────────────────────────────────────────────────────────────────────────
 
-def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: str = None) -> None:
+def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: str = None, dry_run: bool = False) -> None:
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
     env = detect_env()
     print(f"\n{'=' * 60}")
-    print(f"  目标: {pkg_key}  (kind={spec['kind']})  环境: {env}")
+    print(f"  目标: {pkg_key}  (kind={spec['kind']})  环境: {env}"
+          + ("  [dry-run]" if dry_run else ""))
     print(f"{'=' * 60}")
 
     # 1) 构建（Go 包才有）
     print("\n[1/4] 构建...")
-    # target_platform 为 None 时仅编译本机；"both"/"windows"/"linux" 显式指定
-    build(pkg_key, target_platform=target_platform if not skip_peer else "local")
-    # JS 包有 build 脚本时也需要构建
-    if spec["kind"] != "go-cli":
-        build_js(pkg_key)
+    if dry_run:
+        # --dry-run 必须只读：不跑 go build / npm build，只打印将要构建什么
+        spec_k = spec["kind"]
+        if spec_k == "go-cli":
+            # 推断目标平台
+            cur = current_platform()
+            if target_platform:
+                goos_map = {"windows": ("windows", "amd64"),
+                            "linux": ("linux", "amd64"),
+                            "darwin": ("darwin", "arm64")}
+                goos, goarch = goos_map.get(target_platform, cur)
+            else:
+                goos, goarch = cur
+            out = pkg_dir / "bin" / f"{spec['bin_name']}{'.exe' if goos == 'windows' else ''}"
+            print(f"  [dry-run] 将构建 {pkg_key} {goos}/{goarch} → {out}")
+        else:
+            build_cmd = "npm run build"
+            print(f"  [dry-run] 将执行: cd {pkg_dir} && {build_cmd}")
+    else:
+        build(pkg_key, target_platform=target_platform if not skip_peer else None)
+        # JS 包有 build 脚本时也需要构建
+        if spec["kind"] != "go-cli":
+            build_js(pkg_key)
 
     if no_deploy:
         print("\n  --no-deploy 指定，跳过部署")
@@ -908,10 +1179,10 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
             run_pwsh(find_pwsh(), f'dsh plugin --profile web add "{win_pkg_dir}"', "Windows 端 dsh plugin add")
         elif env == "windows":
             print("  Windows 端: dsh plugin --profile web add ...")
-            import subprocess as _sub
             pwsh = find_pwsh()
             win_path = pkg_dir.as_posix().replace("/", "\\")
-            _sub.run([pwsh, "-Command", f'dsh plugin --profile web add "{win_path}"'], check=True)
+            run_pwsh_cmd(pwsh, f'dsh plugin --profile web add "{win_path}"',
+                         timeout=120).check("Windows 端 dsh plugin add")
             # WSL 对端：通过 WSL 安装
             wsl = find_wsl_exe()
             if wsl:
@@ -1136,15 +1407,60 @@ def main() -> None:
                         help="只打印路径和命令，不实际执行（可与 --only 配合使用）")
     parser.add_argument("--test", action="store_true",
                         help="运行 test_windows_workspace 验证 Windows workspace 配置")
-    parser.add_argument("--target-platform", default=None, choices=["linux", "windows", "both"],
-                        help="指定编译目标平台（仅 WSL 环境下有效）：\n  linux    仅编译本机 Linux 二进制（默认）\n  windows  仅编译 Windows 二进制\n  both     编译全部平台")
+    parser.add_argument("--target-platform", default=None, choices=["linux", "windows", "darwin"],
+                        help="编译目标平台（仅影响 Go 交叉编译，不限执行环境）：\n"
+                             "  linux    编译 linux/amd64 二进制\n"
+                             "  windows  编译 windows/amd64 二进制\n"
+                             "  darwin   编译 darwin/arm64 二进制\n"
+                             "  默认=本机平台。任意环境都可编译任意目标，编译阶段不拦截")
+    parser.add_argument("--deploy-target", default=None,
+                        choices=["windows", "linux", "darwin"],
+                        help="部署目标平台（严格强制，违规即截停）：\n"
+                             "  windows/linux/darwin  部署到该平台\n"
+                             "  默认=当前执行环境的本机平台（wsl=linux）\n"
+                             "  跨端示例：wsl 环境传 --deploy-target windows → wsl 仅触发 Windows 跑本脚本\n"
+                             "  linux/darwin 环境传 --deploy-target windows 会截停报错")
     parser.add_argument("--pkg", default=None, choices=list(PACKAGES.keys()) + ["js", "go"],
                         help="只编译指定包（或 'go' 只编所有 Go 包，'js' 只编所有 JS 包）")
     args = parser.parse_args()
 
     print(f"PROJECT_ROOT: {PROJECT_ROOT}")
-    print(f"当前环境: {detect_env()}")
-    print(f"当前平台: {current_platform()}")
+
+    # 显著打印当前执行环境 + 部署目标校验结果（违规立即截停）
+    # 编译不拦截环境；部署严格强制。详见 print_env_banner 注释。
+    print_env_banner(deploy_target=args.deploy_target, target_platform=args.target_platform)
+
+    # 解析部署目标（banner 已校验，违规会截停；这里再解析一次得到平台列表）
+    env = detect_env()
+    cur_platform = CURRENT_ENV_TO_PLATFORM[env]
+    deploy_targets = resolve_deploy_targets(env, args.deploy_target)
+
+    # ── 委派判定：deploy_targets 里若有非本机平台，本端只做委派 ──
+    # 用户语义：wsl + --deploy-target windows → wsl 只触发 Windows 跑本脚本，
+    # 自己不 stage/build/install 任何东西。
+    # 本判定必须在 --test / --only / 默认 deploy 三种模式之前。
+    peer_platforms = [p for p in deploy_targets if p != cur_platform]
+    if peer_platforms:
+        # 把要委派的每个对端平台找出来对应的 env 名
+        peer_envs = []
+        for p in peer_platforms:
+            e = DEPLOY_PLATFORM_TO_ENV.get(p)
+            if not e:
+                print(f"[✗] 平台 {p} 无可委派的环境", file=sys.stderr)
+                sys.exit(2)
+            peer_envs.append((p, e))
+
+        print()
+        print("▶ 跨端委派模式")
+        for p, e in peer_envs:
+            print(f"  本端 {env} 不部署到 {p}，委派 {e} 执行本脚本")
+        # 逐个委派；本端不做任何 build/stage/install
+        for p, e in peer_envs:
+            # extra_args 为空：delegate_to_peer 内部会自动加 --deploy-target <peer_platform>
+            delegate_to_peer(e, [], dry_run=args.dry_run)
+        sys.exit(0)
+
+    # 到这里：所有 deploy_targets 都是本端平台。进入本机部署流程。
 
     # --test 模式：验证 Windows workspace
     if args.test:
@@ -1217,7 +1533,7 @@ def main() -> None:
                         for bn in bin_map:
                             print(f"    shim: {bn}.ps1")
                         continue
-                    deploy_one(k, no_deploy=False, skip_peer=True, target_platform=args.target_platform)
+                    deploy_one(k, no_deploy=False, skip_peer=True, target_platform=args.target_platform, dry_run=args.dry_run)
                 return
 
             if action == "compile-win":
@@ -1247,7 +1563,7 @@ def main() -> None:
 
             if action == "all":
                 for k in all_order:
-                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer, target_platform=args.target_platform)
+                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
                 return
 
             print(f"[!] 未知动作: {action}"); sys.exit(2)
@@ -1267,9 +1583,9 @@ def main() -> None:
         order = ["aek-common", "aek-websearch", "aek-mcp", "aek-task-manager",
                  "aek-prompt-manager", "aek-skill-manager", "aek-browser", "aek-dsh", "aek"]
         for k in order:
-            deploy_one(k, args.no_deploy, args.skip_peer, target_platform=args.target_platform)
+            deploy_one(k, args.no_deploy, args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
     else:
-        deploy_one(target, args.no_deploy, args.skip_peer, target_platform=args.target_platform)
+        deploy_one(target, args.no_deploy, args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
 
     print("\n✓ 完成")
 
@@ -1336,7 +1652,7 @@ try {{
     exit 1
 }}
 """
-        r = subprocess.run([pwsh, "-Command", check_cmd], capture_output=True, text=True, timeout=60)
+        r = run_pwsh_cmd(pwsh, check_cmd, timeout=60)
         out = r.stdout.strip()
         if r.returncode != 0 or "FAIL" in out or "ERROR" in out:
             errors.append(f"pnpm install --dry-run 失败: {out[:500]}")
@@ -1355,4 +1671,13 @@ try {{
 
 
 if __name__ == "__main__":
+    # Windows 端 python 默认用 GBK，会崩在中文/emoji 输出上。
+    # 强制 stdout/stderr 用 UTF-8（errors=replace 兜底），跨端一致。
+    import sys as _sys
+    if hasattr(_sys.stdout, "reconfigure"):
+        try:
+            _sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            _sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     main()
