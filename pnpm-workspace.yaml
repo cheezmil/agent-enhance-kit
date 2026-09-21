@@ -1,7 +1,5 @@
 packages:
   - 'packages/*'
-  - 'packages/*/platforms/*'
   - '!packages/aek-mcp/frontend'
 allowBuilds:
   esbuild: true
-  koffi: set this to true or false

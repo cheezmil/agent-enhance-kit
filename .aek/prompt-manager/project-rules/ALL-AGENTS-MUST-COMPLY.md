@@ -15,13 +15,13 @@
 - 禁止在win终端对着win路径使用linux命令和cmd命令，只能在win终端执行pwsh命令，禁止带-NoProfile参数！禁止带-NoProfile参数！禁止带-NoProfile参数！
 - 执行危险的命令务必谨慎，确保100%安全
 - 写代码时逻辑尽可能不要冗余，如果可以共用逻辑就拆分出来。
-- 若环境是WSL，若要执行win命令。则例如"/mnt/c/Program Files/PowerShell/7/pwsh.exe" -c "win命令"这样就能执行命令。带上-NoProfile参数会出错。有pwsh7就禁止使用powershell5
+- 若环境是WSL，若要执行win命令。则例如"/mnt/c/Program Files/PowerShell/7/pwsh.exe" -c "win命令"这样就能执行命令。带上-NoProfile参数会出错。有pwsh7就别使用powershell5
 - 不要在wsl编译windows的go，让windows自己编译
 - 要结合源码修改，而不是硬是用编译部署脚本替换参数。。
 - 注意细分build_deploy.py的参数，节约测试时间，有的包已经正常就没必要再编译
 - 把路径计算处理问题全部放到start_scripts_shared_logic.py得到完全准确的路径再被build_deploy.py使用。禁止在build_deploy.py计算任何路径。注意方法解耦，不要重复写计算方法。。
 - 改进对应包的源码后，必须去packages\aek-skill-manager\aek-system-skill改进对应包的skill文档，然后用aek-skill-manager将skill同步到所有agent工具。
-- 除了npm install -g和uninstall -g，其他一律用pnpm
+- 务必用pnpm，禁止用npm和yarn。全局安装必须用pnpm add -g
 
 ## 不准在packages各个包的文件夹中写README
 

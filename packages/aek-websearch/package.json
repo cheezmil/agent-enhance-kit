@@ -1,0 +1,17 @@
+{
+  "name": "@cheezmil/aek-websearch",
+  "version": "0.1.0",
+  "description": "Web search and content tools",
+  "type": "module",
+  "bin": {
+    "aek-websearch": "bin/aek-websearch.js",
+    "aekws": "bin/aekws.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "package.json"
+  ]
+}

@@ -7,7 +7,7 @@ import { constants } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek-common';
+import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek/common';
 import { readRecord, isRecordFresh, buildRecord, writeRecord } from './record.js';
 import { log } from './logger.js';
 

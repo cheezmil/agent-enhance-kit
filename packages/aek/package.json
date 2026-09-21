@@ -6,8 +6,12 @@
   "bin": {
     "aek": "bin/aek.js"
   },
+  "exports": {
+    "./bin/aek.js": "./bin/aek.js",
+    "./common": "./src/common.js",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
-    "@cheezmil/aek-common": "workspace:*",
     "@cheezmil/aek-mcp": "workspace:*",
     "@cheezmil/aek-prompt-manager": "workspace:*",
     "@cheezmil/aek-skill-manager": "workspace:*",
@@ -16,6 +20,7 @@
   },
   "files": [
     "bin/",
+    "src/",
     "package.json"
   ],
   "keywords": [

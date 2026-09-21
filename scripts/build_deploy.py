@@ -2,34 +2,51 @@
 """AEK 统一开发构建 + 部署脚本（单一入口，禁止再分散到 packages/*/scripts/）。
 
 用法：
-  python3 scripts/build_deploy.py <target> [--no-deploy] [--skip-peer]
-  python3 scripts/build_deploy.py --target-platform windows --pkg aek-mcp
-  python3 scripts/build_deploy.py --target-platform both --pkg all
+  python3 scripts/build_deploy.py                                  # 本机平台，全部包，构建+部署
+  python3 scripts/build_deploy.py --target-platform linux          # 仅编译 linux（本机/WSL 常用）
+  python3 scripts/build_deploy.py --target-platform windows        # 仅编译 windows
+  python3 scripts/build_deploy.py aek-mcp --no-deploy              # 只构建单个包，不部署
 
-  <target>:
+  <target>（位置参数）:
     aek-websearch      Go CLI + npm 包
     aek-mcp            Go CLI + npm 包
     aek-task-manager   Go CLI + npm 包
     aek-prompt-manager 纯 JS npm 包
     aek-skill-manager  纯 JS npm 包
     aek-browser        纯 JS npm 包
-    aek-dsh            纯 JS npm 包（DeepSeek Harness WSL 插件）
-    aek-common         纯 JS npm 包
+    aek-dsh            纯 JS npm 包（DeepSeek Harness 插件）
     aek                纯 JS npm 元包
     all-npm            所有 npm 包（不含 mcp 前端/后端服务）
 
-  --no-deploy          只构建，不 npm install -g
-  --skip-peer          跳过对端同步（WSL/Windows 双端环境）
-  --target-platform    指定编译目标平台：
-                         linux   仅本机 Linux 二进制（默认）
-                         windows 仅 Windows 二进制
-                         both    编译本机 + 对端平台
+参数说明（四个概念互不相通，别混）：
+  <target>            位置参数：要处理的包名，或 all-npm。
+  --pkg               仅 --only 模式内使用：go / js / 具体包名。
+  --target-platform   编译目标平台（linux/windows/darwin）。只影响 Go 交叉编译，
+                      不限执行环境 —— 任意机器可编任意平台。
+  --deploy-target     部署目标平台。严格强制，越界截停（wsl 仅 linux/windows）。
+
+二进制布局（每个包各自一份，禁止再散落到别的目录）：
+  packages/<pkg>/bin/linux/<binary>
+  packages/<pkg>/bin/macos/<binary>
+  packages/<pkg>/bin/win/<binary>.exe
+  平台目录名固定为 linux / macos / win（OS 级，不含架构）。
+  bin/ 根目录的 .js 是 JS 启动器脚本，属于源码，需入库并保留 +x。
+
+部署（统一 pnpm add -g，禁止 npm install -g / yarn）：
+  - pnpm 生成真 shim（exec node <path>），不依赖源码 .js 的 +x 位；
+    npm 的全局 bin 是直接 symlink，源码丢 +x 就 Permission denied。
+  - pnpm add -g 不解析 workspace:* 也不装第三方依赖 —— 运行时依赖一律从
+    源码树自己的 node_modules 解析，所以部署前必须先跑 workspace 级
+    pnpm install --ignore-scripts（见 ensure_workspace_deps）。
+  - 全局 bin 目录动态取自 PATH（优先 ~/.local/bin），不改 PATH、不改 shell 配置。
 
 行为：
   - 自动检测当前环境（wsl / windows / linux / darwin）
-  - Go 包：按 --target-platform 编译指定平台二进制
-  - npm 包：本机 npm install -g
-  - WSL↔Windows 双端：默认不同步对端，需 --target-platform both 才编译对端
+  - Go 工具链动态发现：go.mod 要 go>=1.26.4 时自动挑满足版本的路径
+    （本机 /usr/bin/go 可能是 1.18，会 invalid go version 硬失败）
+  - Go 包：按 --target-platform 编译到 packages/<pkg>/bin/<linux|macos|win>/
+  - npm 包：本机 pnpm add -g
+  - WSL<->Windows 双端：默认不编译对端，需显式 --target-platform windows
   - macOS：仅本机编译/部署（无对端概念）
 """
 
@@ -52,6 +69,11 @@ from shared.start_scripts_shared_logic import (
     is_win, py_exe, get_win_paths, get_wsl_win_paths,
     windows_path_to_wsl, get_wsl_unc_paths, get_wsl_win_aek_test_dir,
     find_pwsh, run_pwsh_cmd, run_pwsh_on_windows,
+    find_go, go_mod_required_version, pnpm_global_bin_dir, get_aek_test_dir,
+    pnpm_global_config_args, get_win_pnpm_home,
+    win_join, copy_tree_excluding, run_windows_python,
+    win_stage, win_pnpm_install, win_global_install, win_peer_workspace_root,
+    win_uninstall_pkgs,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -68,8 +90,6 @@ PACKAGES = {
         "npm": "@cheezmil/aek-websearch",
         "go_cmd": ["go", "build", "-o", None, "./cmd/aek/"],   # None = 输出路径运行时填
         "bin_name": "aek-websearch",
-        "platform_pkg": "@cheezmil/aek-websearch-{goos}-{goarch}",
-        "platforms_dir": "platforms",
         "conflict_npm_names": [
             "@cheezmil/aek-websearch",
             "@cheezmil/aek-websearch-win32-x64",
@@ -93,7 +113,6 @@ PACKAGES = {
         "npm": "@cheezmil/aek-task-manager",
         "go_cmd": ["go", "build", "-o", None, "./src/cmd/aek-task-manager/"],
         "bin_name": "aek-task-manager",
-        "platforms_dir": "platforms",
         "conflict_npm_names": ["@cheezmil/aek-task-manager"],
     },
     "aek-prompt-manager": {
@@ -114,12 +133,6 @@ PACKAGES = {
         "npm": "@cheezmil/aek-browser",
         "conflict_npm_names": ["@cheezmil/aek-browser"],
     },
-    "aek-common": {
-        "dir": "aek-common",
-        "kind": "js-cli",
-        "npm": "@cheezmil/aek-common",
-        "conflict_npm_names": ["@cheezmil/aek-common"],
-    },
     "aek-dsh": {
         "dir": "aek-dsh",
         "kind": "js-plugin",  # DSH插件，不全局安装
@@ -136,7 +149,8 @@ PACKAGES = {
 }
 
 # 额外的全局清理目标（云端历史残留）
-GLOBAL_CONFLICT_EXTRA = ["aek-common"]  # 防止 aek-common 单独留在全局
+# aek-common 已于 2026-09 合并进 @cheezmil/aek，仍需清掉旧版本的云端残留。
+GLOBAL_CONFLICT_EXTRA = ["@cheezmil/aek-common"]
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -199,22 +213,6 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture: bo
         env.update(env_extra)
     print(f"  + {' '.join(str(c) for c in cmd)}" + (f"  (cwd={cwd})" if cwd else ""))
     return subprocess.run(cmd, cwd=cwd, env=env, check=check, capture_output=capture, text=True)
-
-
-def run_pwsh(pwsh: str, script: str, label: str) -> None:
-    """从 WSL 调 Windows pwsh 执行脚本（失败即退出）。
-
-    实际执行委托给 shared.run_pwsh_on_windows，本函数只保留打印/退出语义，
-    以免改动所有调用点。禁止 -NoProfile（见 shared 模块注释）。
-    """
-    print(f"  [pwsh] {label}")
-    try:
-        r = run_pwsh_on_windows(script, label=label, pwsh=pwsh)
-    except RuntimeError:
-        print(f"[✗] {label} 失败", file=sys.stderr)
-        raise SystemExit(f"[✗] {label} 失败") from None
-    if r.stdout.strip():
-        print(r.stdout.rstrip())
 
 
 def run_wsl_in_windows(wsl_exe: str, bash_cmd: str, label: str) -> None:
@@ -341,7 +339,8 @@ def resolve_deploy_targets(env: str, deploy_target: str | None) -> list[str]:
             f"当前环境 {env} 不支持 --deploy-target {deploy_target!r}。\n"
             f"  允许的取值：{sorted(allowed)}\n"
             f"  当前环境 {env} 的本机平台是 {cur_platform}，\n"
-            f"  跨端部署（如 wsl → windows）请改用 --deploy-peer 委派对端执行。\n"
+            f"  跨端部署（如 wsl → windows）请改用 --deploy-target windows 委派对端执行，"
+            f"或加 --peer 做本机+对端同步。\n"
             f"  若你要在 windows 终端跑本脚本部署到 windows，请用 --deploy-target windows。"
         )
 
@@ -350,7 +349,7 @@ def resolve_deploy_targets(env: str, deploy_target: str | None) -> list[str]:
 
 
 def print_env_banner(deploy_target: str | None = None, target_platform: str | None = None,
-                     deploy_peer: bool = False) -> None:
+                     peer_sync: bool = False) -> None:
     """显著打印当前执行环境 + 部署目标校验结果。
 
     这是脚本的"入口契约"：每次运行都能在输出开头明确看到
@@ -367,7 +366,7 @@ def print_env_banner(deploy_target: str | None = None, target_platform: str | No
     print(f"  环境类型        : {info['label']}  ({env})")
     print(f"  本机平台        : {cur_platform}")
     if peer_env:
-        print(f"  对端环境        : {peer_env}  （用 --deploy-peer 委派）")
+        print(f"  对端环境        : {peer_env}  （对端同步需显式传 --peer，默认不同步）")
     else:
         print(f"  对端环境        : （无）")
     print(f"  允许的 deploy 目标: {info['allowed_deploy_targets']}")
@@ -386,13 +385,13 @@ def print_env_banner(deploy_target: str | None = None, target_platform: str | No
 
     print()
     print(f"  ▶ 部署目标        : --deploy-target={deploy_target or cur_platform} → {targets}")
-    if deploy_peer:
+    if peer_sync:
         if peer_env:
-            print(f"  ▶ 委派对端        : --deploy-peer → 委派 {peer_env} 执行（本端不做任何事）")
+            print(f"  ▶ 对端同步        : --peer 开启 → 同步到 {peer_env}")
         else:
-            print(f"  ▶ 委派对端        : --deploy-peer 指定但 {env} 无对端，忽略")
+            print(f"  ▶ 对端同步        : --peer 指定但 {env} 无对端，忽略")
     else:
-        print(f"  ▶ 委派对端        : 关闭（默认，对端不部署）")
+        print(f"  ▶ 对端同步        : 关闭（默认，本脚本只碰本机平台）")
     print(f"  ▶ 编译目标        : --target-platform={target_platform or '(默认=本机)'}"
           f"  (任意环境可编任意平台，不拦截)")
     print("=" * 72)
@@ -517,15 +516,27 @@ def delegate_to_peer(peer_env: str, extra_args: list[str], dry_run: bool = False
 # ──────────────────────────────────────────────────────────────────────────
 
 def build_go(pkg_key: str, target_goos: str, target_goarch: str, out_suffix: str = "") -> Path:
-    """交叉编译 Go 二进制，返回输出路径。"""
+    """交叉编译 Go 二进制，返回输出路径。
+
+    输出到 packages/<pkg>/bin/<linux|macos|win>/<bin_name>[.exe] —— 每个包各一份，
+    不再使用 esbuild 式的 platforms/<goos>-<arch>/bin/ 平台子包目录。
+
+    Go 工具链不硬编码 "go"：go.mod 要 go>=1.26.4 时，PATH 里的 /usr/bin/go 可能是
+    go1.18，会直接 invalid go version 硬失败。这里按各包 go.mod 动态挑工具链。
+    """
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
     bin_name = spec["bin_name"]
     ext = ".exe" if target_goos == "windows" else ""
     out_name = f"{bin_name}{ext}"
-    out_path = pkg_dir / "bin" / out_name
+    # goos → 平台目录名（OS 级，不含架构）
+    plat_dir_name = {"windows": "win", "darwin": "macos", "linux": "linux"}[target_goos]
+    plat_bin = pkg_dir / "bin" / plat_dir_name
+    plat_bin.mkdir(parents=True, exist_ok=True)
+    out_path = plat_bin / out_name
 
-    cmd = list(spec["go_cmd"])
+    go_exe = go_toolchain_for(pkg_key)
+    cmd = [go_exe] + list(spec["go_cmd"][1:])
     # 替换 None 为输出路径
     for i, c in enumerate(cmd):
         if c is None:
@@ -533,31 +544,30 @@ def build_go(pkg_key: str, target_goos: str, target_goarch: str, out_suffix: str
 
     env_extra = {"GOOS": target_goos, "GOARCH": target_goarch, "CGO_ENABLED": "0"}
     print(f"  build {pkg_key} for {target_goos}/{target_goarch} → {out_path}")
+    print(f"  using go: {go_exe}")
     run(cmd, cwd=pkg_dir, env_extra=env_extra)
-
-    # 同步到 platforms/<npm-platform>/bin/（npm 子包布局要求）
-    # Go 的 (goos, goarch) 与 npm 命名不同：
-    #   go:  windows/amd64  ↔  npm: win32-x64
-    #   go:  darwin/arm64   ↔  npm: darwin-arm64
-    if "platforms_dir" in spec:
-        npm_os = {"windows": "win32", "darwin": "darwin", "linux": "linux"}[target_goos]
-        npm_arch = {"amd64": "x64", "arm64": "arm64"}[target_goarch]
-        plat_dir = pkg_dir / spec["platforms_dir"] / f"{npm_os}-{npm_arch}" / "bin"
-        plat_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(out_path, plat_dir / out_name)
-        print(f"  同步到平台子包目录: {plat_dir / out_name}")
 
     return out_path
 
 
-# (goos, goarch) → npm platform key（用于 --target-platform 参数映射）
-GOOS_ARCH_TO_NPM_PLATFORM = {
-    ("linux", "amd64"): "linux-x64",
-    ("linux", "arm64"): "linux-arm64",
-    ("darwin", "amd64"): "darwin-x64",
-    ("darwin", "arm64"): "darwin-arm64",
-    ("windows", "amd64"): "win32-x64",
-    ("windows", "arm64"): "win32-arm64",
+_GO_TOOLCHAIN_CACHE: dict[str, str] = {}
+
+
+def go_toolchain_for(pkg_key: str) -> str:
+    """按该包 go.mod 的版本要求返回 Go 工具链路径（同包只探测一次）。"""
+    if pkg_key in _GO_TOOLCHAIN_CACHE:
+        return _GO_TOOLCHAIN_CACHE[pkg_key]
+    pkg_dir = PACKAGES_DIR / PACKAGES[pkg_key]["dir"]
+    go_exe = find_go(go_mod_required_version(pkg_dir))
+    _GO_TOOLCHAIN_CACHE[pkg_key] = go_exe
+    return go_exe
+
+
+# (goos, goarch) → 平台目录名（OS 级，bin/ 下的子目录名）
+GOOS_ARCH_TO_PLATFORM_DIR = {
+    "linux": "linux",
+    "darwin": "macos",
+    "windows": "win",
 }
 
 
@@ -603,7 +613,7 @@ def build(
 
 
 def build_js(pkg_key: str) -> None:
-    """运行 JS 包的构建脚本（npm run build），跳过已有 lib/ 的包。"""
+    """运行 JS 包的构建脚本（pnpm run build），跳过已有 lib/ 的包。"""
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
     pkg_json_path = pkg_dir / "package.json"
@@ -621,15 +631,15 @@ def build_js(pkg_key: str) -> None:
     if (pkg_dir / "lib").exists():
         print(f"  {pkg_key}: lib/ 已存在，跳过构建")
         return
-    print(f"  {pkg_key}: npm run build")
-    run(["npm", "run", "build"], cwd=pkg_dir)
+    print(f"  {pkg_key}: pnpm run build")
+    run(["pnpm", "run", "build"], cwd=pkg_dir)
 
 
 def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str, dry_run: bool = False) -> None:
     """通过 PowerShell 在 Windows 端编译 Go 二进制。
 
     前提：Windows 侧必须有源码（通过 stage 或手动复制）。
-    输出到 C:\\Users\\<user>\\.aek\\src\\packages\\<pkg>\\platforms\\win32-x64\\bin\\
+    输出到 C:\\Users\\<user>\\.aek\\src\\packages\\<pkg>\\bin\\win\\<bin>.exe
     """
     spec = PACKAGES[pkg_key]
     pkg_dir = spec["dir"]
@@ -637,7 +647,7 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
     build_target = spec["go_cmd"][4] if len(spec["go_cmd"]) > 4 else "./cmd/aek"
 
     # Windows 路径（供 pwsh 使用）
-    out_dir = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}\\platforms\\win32-x64\\bin"
+    out_dir = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}\\bin\\win"
     out_file = f"{out_dir}\\{bin_name}.exe"
     src_on_win = f"{win_user_profile}\\.aek\\src\\packages\\{pkg_dir}"
 
@@ -685,44 +695,87 @@ def _build_go_on_windows_via_pwsh(pkg_key: str, pwsh: str, win_user_profile: str
 # ──────────────────────────────────────────────────────────────────────────
 
 def uninstall_cloud_conflicts(pkg_key: str, where: str) -> None:
-    """卸载本机/对端的云端冲突包。where: 'local' / 'windows-peer' / 'wsl-peer'"""
+    """卸载本机/对端的云端冲突包。where: 'local' / 'windows-peer' / 'wsl-peer'
+
+    卸载一律用 pnpm（项目铁律：禁止 npm / yarn）。
+    """
     spec = PACKAGES[pkg_key]
-    names = list(spec["conflict_npm_names"])
-    if pkg_key != "aek-common":
-        names.extend(GLOBAL_CONFLICT_EXTRA)
+    names = list(spec["conflict_npm_names"]) + list(GLOBAL_CONFLICT_EXTRA)
 
     if where == "local":
+        # pnpm remove -g 同样要求 global bin dir 在 PATH 中，必须显式传
+        cfg = pnpm_global_config_args()
         for n in names:
-            run(["npm", "uninstall", "-g", n], check=False)
+            run(["pnpm", "remove", "-g", *cfg, n], check=False)
     elif where == "windows-peer":
         pwsh = find_pwsh()
         if not pwsh:
             print("  [!] 无 pwsh，跳过对端卸载")
             return
-        joined = ", ".join(f"'{n}'" for n in names)
-        ps = f"""
-$ErrorActionPreference = 'Continue'
-foreach ($n in @({joined})) {{
-  Write-Host "  uninstalling $n ..."
-  npm uninstall -g $n 2>&1 | Out-Null
-}}
-"""
-        run_pwsh(pwsh, ps, f"卸载对端冲突包: {pkg_key}")
+        # Windows 侧的 pnpm remove 走 --win-uninstall 自派发，不写 pwsh 逻辑
+        wp = get_win_paths(pwsh)
+        extra = [wp.npm_bin_dir] if wp.npm_bin_dir else []
+        repo_root_unc = get_wsl_unc_paths(pwsh, PROJECT_ROOT).src_dir
+        r = run_windows_python(
+            pwsh, args=["--win-uninstall", ",".join(names),
+                        get_win_pnpm_home(pwsh), ",".join(extra)],
+            repo_root_unc=repo_root_unc, timeout=600,
+        )
+        if r.stdout.strip():
+            print(r.stdout.rstrip())
+        if r.stderr.strip():
+            print(f"  [peer stderr] {r.stderr.rstrip()}", file=sys.stderr)
     elif where == "wsl-peer":
         wsl = find_wsl_exe()
         if not wsl:
             print("  [!] 无 wsl.exe，跳过对端卸载")
             return
         joined = " ".join(names)
-        run_wsl_in_windows(wsl, f"npm uninstall -g {joined} 2>/dev/null || true", f"卸载对端冲突包: {pkg_key}")
+        run_wsl_in_windows(wsl, f"pnpm remove -g {joined} 2>/dev/null || true", f"卸载对端冲突包: {pkg_key}")
 
 
-def npm_install_local(pkg_key: str) -> None:
-    """本机 npm install -g 当前包目录。"""
+_WORKSPACE_DEPS_READY = False
+
+
+def ensure_workspace_deps() -> None:
+    """在 workspace 根跑一次 pnpm install --ignore-scripts（每个进程只跑一次）。
+
+    为什么必须有这一步：pnpm add -g 既不解析 workspace:* 也不装第三方依赖，
+    全局命令的运行时依赖一律从源码树自己的 node_modules 解析。跳过它会导致
+    CLI 报 ERR_MODULE_NOT_FOUND（无论用 npm 还是 pnpm 全局安装都一样）。
+
+    --ignore-scripts 必须带上：aek-browser 的 postinstall 会联网拉 adapters
+    并去关本地 daemon，不适合在构建流程里跑。
+
+    全量构建有 8 个包，每包跑一次纯属浪费，所以用进程级开关只跑一次。
+    """
+    global _WORKSPACE_DEPS_READY
+    if _WORKSPACE_DEPS_READY:
+        print("  workspace 依赖已就绪（本进程只跑一次，跳过）")
+        return
+    print(f"  pnpm install --ignore-scripts @ {PROJECT_ROOT}")
+    run(["pnpm", "install", "--ignore-scripts"], cwd=PROJECT_ROOT)
+    _WORKSPACE_DEPS_READY = True
+
+
+def pnpm_global_install(pkg_key: str) -> None:
+    """本机 pnpm add -g 当前包目录（禁止 npm install -g）。
+
+    用 pnpm 而不是 npm 的原因：
+    - pnpm 生成真 shim（exec node <path>），不依赖源码 .js 的 +x 位
+    - npm 的全局 bin 是「直接 symlink 到源码 .js」，源码一丢 +x 就 Permission denied
+      （本次踩坑：aekpm 曾因 bin 文件缺失/未加 +x 而 Permission denied）
+
+    全局 bin 目录由 pnpm_global_bin_dir() 从 PATH 动态解析，不改 PATH。
+    """
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
-    print(f"  npm install -g {pkg_dir}")
-    run(["npm", "install", "-g", "."], cwd=pkg_dir)
+    bin_dir = pnpm_global_bin_dir()
+    print(f"  pnpm add -g --ignore-scripts {pkg_dir}")
+    print(f"  global bin dir: {bin_dir}")
+    run(["pnpm", "add", "-g", "--ignore-scripts",
+         f"--config.global-bin-dir={bin_dir}", str(pkg_dir)],
+        cwd=PROJECT_ROOT)
 
 
 def stage_for_windows_peer(pkg_key: str) -> str:
@@ -733,7 +786,6 @@ def stage_for_windows_peer(pkg_key: str) -> str:
 
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
-    common_dir = PACKAGES_DIR / "aek-common"
 
     pwsh = find_pwsh()
     if not pwsh:
@@ -742,18 +794,16 @@ def stage_for_windows_peer(pkg_key: str) -> str:
     # staging 使用用户约定的 dev-staging 子目录
     staging_root = Path(wp.src_dir).parent / "dev-staging"
     staging_win = str(staging_root / spec["dir"])
-    staging_common_win = str(staging_root / "aek-common")
 
     # 创建目标目录（先清空，防止旧嵌套结构残留）
     staging_path = Path(staging_win)
-    staging_common_path = Path(staging_common_win)
-    for p in (staging_path, staging_common_path):
+    for p in (staging_path,):
         if p.exists():
             import shutil
             shutil.rmtree(p)
         p.mkdir(parents=True, exist_ok=True)
 
-    # 排除规则（platforms 不 exclusion，Go 包的平台二进制在 platforms/<platform>/bin/ 中）
+    # 排除规则（bin/ 不排除：Go 包的平台二进制在 bin/<linux|macos|win>/ 中）
     # 对于有 build 脚本的 JS 包，不排除 dist/
     import json as _json
     spec = PACKAGES[pkg_key]
@@ -786,136 +836,79 @@ def stage_for_windows_peer(pkg_key: str) -> str:
 
     print(f"  [copy] {pkg_key} → {staging_win}")
     copy_tree(pkg_dir, Path(staging_win))
-    print(f"  [copy] aek-common → {staging_common_win}")
-    copy_tree(common_dir, Path(staging_common_win))
 
-    # 平台二进制只保留 win32-x64（如有）
-    pkg_plat = Path(staging_win) / "platforms"
-    if pkg_plat.exists():
-        for d in pkg_plat.iterdir():
-            if d.is_dir() and d.name != "win32-x64":
+    # 平台二进制只保留 win/（如有）：staging 是给 Windows 端用的
+    pkg_bin_plat = Path(staging_win) / "bin"
+    if pkg_bin_plat.exists():
+        for d in pkg_bin_plat.iterdir():
+            if d.is_dir() and d.name != "win":
                 import shutil
                 shutil.rmtree(d)
-                print(f"  [rm] 剔除平台: {d.name}")
+                print(f"  [rm] 剔除平台目录: bin/{d.name}")
 
     return staging_win
 
 
-def win_workspace_pnpm_install() -> None:
-    """在 Windows 端 workspace（$env:USERPROFILE\\.aek\\src）执行一次 pnpm install。
+def win_workspace_pnpm_install(repo_root_unc: str) -> None:
+    """在 Windows 端 workspace 执行一次 pnpm install（委托 Windows 侧 Python）。
 
-    幂等：整条流水线（--only install-win / 默认 deploy）只应调用一次，
-    不要每个包重复跑。
+    本脚本跑在 WSL 里，读不到 C:\\Users\\... 这类 Windows 路径，所以文件
+    读写和 pnpm install 全部交给 shared 模块的 win_pnpm_install() 在 Windows 上做。
+    workspace 根的 package.json / pnpm-workspace.yaml 由 stage 阶段复制。
     """
     pwsh = find_pwsh()
     if not pwsh:
         raise RuntimeError("找不到 PowerShell")
-
     wp = get_win_paths(pwsh)
-    src_dir = Path(wp.src_dir)
-    npm_bin_dir = wp.npm_bin_dir
-
     print(f"  [win] workspace root: {wp.src_dir}")
-    print(f"  [win] npm bin dir:    {npm_bin_dir}")
-
-    # 步骤1: 确保 workspace 配置文件存在
-    pkg_json_path = src_dir / "package.json"
-    if not pkg_json_path.exists():
-        # 复制根 package.json（含 workspaces 字段）
-        root_pkg = PROJECT_ROOT / "package.json"
-        if root_pkg.exists():
-            import json as _root_json
-            with open(root_pkg) as f:
-                root_meta = _root_json.load(f)
-            if "workspaces" not in root_meta:
-                root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
-            pkg_json_path.write_text(
-                _root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8"
-            )
-            print("  [win] 写入 package.json (含 workspaces)")
-
-    workspace_yaml_path = src_dir / "pnpm-workspace.yaml"
-    if not workspace_yaml_path.exists():
-        workspace_yaml = PROJECT_ROOT / "pnpm-workspace.yaml"
-        if workspace_yaml.exists():
-            workspace_yaml_path.write_text(workspace_yaml.read_text(), encoding="utf-8")
-            print("  [win] 写入 pnpm-workspace.yaml")
-
-    # 步骤2: 运行 pnpm install --ignore-scripts
-    install_cmd = f"""
-$env:PATH = '{npm_bin_dir};$env:PATH'
-Set-Location '{wp.src_dir}'
-pnpm install --ignore-scripts
-"""
-    r = run_pwsh_cmd(pwsh, install_cmd, timeout=600)
+    extra = [wp.npm_bin_dir] if wp.npm_bin_dir else []
+    r = run_windows_python(
+        pwsh, args=["--win-pnpm-install", wp.src_dir,
+                    "--pnpm-home", get_win_pnpm_home(pwsh),
+                    "--extra-path", ",".join(extra)],
+        repo_root_unc=repo_root_unc, timeout=600,
+    )
     if r.returncode != 0:
-        print(f"  [!] pnpm install 失败:\n{r.stdout[-500:]}\n{r.stderr[-300:]}")
+        print(f"  [!] pnpm install 失败:\n{r.stdout[-800:]}", file=sys.stderr)
         raise RuntimeError("pnpm install 失败")
     if r.stdout.strip():
-        print(r.stdout[-300:])
-    print("  [win] pnpm install 完成")
+        print(r.stdout.rstrip())
+    if r.stderr.strip():
+        print(f"  [peer stderr] {r.stderr.rstrip()}", file=sys.stderr)
 
+def npm_install_on_windows_peer(pkg_keys, repo_root_unc: str, staging_win: str = "") -> None:
+    """Windows 对端全局安装：workspace 根跑一次 pnpm install，再 pnpm add -g 全部包。
 
-def create_win_shims(pkg_key: str) -> None:
-    """为 pkg_key 声明的全部 bin 在 Windows npm bin 目录生成 .ps1 shim（幂等覆盖）。
-
-    bin 声明以 WSL 侧源码 package.json 为准（stage 已同步到 Windows）。
-    新增 bin（如 9/19 重构的 aeksm/aektm/aekmcp/aekws）靠这里重建。
+    shim 交给 pnpm 自己生成到 $PNPM_HOME\\bin，不手动写 .ps1。
+    pkg_keys 可以是单个 key 字符串或 key 列表；插件包（无全局 CLI）自动跳过。
     """
-    import json as _json
-
-    spec = PACKAGES[pkg_key]
+    win_workspace_pnpm_install(repo_root_unc)
+    keys = [pkg_keys] if isinstance(pkg_keys, str) else list(pkg_keys)
+    dirs = [PACKAGES[k]["dir"] for k in keys
+            if PACKAGES[k].get("npm") and not PACKAGES[k].get("plugin")]
+    if not dirs:
+        print("  [win] 无可全局安装的包")
+        return
     pwsh = find_pwsh()
     if not pwsh:
         raise RuntimeError("找不到 PowerShell")
     wp = get_win_paths(pwsh)
-    npm_bin_dir = wp.npm_bin_dir
-
-    pkg_json_path = PACKAGES_DIR / spec["dir"] / "package.json"
-    with open(pkg_json_path) as f:
-        pkg_meta = _json.load(f)
-    bin_map = pkg_meta.get("bin", {})
-    if not bin_map:
-        print(f"  [win] {pkg_key}: 无 bin 声明，跳过 shim")
-        return
-
-    for _bin_name, _js_rel in bin_map.items():
-        _js_full = f"$env:USERPROFILE\\.aek\\src\\packages\\{spec['dir']}\\{_js_rel}"
-        _shim_content = (
-            "$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\\n"
-            '$exe=""\\n'
-            'if ($PSVersionTable.PSVersion -lt "6.0" -or $IsWindows) { $exe=".exe" }\\n'
-            "$ret=0\\n"
-            'if (Test-Path "$basedir/node$exe") {\\n'
-            f'    & "$basedir/node$exe" "{_js_full}" $args\\n'
-            "} else {\\n"
-            f'    & "node$exe" "{_js_full}" $args\\n'
-            "}\\n"
-            "$ret=$LASTEXITCODE\\n"
-            "exit $ret\\n"
-        )
-        _wsl_bin_dir = "/mnt/" + npm_bin_dir[0].lower() + npm_bin_dir[2:].replace("\\", "/")
-        _wsl_path = Path(_wsl_bin_dir) / f"{_bin_name}.ps1"
-        _wsl_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(_wsl_path, 'w', encoding='utf-8', newline='\n') as f:
-            f.write(_shim_content)
-        print(f"  [win] 创建 shim: {_bin_name}")
-
-    print(f"  [win] {pkg_key} shim 完成")
+    extra = [wp.npm_bin_dir] if wp.npm_bin_dir else []
+    r = run_windows_python(
+        pwsh, args=["--win-global-install", ",".join(dirs),
+                    get_win_pnpm_home(pwsh), ",".join(extra)],
+        repo_root_unc=repo_root_unc, timeout=600,
+    )
+    if r.returncode != 0:
+        print(f"  [!] Windows 全局安装失败:\n{r.stdout[-800:]}", file=sys.stderr)
+        raise RuntimeError("Windows 全局安装失败")
+    if r.stdout.strip():
+        print(r.stdout.rstrip())
+    if r.stderr.strip():
+        print(f"  [peer stderr] {r.stderr.rstrip()}", file=sys.stderr)
 
 
-def npm_install_on_windows_peer(pkg_key: str, staging_win: str = "") -> None:
-    """兼容旧调用：pnpm install + 该包 shim。
-
-    新代码请改用 win_workspace_pnpm_install() + create_win_shims(pkg_key)，
-    避免每个包重复跑 pnpm install。
-    """
-    win_workspace_pnpm_install()
-    create_win_shims(pkg_key)
-
-
-def stage_all_for_windows_peer(no_cache: bool = False) -> None:
+def stage_all_for_windows_peer(no_cache: bool = False, repo_root_unc: str = "") -> None:
     """WSL 写源码到自身文件系统，PowerShell 通过 UNC 复制到 Windows。
 
     流程：
@@ -937,22 +930,11 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
     src_dir_wsl.mkdir(parents=True, exist_ok=True)
     packages_dir_wsl.mkdir(parents=True, exist_ok=True)
 
-    # 写入根 package.json（含 workspaces）— 写到 WSL 自身文件系统
-    root_pkg = PROJECT_ROOT / "package.json"
-    dst_pkg = src_dir_wsl / "package.json"
-    with open(root_pkg) as f:
-        root_meta = _root_json.load(f)
-    if "workspaces" not in root_meta:
-        root_meta["workspaces"] = ["packages/*", "packages/*/platforms/*"]
-    dst_pkg.write_text(_root_json.dumps(root_meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"  [wsl] package.json written: {dst_pkg}")
-
-    # 写入 pnpm-workspace.yaml — 写到 WSL 自身文件系统
-    ws_yaml = PROJECT_ROOT / "pnpm-workspace.yaml"
-    dst_ws = src_dir_wsl / "pnpm-workspace.yaml"
-    if ws_yaml.exists() and not dst_ws.exists():
-        dst_ws.write_text(ws_yaml.read_text(), encoding="utf-8")
-        print(f"  [wsl] pnpm-workspace.yaml written: {dst_ws}")
+    # 不写 package.json / pnpm-workspace.yaml：
+    # 这个 workspace 的真源就是 PROJECT_ROOT 自身（下方 packages_dir_wsl == PACKAGES_DIR），
+    # 再往 package.json 里塞 workspaces 只会让 pnpm 每次调用都打
+    # WARN "workspaces field ... is not supported by pnpm"。
+    # workspace 清单的唯一真相来源是 pnpm-workspace.yaml。
 
     # 计算 UNC 路径，让 PowerShell 读取
     wp_unc = get_wsl_unc_paths(pwsh, PROJECT_ROOT)
@@ -995,97 +977,35 @@ def stage_all_for_windows_peer(no_cache: bool = False) -> None:
         key_src = compute_key(src)
         print(f"  [wsl] {pkg_key} 就绪: {src}  (key={key_src})")
 
-    # 构建 PowerShell 命令：从 UNC 复制源码到 Windows staging
-    wp_win = get_win_paths(pwsh)
-    packages_win = wp_win.packages_dir  # C:\\Users\\<user>\\.aek\\src\\packages
-
-    # 构建 ps1 脚本
-    import textwrap as _tw
-    ps_script = _tw.dedent(f"""\
-        $ErrorActionPreference = 'Continue'
-        $Error.Clear()
-
-        $uncPackages = '{packages_unc}'
-        $winPackages = r'{packages_win.replace(chr(92), chr(92)+chr(92))}'
-
-        # 确保目标目录存在
-        if (-not (Test-Path $winPackages)) {{
-            New-Item -ItemType Directory -Force -Path $winPackages | Out-Null
-        }}
-
-        $pkgs = @('aek-websearch','aek-mcp','aek-task-manager','aek-common',
-                   'aek-prompt-manager','aek-skill-manager','aek-browser','aek-dsh','aek')
-
-        foreach ($p in $pkgs) {{
-            $uncSrc = Join-Path $uncPackages $p
-            $winDst = Join-Path $winPackages $p
-            if (-not (Test-Path $uncSrc)) {{
-                Write-Warning "UNC 源不存在: $uncSrc"
-                continue
-            }}
-            # 删除旧目录（避免残留）
-            if (Test-Path $winDst) {{
-                Remove-Item $winDst -Recurse -Force
-            }}
-            # 复制
-            Copy-Item $uncSrc -Destination $winDst -Recurse -Force
-            Write-Host "  [pwsh] copied $p"
-        }}
-
-        # 剔除非 win32-x64 平台目录
-        foreach ($p in $pkgs) {{
-            $platDir = Join-Path (Join-Path $winPackages $p) 'platforms'
-            if (Test-Path $platDir) {{
-                Get-ChildItem $platDir -Directory | Where-Object {{ $_.Name -ne 'win32-x64' }} | ForEach-Object {{
-                    Remove-Item $_.FullName -Recurse -Force
-                    Write-Host "  [pwsh] rm platform: $($_.Name)"
-                }}
-            }}
-        }}
-
-        if ($Error.Count -gt 0) {{
-            Write-Error "Stage 失败"
-            exit 1
-        }}
-    """)
-
-    r = run_pwsh_cmd(pwsh, ps_script, timeout=120)
+    # ── 委托 Windows 侧 Python 执行复制 ──
+    # 跑 stage 的是 WSL 里的 Python，它访问不到 \\wsl.localhost\\... 这类 UNC
+    # 路径（os.path.isdir 直接 False），所以复制必须在 Windows 上发生。
+    # 但这里不写任何 pwsh 代码：真正的逻辑在 scripts/wsl_peer_stage.py 里，
+    # pwsh 只负责把那个 .py 用 python 拉起来（见 run_windows_python）。
+    pkg_names = [PACKAGES[k]["dir"] for k in PACKAGES]
+    r = run_windows_python(
+        pwsh, args=["--win-stage", wp_unc.src_dir, ",".join(pkg_names)],
+        repo_root_unc=wp_unc.src_dir, timeout=600,
+    )
     if r.returncode != 0:
-        print(f"  [!] PowerShell stage 失败:\n{r.stderr[-500:]}", file=sys.stderr)
-        raise RuntimeError(f"stage 失败: {r.stderr[:200]}")
+        print(f"  [!] stage 失败:\n{r.stderr[-800:]}", file=sys.stderr)
+        raise RuntimeError("stage 失败")
     if r.stdout.strip():
         print(r.stdout.rstrip())
     if r.stderr.strip():
-        print(f"  [pwsh stderr] {r.stderr.rstrip()}", file=sys.stderr)
-
+        print(f"  [peer stderr] {r.stderr.rstrip()}", file=sys.stderr)
     print("\n✓ 完成")
 
 
-def stage_for_wsl_peer(pkg_key: str) -> str:
-    """在 Windows 跑时，把源码反向 stage 到 WSL 侧（通过 wsl.exe 调 bash）。"""
-    env = detect_env()
-    if env != "windows":
-        raise RuntimeError("stage_for_wsl_peer 仅 Windows 可用")
-    wsl = find_wsl_exe()
-    if not wsl:
-        raise RuntimeError("找不到 wsl.exe")
+def pnpm_install_on_wsl_peer(pkg_key: str) -> None:
+    """让 WSL 端从源码路径 pnpm add -g。
 
-    spec = PACKAGES[pkg_key]
-    pkg_dir = PACKAGES_DIR / spec["dir"]
-    common_dir = PACKAGES_DIR / "aek-common"
-
-    # Windows 路径 → WSL 路径（这里我们直接复用 WSL 自己的源码，因为都在同一 repo）
-    # 实际上：WSL 侧的源码就在 /home/xdx/CodeRelated/agent-enhance-kit 下
-    # 只需让 WSL 端 npm install -g 那里即可。这一步留给 sync 函数处理。
-    return ""  # 占位
-
-
-def npm_install_on_wsl_peer(pkg_key: str) -> None:
-    """让 WSL 端从源码路径 npm install -g。"""
+    必须先跑 pnpm install --ignore-scripts：pnpm add -g 不解析 workspace:*
+    也不装第三方依赖，CLI 运行时依赖全靠源码树自己的 node_modules。
+    """
     wsl = find_wsl_exe()
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
-    common_dir = PACKAGES_DIR / "aek-common"
 
     # 把 Windows 路径翻译成 WSL 路径
     def win_to_wsl(p: Path) -> str:
@@ -1096,18 +1016,22 @@ def npm_install_on_wsl_peer(pkg_key: str) -> None:
             s = f"/mnt/{drive}{s[2:]}"
         return s
 
+    root_wsl = win_to_wsl(PROJECT_ROOT)
     pkg_wsl = win_to_wsl(pkg_dir)
-    common_wsl = win_to_wsl(common_dir)
 
-    cmd = f"npm install -g '{common_wsl}' && npm install -g '{pkg_wsl}'"
-    run_wsl_in_windows(wsl, cmd, f"WSL 端 npm install {pkg_key}")
+    cmd = (
+        f"cd '{root_wsl}' && pnpm install --ignore-scripts && "
+        f"pnpm add -g --ignore-scripts '{pkg_wsl}'"
+    )
+    run_wsl_in_windows(wsl, cmd, f"WSL 端 pnpm add -g {pkg_key}")
 
 
 # ──────────────────────────────────────────────────────────────────────────
 # 主流程
 # ──────────────────────────────────────────────────────────────────────────
 
-def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: str = None, dry_run: bool = False) -> None:
+def deploy_one(pkg_key: str, no_deploy: bool, peer: bool, target_platform: str = None,
+               dry_run: bool = False, fail_on_peer: bool = False, skip_build: bool = False) -> None:
     spec = PACKAGES[pkg_key]
     pkg_dir = PACKAGES_DIR / spec["dir"]
     env = detect_env()
@@ -1117,8 +1041,11 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
     print(f"{'=' * 60}")
 
     # 1) 构建（Go 包才有）
-    print("\n[1/4] 构建...")
-    if dry_run:
+    if skip_build:
+        print("\n[1/4] --skip-build 指定，跳过构建（直接复用已有产物）")
+        if no_deploy:
+            return
+    elif dry_run:
         # --dry-run 必须只读：不跑 go build / npm build，只打印将要构建什么
         spec_k = spec["kind"]
         if spec_k == "go-cli":
@@ -1131,13 +1058,14 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
                 goos, goarch = goos_map.get(target_platform, cur)
             else:
                 goos, goarch = cur
-            out = pkg_dir / "bin" / f"{spec['bin_name']}{'.exe' if goos == 'windows' else ''}"
+            out = (pkg_dir / "bin" / GOOS_ARCH_TO_PLATFORM_DIR[goos]
+                   / f"{spec['bin_name']}{'.exe' if goos == 'windows' else ''}")
             print(f"  [dry-run] 将构建 {pkg_key} {goos}/{goarch} → {out}")
         else:
-            build_cmd = "npm run build"
+            build_cmd = "pnpm run build"
             print(f"  [dry-run] 将执行: cd {pkg_dir} && {build_cmd}")
     else:
-        build(pkg_key, target_platform=target_platform if not skip_peer else None)
+        build(pkg_key, target_platform=target_platform)
         # JS 包有 build 脚本时也需要构建
         if spec["kind"] != "go-cli":
             build_js(pkg_key)
@@ -1151,56 +1079,100 @@ def deploy_one(pkg_key: str, no_deploy: bool, skip_peer: bool, target_platform: 
     if not spec.get("plugin"):
         print("\n[2/4] 本机卸载云端冲突包...")
         uninstall_cloud_conflicts(pkg_key, "local")
-        print("\n[3/4] 本机 npm install -g ...")
-        npm_install_local(pkg_key)
+        print("\n[3/4] 本机 pnpm add -g ...")
+        ensure_workspace_deps()
+        pnpm_global_install(pkg_key)
     else:
         print("\n[2/4] DSH插件，跳过全局安装")
 
-    # 3) 对端同步（仅对插件包执行 dsh plugin add）
-    if skip_peer:
-        print("\n[4/4] --skip-peer 指定，跳过对端同步")
+    # 3) 对端同步：默认关闭。
+    # 指定 --target-platform linux 就只构建+部署 linux，绝不碰对端；
+    # 需要同步到 Windows 时显式加 --peer。
+    if not peer:
+        print("\n[4/4] 未指定 --peer，跳过对端同步（只处理本机）")
         return
 
     print("\n[4/4] 对端同步...")
-    if spec.get("plugin"):
-        if env == "wsl":
-            # WSL 端直接安装插件
-            print("  WSL 端: dsh plugin --profile web add ...")
-            run(["dsh", "plugin", "--profile", "web", "add", str(pkg_dir)], cwd=PROJECT_ROOT)
-            # Windows 对端：只复制本插件（不用 stage_all）
-            print("  Windows 对端: 复制插件 + dsh plugin add ...")
-            wp_unc = get_wsl_unc_paths(find_pwsh(), PROJECT_ROOT)
-            win_pkg_dir = Path(wp_unc.packages_dir) / spec["dir"]
-            win_pkg_dir.mkdir(parents=True, exist_ok=True)
-            import shutil as _shutil
-            if win_pkg_dir.exists():
-                _shutil.rmtree(win_pkg_dir)
-            _shutil.copytree(pkg_dir, win_pkg_dir, symlinks=True)
-            run_pwsh(find_pwsh(), f'dsh plugin --profile web add "{win_pkg_dir}"', "Windows 端 dsh plugin add")
-        elif env == "windows":
-            print("  Windows 端: dsh plugin --profile web add ...")
-            pwsh = find_pwsh()
-            win_path = pkg_dir.as_posix().replace("/", "\\")
-            run_pwsh_cmd(pwsh, f'dsh plugin --profile web add "{win_path}"',
-                         timeout=120).check("Windows 端 dsh plugin add")
-            # WSL 对端：通过 WSL 安装
-            wsl = find_wsl_exe()
-            if wsl:
-                wsl_path = pkg_dir.as_posix()
-                run_wsl_in_windows(wsl, f'dsh plugin --profile web add "{wsl_path}"', "WSL 对端 dsh plugin add")
+    sync_peer(pkg_key, spec, env, fail_on_error=fail_on_peer)
+
+
+def sync_peer(pkg_key: str, spec: dict, env: str, fail_on_error: bool = False) -> None:
+    """对端同步（插件包跑 dsh plugin add；其余包 stage + 对端 pnpm add -g）。
+
+    对端同步是尽力而为：本机（linux/darwin/windows）已经构建+部署完，
+    对端失败不应该让整个构建失败（比如 Windows pnpm 未配置 global bin dir）。
+    默认只告警；需要严格中断时传 fail_on_error=True。
+    """
+    if env == "wsl" and not find_pwsh():
+        print("  [!] 当前无 pwsh，跳过对端同步")
+        return
+
+    # 仓库在 Windows 侧的 UNC 视图，一次算好往下传（路径计算不散落各处）
+    wp_unc = get_wsl_unc_paths(find_pwsh(), PROJECT_ROOT)
+    repo_root_unc = wp_unc.src_dir
+
+    def _run() -> None:
+        if spec.get("plugin"):
+            if env == "wsl":
+                # WSL 端直接安装插件
+                print("  WSL 端: dsh plugin --profile web add ...")
+                run(["dsh", "plugin", "--profile", "web", "add", str(PACKAGES_DIR / spec["dir"])],
+                    cwd=PROJECT_ROOT)
+                # Windows 对端：只 stage 本插件包（复用 --win-stage，带 pkgs 过滤）。
+                # 不能在这里 Path(UNC).mkdir() —— WSL 里 UNC 字符串是相对路径，
+                # 会在 CWD 下创建垃圾目录（历史事故）。
+                print("  Windows 对端: stage 插件包 + dsh plugin add ...")
+                pwsh0 = find_pwsh()
+                r = run_windows_python(
+                    pwsh0, args=["--win-stage", repo_root_unc, spec["dir"]],
+                    repo_root_unc=repo_root_unc, timeout=300,
+                )
+                if r.returncode != 0:
+                    print(f"  [!] 插件 stage 失败:\n{r.stderr[-800:]}", file=sys.stderr)
+                    raise RuntimeError("插件 stage 失败")
+                if r.stdout.strip():
+                    print(r.stdout.rstrip())
+                wp = get_win_paths(pwsh0)
+                win_pkg_dir = win_join(wp.src_dir, "packages", spec["dir"])
+                r = run_pwsh_cmd(pwsh0,
+                                 f'dsh plugin --profile web add "{win_pkg_dir}"',
+                                 timeout=120)
+                if r.returncode != 0:
+                    print(f"[✗] Windows 端 dsh plugin add 失败:\n{r.stdout[-500:]}",
+                          file=sys.stderr)
+                    raise SystemExit("[✗] Windows 端 dsh plugin add 失败")
+            elif env == "windows":
+                print("  Windows 端: dsh plugin --profile web add ...")
+                pwsh = find_pwsh()
+                win_path = (PACKAGES_DIR / spec["dir"]).as_posix().replace("/", "\\")
+                run_pwsh_cmd(pwsh, f'dsh plugin --profile web add "{win_path}"',
+                             timeout=120).check("Windows 端 dsh plugin add")
+                # WSL 对端：通过 WSL 安装
+                wsl = find_wsl_exe()
+                if wsl:
+                    wsl_path = (PACKAGES_DIR / spec["dir"]).as_posix()
+                    run_wsl_in_windows(wsl, f'dsh plugin --profile web add "{wsl_path}"',
+                                        "WSL 对端 dsh plugin add")
+            else:
+                print(f"  当前环境 {env} 无对端概念，跳过")
         else:
-            print(f"  当前环境 {env} 无对端概念，跳过")
-    else:
-        # 非插件包：原有逻辑
-        if env == "wsl":
-            uninstall_cloud_conflicts(pkg_key, "windows-peer")
-            stage_all_for_windows_peer(no_cache=False)
-            npm_install_on_windows_peer(pkg_key, staging_win="")
-        elif env == "windows":
-            uninstall_cloud_conflicts(pkg_key, "wsl-peer")
-            npm_install_on_wsl_peer(pkg_key)
-        else:
-            print(f"  当前环境 {env} 无对端概念，跳过")
+            if env == "wsl":
+                uninstall_cloud_conflicts(pkg_key, "windows-peer")
+                stage_all_for_windows_peer(no_cache=False, repo_root_unc=repo_root_unc)
+                npm_install_on_windows_peer([pkg_key], repo_root_unc, staging_win="")
+            elif env == "windows":
+                uninstall_cloud_conflicts(pkg_key, "wsl-peer")
+                pnpm_install_on_wsl_peer(pkg_key)
+            else:
+                print(f"  当前环境 {env} 无对端概念，跳过")
+
+    if fail_on_error:
+        _run()
+        return
+    try:
+        _run()
+    except (RuntimeError, subprocess.CalledProcessError, SystemExit) as e:
+        print(f"\n  [!] 对端同步失败（本机构建+部署已成功，继续）：{e}")
 
 
 def infer_pkg_key(short: str) -> str | None:
@@ -1214,150 +1186,51 @@ def infer_pkg_key(short: str) -> str | None:
     return None
 
 
-def build_platform_bins(go_cmd: str = "go", short: str | None = None, cross_compile: bool = False) -> int:
-    """编译 Go 包平台二进制。
+# 注：esbuild 式的平台子包版本同步（platforms/<os>-<arch>/）已随平台分包一起废弃，
+# 现在二进制直接落在 packages/<pkg>/bin/<linux|macos|win>/，没有独立子包可同步。
 
-    参数:
-        go_cmd: go 命令路径
-        short: 指定包名，None 则编译全部 Go 包
-        cross_compile: 是否交叉编译所有平台（默认 False，只编译本机 + 对端）
 
-    矩阵（cross_compile=True 时）:
-        linux/amd64    → linux-x64
-        linux/arm64    → linux-arm64
-        darwin/amd64   → darwin-x64
-        darwin/arm64   → darwin-arm64
-        windows/amd64  → win32-x64（go 自动加 .exe）
+def dispatch_win_peer_op(argv: list[str]) -> int | None:
+    """Windows 侧入口：argv 以 --win-* 开头时处理并返回退出码，否则返回 None。
+
+    这就是「不写多余 .py」的关键：WSL 侧把 build_deploy.py 自己传给 Windows 的
+    python 执行，靠这些 --win-* 标记决定干哪件事，真正逻辑全在 shared 模块。
     """
-    GO_ENTRY = {
-        "aek-websearch": "./cmd/aek",
-        "aek-task-manager": "./src/cmd/aek-task-manager",
-        "aek-mcp": "./cmd/aek-mcp",
-    }
-    GOOS_ARCH_TO_PLATFORM = {
-        ("linux", "amd64"): "linux-x64",
-        ("linux", "arm64"): "linux-arm64",
-        ("darwin", "amd64"): "darwin-x64",
-        ("darwin", "arm64"): "darwin-arm64",
-        ("windows", "amd64"): "win32-x64",
-    }
-
-    shorts = [short] if short else list(GO_ENTRY.keys())
-
-    # 根据当前环境决定编译哪些平台
-    env_detect = detect_env()
-    if cross_compile:
-        # 全平台编译：(goos, goarch, platform_key)
-        targets = [
-            ("linux", "amd64", "linux-x64"),
-            ("linux", "arm64", "linux-arm64"),
-            ("darwin", "amd64", "darwin-x64"),
-            ("darwin", "arm64", "darwin-arm64"),
-            ("windows", "amd64", "win32-x64"),
-        ]
-    else:
-        # 智能选择：本机平台 + 对端平台
-        targets = []
-        plat = current_platform()
-        # 本机平台
-        targets.append((plat[0], plat[1], GOOS_ARCH_TO_PLATFORM.get(plat, plat)))
-        # 对端平台（WSL↔Windows 互编）
-        if env_detect == "wsl":
-            # WSL 编译 Windows 目标
-            targets.append(("windows", "amd64", "win32-x64"))
-        elif env_detect == "windows":
-            # Windows 编译 Linux 目标
-            targets.append(("linux", "amd64", "linux-x64"))
-
-    failed = []
-
-    def build_one(pkg_short: str, goos: str, goarch: str, platform_key: str) -> bool:
-        src_dir = PACKAGES_DIR / pkg_short
-        dst_bin = src_dir / "platforms" / platform_key / "bin"
-        dst_bin.mkdir(parents=True, exist_ok=True)
-        out_name = pkg_short + (".exe" if goos == "windows" else "")
-        out_path = dst_bin / out_name
-
-        env_build = dict(os.environ)
-        env_build["GOOS"] = goos
-        env_build["GOARCH"] = goarch
-        env_build["CGO_ENABLED"] = "0"
-
-        # 先清掉目标再编译（Go 1.24+ 会拒绝覆盖已有文件）
-        try:
-            out_path.unlink()
-        except FileNotFoundError:
-            pass
-
-        cmd = [go_cmd, "build", "-ldflags=-s -w", "-o", str(out_path), GO_ENTRY[pkg_short]]
-        print(f"  [build] {pkg_short} {goos}/{goarch} → {out_path.relative_to(PROJECT_ROOT)}")
-        r = subprocess.run(cmd, cwd=str(src_dir), env=env_build, capture_output=True, text=True)
-        if r.returncode != 0:
-            print(r.stderr, file=sys.stderr)
-            return False
-        out_path.chmod(0o755)
-        return True
-
-    for pkg_short in shorts:
-        if pkg_short not in GO_ENTRY:
-            print(f"未知包: {pkg_short}（可选: {list(GO_ENTRY)}）", file=sys.stderr)
-            return 1
-        for goos, goarch, platform_key in targets:
-            if not build_one(pkg_short, goos, goarch, platform_key):
-                failed.append(f"{pkg_short} {goos}/{goarch}")
-
-    if failed:
-        print("失败:", *failed, sep="\n  ")
-        return 1
-    print("编译完成。")
-    return 0
-
-
-def sync_versions() -> None:
-    """同步主包版本到平台子包（与 for-maintainers/sync-versions.py 等效）。
-
-    esbuild 式平台分包：@cheezmil/<主包>-<platform>-<arch> 的版本必须与主包同步。
-    changesets 只管 workspace 里的主包，平台子包版本由本脚本统一对齐。
-    """
-    PLATFORM_SUFFIXES = [
-        "-linux-x64", "-linux-arm64",
-        "-darwin-x64", "-darwin-arm64", "-win32-x64",
-    ]
-    MAIN_PACKAGES = ["aek-websearch", "aek-task-manager", "aek-mcp"]
-
-    changed = []
-    for main_name in MAIN_PACKAGES:
-        main_json = PACKAGES_DIR / main_name / "package.json"
-        with open(main_json, encoding="utf-8") as f:
-            main_data = json.load(f)
-        main_version = main_data["version"]
-
-        platform_dir = PACKAGES_DIR / main_name / "platforms"
-        if not platform_dir.is_dir():
-            continue
-
-        for suffix in PLATFORM_SUFFIXES:
-            sub_json = platform_dir / suffix / "package.json"
-            if not sub_json.exists():
-                continue
-            with open(sub_json, encoding="utf-8") as f:
-                sub_data = json.load(f)
-            if sub_data["version"] != main_version:
-                sub_data["version"] = main_version
-                with open(sub_json, "w", encoding="utf-8") as f:
-                    json.dump(sub_data, f, indent=2, ensure_ascii=False)
-                    f.write("\n")
-                changed.append(f"{sub_data['name']}: → {main_version}")
-
-    if changed:
-        print("平台子包版本已同步:")
-        for c in changed:
-            print("  ", c)
-    else:
-        print("平台子包版本已一致，无需同步。")
-
+    if not argv or not argv[0].startswith("--win-"):
+        return None
+    if len(argv) < 2:
+        print(f"[!] {argv[0]} 参数不足", file=sys.stderr)
+        return 2
+    op, a = argv[0], argv[1]
+    if op == "--win-stage":
+        pkgs = [x.strip() for x in argv[2].split(",") if x.strip()] if len(argv) > 2 else []
+        return win_stage(a, pkgs)
+    if op == "--win-pnpm-install":
+        pnpm_home = argv[2] if len(argv) > 2 else ""
+        extra = [x for x in argv[3].split(",") if x] if len(argv) > 3 else []
+        return win_pnpm_install(a, pnpm_home, extra)
+    if op == "--win-global-install":
+        names = [x for x in a.split(",") if x]
+        pnpm_home = argv[2] if len(argv) > 2 else ""
+        extra = [x for x in argv[3].split(",") if x] if len(argv) > 3 else []
+        return win_global_install(names, pnpm_home, extra)
+    if op == "--win-uninstall":
+        names = [x for x in a.split(",") if x]
+        pnpm_home = argv[2] if len(argv) > 2 else ""
+        extra = [x for x in argv[3].split(",") if x] if len(argv) > 3 else []
+        return win_uninstall_pkgs(names, pnpm_home, extra)
+    if op == "--win-shims":
+        if len(argv) < 4:
+            print("[!] --win-shims 需要 <repo_root_unc> <pkg_dir> <bin_dir>", file=sys.stderr)
+            return 2
+        return win_create_shims(a, argv[2], argv[3])
+    print(f"[!] 未知 Windows 侧操作: {op}", file=sys.stderr)
+    return 2
 
 def main() -> None:
+    w = dispatch_win_peer_op(sys.argv[1:])
+    if w is not None:
+        sys.exit(w)
     parser = argparse.ArgumentParser(
         description="AEK 统一开发构建+部署脚本",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1368,20 +1241,30 @@ def main() -> None:
   compile-win    仅通过 pwsh 在 Windows 端 go build（仅 WSL 环境）
   all            完整流水线（默认）
 
---target-platform 选项：
-  linux          仅编译本机 Linux 二进制（默认）
-  windows        仅编译 Windows 二进制
-  both           编译本机 + 对端平台二进制
+--target-platform 选项（只影响 Go 交叉编译，不限执行环境）：
+  linux          编译 linux/amd64（默认=本机平台）
+  windows        编译 windows/amd64
+  darwin         编译 darwin/arm64
+
+  没有 both 选项：要编对端就显式传 --target-platform <平台>。
+
+对端同步（默认关闭）：
+  不传 --peer   → 只构建+部署本机（--target-platform linux 就只碰 linux）
+  加 --peer     → 另外 stage 到对端并在对端 pnpm add -g / dsh plugin add
+  --fail-on-peer → 配合 --peer，对端失败就中断（默认只告警）
 
 示例：
-  # 仅编译本机（WSL 环境默认行为）
-  python3 scripts/build_deploy.py aek-mcp
+  # 全部包，本机平台，构建+部署（不碰对端）
+  python3 scripts/build_deploy.py
 
-  # 仅编译 Windows 二进制
-  python3 scripts/build_deploy.py --target-platform windows --pkg aek-mcp
+  # 仅编译 linux（本机/WSL 最常用）
+  python3 scripts/build_deploy.py --target-platform linux
 
-  # 编译全部平台（WSL ↔ Windows 互编）
-  python3 scripts/build_deploy.py --target-platform both --pkg aek-mcp
+  # 只构建单个包，不部署
+  python3 scripts/build_deploy.py aek-mcp --no-deploy
+
+  # 单包构建+部署到本机，并且同步到 Windows 对端
+  python3 scripts/build_deploy.py aek-mcp --peer
 
   # 仅 stage + 安装
   python3 scripts/build_deploy.py --only stage,install-win --no-cache
@@ -1390,17 +1273,23 @@ def main() -> None:
     parser.add_argument("target", nargs="?", choices=list(PACKAGES.keys()) + ["all-npm"],
                         help="要构建/部署的目标包")
     parser.add_argument("--no-deploy", action="store_true", help="只构建不部署")
-    parser.add_argument("--skip-peer", action="store_true", help="跳过对端同步")
+    parser.add_argument("--peer", action="store_true",
+                        help="同时同步到对端（WSL↔Windows：stage + 对端 pnpm add -g / dsh plugin add）。\n"
+                             "默认关闭 —— 只构建+部署本机，不碰对端。")
+    parser.add_argument("--fail-on-peer", action="store_true",
+                        help="配合 --peer 使用：对端同步失败时中断（默认只告警，本机构建+部署结果不受影响）")
+    parser.add_argument("--skip-peer", action="store_true",
+                        help="[已废弃] 对端同步现在默认关闭，用 --peer 显式开启")
+    parser.add_argument("--peer-only", action="store_true",
+                        help="只做对端同步（stage + pnpm install + pnpm add -g），"
+                             "不跑本机构建/部署。仅 WSL 环境可用")
+    parser.add_argument("--peer-pkgs", default=None,
+                        help="配合 --peer/--peer-only：只同步这些包（逗号分隔包 key），"
+                             "默认=--peer-only 时为全部非插件包")
+    parser.add_argument("--skip-build", action="store_true",
+                        help="跳过构建阶段，复用已有产物（仅影响本机 deploy 流程）")
     parser.add_argument("--no-cache", action="store_true",
                         help="跳过缓存，强制全量复制所有包到 Windows workspace")
-    parser.add_argument("--build-platform-bins", action="store_true",
-                        help="[已弃用] 请使用 --target-platform 代替")
-    parser.add_argument("--build-platform-bin-short", default=None,
-                        help="[已弃用] 请使用 --target-platform 代替")
-    parser.add_argument("--cross-compile", action="store_true",
-                        help="[已弃用] 请使用 --target-platform both 代替")
-    parser.add_argument("--sync-versions", action="store_true",
-                        help="同步平台子包版本号到主包版本")
     parser.add_argument("--only", default=None,
                         help="细粒度动作：stage,install-win,compile-win,all（逗号分隔）")
     parser.add_argument("--dry-run", action="store_true",
@@ -1428,12 +1317,39 @@ def main() -> None:
 
     # 显著打印当前执行环境 + 部署目标校验结果（违规立即截停）
     # 编译不拦截环境；部署严格强制。详见 print_env_banner 注释。
-    print_env_banner(deploy_target=args.deploy_target, target_platform=args.target_platform)
+    print_env_banner(deploy_target=args.deploy_target, target_platform=args.target_platform,
+                     peer_sync=args.peer)
 
     # 解析部署目标（banner 已校验，违规会截停；这里再解析一次得到平台列表）
     env = detect_env()
     cur_platform = CURRENT_ENV_TO_PLATFORM[env]
     deploy_targets = resolve_deploy_targets(env, args.deploy_target)
+
+    # ── --peer-only：只做对端同步，跳过本机构建/部署 ──
+    if args.peer_only:
+        env0 = detect_env()
+        if env0 != "wsl":
+            print("[!] --peer-only 仅 WSL 环境支持"); sys.exit(2)
+        pwsh = find_pwsh()
+        if not pwsh:
+            print("[!] 找不到 PowerShell，--peer-only 不可用"); sys.exit(2)
+        if args.peer_pkgs:
+            keys = [k.strip() for k in args.peer_pkgs.split(",") if k.strip()]
+            for k in keys:
+                if k not in PACKAGES:
+                    print(f"[!] 未知包: {k}"); sys.exit(2)
+        elif args.target and args.target != "all-npm":
+            keys = [args.target]
+        else:
+            keys = [k for k in PACKAGES if not PACKAGES[k].get("plugin")]
+        print(f"\n▶ 仅对端同步（跳过本机）: {', '.join(keys)}")
+        repo_root_unc = get_wsl_unc_paths(pwsh, PROJECT_ROOT).src_dir
+        for k in keys:
+            uninstall_cloud_conflicts(k, "windows-peer")
+        stage_all_for_windows_peer(no_cache=args.no_cache, repo_root_unc=repo_root_unc)
+        npm_install_on_windows_peer(keys, repo_root_unc)
+        print("\n✓ 完成")
+        return
 
     # ── 委派判定：deploy_targets 里若有非本机平台，本端只做委派 ──
     # 用户语义：wsl + --deploy-target windows → wsl 只触发 Windows 跑本脚本，
@@ -1469,16 +1385,6 @@ def main() -> None:
             print("[!] 找不到 PowerShell，仅 WSL 环境支持 --test"); sys.exit(2)
         sys.exit(test_windows_workspace(pwsh, verbose=True))
 
-    # --build-platform-bins 模式：直接编译平台二进制（已弃用，保留兼容）
-    if args.build_platform_bins:
-        sys.exit(build_platform_bins(go_cmd="go", short=args.build_platform_bin_short,
-                                      cross_compile=args.cross_compile))
-
-    # --sync-versions 模式：对齐版本
-    if args.sync_versions:
-        sync_versions()
-        return
-
     # --only 模式：细粒度动作
     if args.only:
         actions = [a.strip() for a in args.only.split(",") if a.strip()]
@@ -1490,14 +1396,14 @@ def main() -> None:
                 js_order = []
             elif args.pkg == "js":
                 go_order = []
-                js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
+                js_order = ["aek-prompt-manager", "aek-skill-manager",
                             "aek-browser", "aek-dsh", "aek"]
             elif args.pkg:
                 go_order = [args.pkg] if PACKAGES[args.pkg]["kind"] == "go-cli" else []
                 js_order = [args.pkg] if PACKAGES[args.pkg]["kind"] != "go-cli" else []
             else:
                 go_order = ["aek-websearch", "aek-mcp", "aek-task-manager"]
-                js_order = ["aek-common", "aek-prompt-manager", "aek-skill-manager",
+                js_order = ["aek-prompt-manager", "aek-skill-manager",
                             "aek-browser", "aek"]
             all_order = go_order + js_order
         else:
@@ -1533,7 +1439,7 @@ def main() -> None:
                         for bn in bin_map:
                             print(f"    shim: {bn}.ps1")
                         continue
-                    deploy_one(k, no_deploy=False, skip_peer=True, target_platform=args.target_platform, dry_run=args.dry_run)
+                    deploy_one(k, no_deploy=False, peer=False, target_platform=args.target_platform, dry_run=args.dry_run, fail_on_peer=args.fail_on_peer, skip_build=args.skip_build)
                 return
 
             if action == "compile-win":
@@ -1563,7 +1469,7 @@ def main() -> None:
 
             if action == "all":
                 for k in all_order:
-                    deploy_one(k, no_deploy=False, skip_peer=not args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
+                    deploy_one(k, no_deploy=False, peer=args.peer, target_platform=args.target_platform, dry_run=args.dry_run, fail_on_peer=args.fail_on_peer, skip_build=args.skip_build)
                 return
 
             print(f"[!] 未知动作: {action}"); sys.exit(2)
@@ -1580,12 +1486,12 @@ def main() -> None:
     # 默认 deploy 模式
     target = args.target or "all-npm"
     if target == "all-npm":
-        order = ["aek-common", "aek-websearch", "aek-mcp", "aek-task-manager",
+        order = ["aek-websearch", "aek-mcp", "aek-task-manager",
                  "aek-prompt-manager", "aek-skill-manager", "aek-browser", "aek-dsh", "aek"]
         for k in order:
-            deploy_one(k, args.no_deploy, args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
+            deploy_one(k, args.no_deploy, args.peer, target_platform=args.target_platform, dry_run=args.dry_run, fail_on_peer=args.fail_on_peer, skip_build=args.skip_build)
     else:
-        deploy_one(target, args.no_deploy, args.skip_peer, target_platform=args.target_platform, dry_run=args.dry_run)
+        deploy_one(target, args.no_deploy, args.peer, target_platform=args.target_platform, dry_run=args.dry_run, fail_on_peer=args.fail_on_peer, skip_build=args.skip_build)
 
     print("\n✓ 完成")
 

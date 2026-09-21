@@ -7,7 +7,7 @@ import { access, mkdir, readdir, rm, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek-common';
+import { isWSL, getWindowsNativeRoot } from '@cheezmil/aek/common';
 import { CENTER_REPO_NAME, copySkillFolder, SYNC_EXCLUDE_DIRS } from './skills.js';
 import { loadConfig, updateConfig, ensureConfigFileAt } from './config.js';
 
