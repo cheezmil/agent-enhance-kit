@@ -1,10 +1,9 @@
-import { defaultDistroSync, isAbsoluteLinuxPath, joinUnc, mntToWindowsPath, parseWslUnc, windowsToMntPath } from "./wsl-6VcgOvF9.js";
+import { a as isAbsoluteLinuxPath, c as joinUnc, d as parseWslUnc, f as windowsToMntPath, l as mntToWindowsPath, n as defaultDistroSync } from "./wsl-D8kcPDP4.js";
 import z from "@deepseek-ai/schemastery";
 import { link, lstat, rename } from "node:fs/promises";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { FsError } from "@deepseek-ai/dsh-fs";
 import { LocalFileSystem } from "@deepseek-ai/dsh-fs-local";
-
 //#region src/fs.ts
 /**
 * The WSL filesystem backend. Identity keys are canonical UNC paths; the
@@ -15,7 +14,7 @@ var WslFileSystem = class WslFileSystem extends LocalFileSystem {
 	static Config = z.object({
 		cwd: z.string(),
 		distro: z.string(),
-		diffBasisMaxBytes: z.number().default(10 * 1024 * 1024)
+		diffBasisMaxBytes: z.number().default(10485760)
 	});
 	distro;
 	executionCwd = new AsyncLocalStorage();
@@ -86,10 +85,9 @@ var WslFileSystem = class WslFileSystem extends LocalFileSystem {
 			input: path,
 			cwd: this.cwdOr(cwd)
 		};
-		const base = this.uncCwd(cwd);
 		return {
 			input: path,
-			cwd: base
+			cwd: this.uncCwd(cwd)
 		};
 	}
 	/** A base for absolute inputs (unused by resolution, but the parent needs one). */
@@ -152,9 +150,7 @@ var WslFileSystem = class WslFileSystem extends LocalFileSystem {
 		throw new FsError(`wsl-fs: target "${target.displayPath}" is outside the WSL execution world`, "FS_IO_ERROR");
 	}
 	fileUrl(target) {
-		const linux = this.processPath(target);
-		const encoded = linux.split("/").map(encodeURIComponent).join("/");
-		return `file://${encoded}`;
+		return `file://${this.processPath(target).split("/").map(encodeURIComponent).join("/")}`;
 	}
 	contains(parent, child) {
 		const parentWorld = this.worldPath(parent);
@@ -187,8 +183,7 @@ var WslFileSystem = class WslFileSystem extends LocalFileSystem {
 		return super.lstat(input, { cwd }, signal);
 	}
 };
-var fs_default = WslFileSystem;
-
 //#endregion
-export { WslFileSystem, fs_default as default };
+export { WslFileSystem, WslFileSystem as default };
+
 //# sourceMappingURL=fs.js.map

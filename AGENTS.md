@@ -64,10 +64,10 @@
 ```
 1. 改 repo 里的源文件
 2. cqg acp 提交推送
-3. aek sm sync
+3. aeksm sync
 ```
 
-`aek sm sync` 会：
+`aeksm sync` 会：
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录

@@ -269,7 +269,7 @@ async function runInit(scope) {
 
   console.log(`[aek sm] 中心仓库已初始化: ${formatPathForDisplay(dir)}`);
   console.log(`[aek sm] 将 skill 目录放到 ${formatPathForDisplay(dir)}/ 下，`);
-  console.log(`[aek sm] 然后运行 "aek sm sync" 同步到各工具。`);
+  console.log(`[aek sm] 然后运行 "aeksm sync" 同步到各工具。`);
 }
 
 async function runSync(scope, args) {

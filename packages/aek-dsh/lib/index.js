@@ -1,12 +1,11 @@
-import { defaultDistro, isAbsoluteLinuxPath, isValidWslUsername, joinUnc, listDistros, mntToWindowsPath, normalizeLinuxPath, parseWslUnc } from "./wsl-6VcgOvF9.js";
-import { canonicalWslUnc, getWindowsWorkspace, getWorkspaceUsername, listWorkspaceKeys, registerWindowsWorkspace, setWorkspaceUsername } from "./wsl-credentials-B6wIXsKt.js";
+import { a as isAbsoluteLinuxPath, c as joinUnc, d as parseWslUnc, l as mntToWindowsPath, o as isValidWslUsername, r as listDistros, t as defaultDistro, u as normalizeLinuxPath } from "./wsl-D8kcPDP4.js";
+import { a as registerWindowsWorkspace, i as listWorkspaceKeys, n as getWindowsWorkspace, o as setWorkspaceUsername, r as getWorkspaceUsername, t as canonicalWslUnc } from "./wsl-credentials-C2fq9weX.js";
 import z from "@deepseek-ai/schemastery";
 import { cpSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, posix } from "node:path";
 import { homedir } from "node:os";
 import { readFile, readdir, stat } from "node:fs/promises";
-
 //#region src/host/variants.ts
 /**
 * WSL preset-variant generator. For every healthy source preset the roster
@@ -22,7 +21,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 * @module aek-dsh/host/variants
 */
 /** Top-level rows that name the execution world and are replaced by the variant's own. */
-const WORLD_ROWS = new Set([
+const WORLD_ROWS = /* @__PURE__ */ new Set([
 	"tool-bash",
 	"tool-pwsh",
 	"tool-fs",
@@ -148,7 +147,7 @@ function unquoteScalar(value) {
 */
 function personaTarget(block) {
 	for (const field of PERSONA_TARGET_FIELDS) for (let index = 0; index < block.length; index += 1) {
-		const match = (/* @__PURE__ */ new RegExp(`^(\\s*)${field}:\\s*(.*)$`)).exec(block[index] ?? "");
+		const match = new RegExp(`^(\\s*)${field}:\\s*(.*)$`).exec(block[index] ?? "");
 		if (match === null) continue;
 		const indent = match[1]?.length ?? 0;
 		const rest = (match[2] ?? "").trim();
@@ -167,7 +166,6 @@ function personaTarget(block) {
 			inline: unquoteScalar(rest)
 		};
 	}
-	return void 0;
 }
 /**
 * Index of the last line belonging to the block scalar whose header is at
@@ -184,8 +182,7 @@ function lastBlockLine(block, headerIndex, indent) {
 	for (let index = headerIndex + 1; index < block.length; index += 1) {
 		const line = block[index] ?? "";
 		if (line.trim() === "") continue;
-		const lineIndent = /^(\s*)/.exec(line)?.[1]?.length ?? 0;
-		if (lineIndent <= indent) break;
+		if ((/^(\s*)/.exec(line)?.[1]?.length ?? 0) <= indent) break;
 		last = index;
 	}
 	return last;
@@ -280,9 +277,38 @@ function isWslVariantId(id) {
 function variantIdFor(sourceId) {
 	return `wsl-${sourceId.toLowerCase()}`;
 }
-
 //#endregion
 //#region src/host/wsl-skills.ts
+/**
+* WSL workspace skill provider (host half).
+*
+* DSH's shipped skill-filesystem provider scans only the session cwd's
+* project root (the nearest `.git` ancestor) for `.dsh/skills` / `.agents/skills`
+* and never descends into nested projects. A WSL workspace whose project
+* folders live below the registered workspace root therefore shows an empty
+* skill catalog, even though the same layout works when the session cwd is
+* the project folder itself (issue #10).
+*
+* This provider mirrors the host's discovery rules for WSL UNC session
+* workspaces: it starts at the session cwd's nearest `.git` ancestor (the
+* host's project-root rule; the cwd itself when no ancestor has a `.git`
+* marker), then walks that root (depth- and budget-bounded). Directory
+* symlinks are followed when the substrate resolves them and pruned safely
+* when it does not — the `\\wsl.localhost` 9P share cannot resolve Linux
+* symlink targets, so linked-in projects stay undiscoverable there today.
+* The walk collects every
+* `.dsh/skills` and `.agents/skills` directory it finds — including nested
+* projects — and publishes their skills with the same
+* project ranks and sources the host uses, so precedence and duplicate
+* resolution behave identically. Non-WSL lookups return nothing and leave
+* the host's own providers untouched.
+*
+* All filesystem reads go through `node:fs` against the `\\wsl.localhost\…`
+* 9P share (the same substrate `WslFileSystem` uses); an injectable IO face
+* keeps the discovery logic unit-testable without a live distro.
+*
+* @module aek-dsh/host/wsl-skills
+*/
 /** Project ranks copied from @deepseek-ai/dsh-skill-filesystem so WSL and host entries interleave identically. */
 const PROJECT_DSH_RANK = 100;
 const PROJECT_AGENTS_RANK = 200;
@@ -301,7 +327,7 @@ const CACHE_MAX_ENTRIES = 32;
 /** Kebab-case skill names, matching the host grammar. */
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Directory names that never contain project skill roots (safe to prune while walking). */
-const PRUNED_DIRECTORY_NAMES = new Set([
+const PRUNED_DIRECTORY_NAMES = /* @__PURE__ */ new Set([
 	".git",
 	".hg",
 	".svn",
@@ -356,7 +382,6 @@ async function nearestGitAncestor(distro, linuxDir, io) {
 		if (parent === current) return void 0;
 		current = parent;
 	}
-	return void 0;
 }
 /**
 * Scan a WSL workspace root for nested skill directories.
@@ -396,8 +421,7 @@ async function discoverSkillRoots(distro, linuxRoot, io) {
 					continue;
 				}
 				if (entry.isSymbolicLink()) try {
-					const target = await io.stat(joinUnc(distro, childPath));
-					if (target.isDirectory()) next.push([childPath, depth + 1]);
+					if ((await io.stat(joinUnc(distro, childPath))).isDirectory()) next.push([childPath, depth + 1]);
 				} catch {}
 			}
 		}
@@ -426,8 +450,7 @@ async function skillRootsOfDirectory(distro, linuxDir, io) {
 	]]) {
 		const path = joinUnc(distro, posix.join(linuxDir, marker, "skills"));
 		try {
-			const info = await io.stat(path);
-			if (info.isDirectory()) result.push({
+			if ((await io.stat(path)).isDirectory()) result.push({
 				path,
 				source,
 				rank
@@ -464,7 +487,7 @@ async function readSkill(path, io, signal) {
 	try {
 		raw = await io.readFile(path, { encoding: "utf8" });
 	} catch {
-		return void 0;
+		return;
 	}
 	signal?.throwIfAborted();
 	return parseSkillFrontmatter(raw, path);
@@ -491,9 +514,9 @@ function parseSkillFrontmatter(raw, path) {
 		const line = (lines[index] ?? "").replace(/\r$/, "");
 		const block = /^([A-Za-z0-9-]+):\s*([|>])[+-]?\s*$/.exec(line);
 		if (block !== null) {
-			const value$1 = parseBlockScalar(lines, index, block[2] === ">");
-			index = value$1.nextLineIndex;
-			if (value$1.text !== "") fields.set(block[1] ?? "", value$1.text);
+			const value = parseBlockScalar(lines, index, block[2] === ">");
+			index = value.nextLineIndex;
+			if (value.text !== "") fields.set(block[1] ?? "", value.text);
 			continue;
 		}
 		const match = /^([A-Za-z0-9-]+):\s*(.*)$/.exec(line);
@@ -501,12 +524,12 @@ function parseSkillFrontmatter(raw, path) {
 		const value = match[2]?.trim() ?? "";
 		if (value !== "") fields.set(match[1] ?? "", unquote(value));
 	}
-	const name$1 = fields.get("name") ?? "";
+	const name = fields.get("name") ?? "";
 	const description = fields.get("description") ?? "";
-	if (!SKILL_NAME.test(name$1) || description === "") return void 0;
+	if (!SKILL_NAME.test(name) || description === "") return;
 	const whenToUse = fields.get("whenToUse");
 	return {
-		name: name$1,
+		name,
 		description,
 		...whenToUse !== void 0 && whenToUse !== "" ? { whenToUse } : {},
 		invocation: {
@@ -542,9 +565,8 @@ function parseBlockScalar(lines, startIndex, folded) {
 		collected.push(indented[1]?.startsWith(indent) === true ? indented[2] : indented[1].replace(/^[ \t]+/, "") + indented[2]);
 	}
 	while (collected.length > 0 && collected[collected.length - 1] === "") collected.pop();
-	const text = (folded ? collected.filter((line) => line !== "").join(" ") : collected.join("\n")).trim();
 	return {
-		text,
+		text: (folded ? collected.filter((line) => line !== "").join(" ") : collected.join("\n")).trim(),
 		nextLineIndex: index
 	};
 }
@@ -558,7 +580,6 @@ function findFrontmatterEnd(raw, start) {
 		if (nextNewline < 0) return void 0;
 		lineStart = nextNewline + 1;
 	}
-	return void 0;
 }
 /** Strip one level of matching quotes from a scalar value. */
 function unquote(value) {
@@ -689,7 +710,6 @@ var WslSkillsProvider = class {
 		};
 	}
 };
-
 //#endregion
 //#region src/index.ts
 /** The HTTP route this plugin serves (a relative, same-origin path). */
@@ -738,14 +758,13 @@ function variantName(presetId, sourceName) {
 /** The variant description for one shipped mode (bilingual) or a custom preset. */
 function variantDescription(presetId) {
 	const labels = MODE_DISPLAY_LABELS[presetId];
-	const display = labels === void 0 ? presetId : `${labels.en}（${labels.zh}）`;
-	return `WSL execution world for ${display}: bash and file tools run inside the WSL distribution.`;
+	return `WSL execution world for ${labels === void 0 ? presetId : `${labels.en}（${labels.zh}）`}: bash and file tools run inside the WSL distribution.`;
 }
-const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_BODY_BYTES = 1048576;
 /** Valid WSL distribution names: one path-safe segment (no separators, no dot-dirs). */
 const DISTRO_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._-]*$/;
 /** The loopback hostnames the data route answers to (DNS-rebinding fence). */
-const LOOPBACK_HOSTNAMES = new Set([
+const LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set([
 	"localhost",
 	"127.0.0.1",
 	"::1",
@@ -825,12 +844,11 @@ function requireWslUnc(value) {
 */
 function listWslDir(distro, linuxPath) {
 	if (linuxPath === "/mnt") {
-		const entries$1 = [];
+		const entries = [];
 		for (let i = 0; i < 26; i++) {
 			const letter = String.fromCharCode(65 + i);
 			try {
-				const info = statSync(`${letter}:\\`);
-				if (info.isDirectory()) entries$1.push({
+				if (statSync(`${letter}:\\`).isDirectory()) entries.push({
 					name: letter.toLowerCase(),
 					kind: "directory"
 				});
@@ -839,13 +857,12 @@ function listWslDir(distro, linuxPath) {
 		return {
 			path: "/mnt",
 			parent: "/",
-			entries: entries$1
+			entries
 		};
 	}
 	const winPath = mntToWindowsPath(linuxPath);
 	const readPath = winPath !== null ? winPath : joinUnc(distro, linuxPath);
-	const dirents = readdirSync(readPath, { withFileTypes: true });
-	const entries = dirents.slice(0, 1e3).map((dirent) => {
+	const entries = readdirSync(readPath, { withFileTypes: true }).slice(0, 1e3).map((dirent) => {
 		const kind = dirent.isDirectory() ? "directory" : dirent.isFile() ? "file" : "other";
 		return {
 			name: dirent.name,
@@ -856,10 +873,9 @@ function listWslDir(distro, linuxPath) {
 		if (a.kind !== "directory" && b.kind === "directory") return 1;
 		return a.name.localeCompare(b.name);
 	});
-	const parent = linuxPath === "/" ? null : linuxPath.split("/").slice(0, -1).join("/") || "/";
 	return {
 		path: linuxPath,
-		parent,
+		parent: linuxPath === "/" ? null : linuxPath.split("/").slice(0, -1).join("/") || "/",
 		entries
 	};
 }
@@ -898,24 +914,19 @@ async function dispatch(method, params) {
 		case "listDistros": {
 			const distros = await listDistros();
 			const fallback = await defaultDistro();
-			if (fallback !== void 0 && distros.includes(fallback)) return [fallback, ...distros.filter((name$1) => name$1 !== fallback)];
+			if (fallback !== void 0 && distros.includes(fallback)) return [fallback, ...distros.filter((name) => name !== fallback)];
 			return distros;
 		}
-		case "listDir": {
-			const distro = requireDistro(params.distro);
-			const path = requireLinuxPath(params.path, "path");
-			return listWslDir(distro, path);
-		}
+		case "listDir": return listWslDir(requireDistro(params.distro), requireLinuxPath(params.path, "path"));
 		case "check": {
 			const distro = requireDistro(params.distro);
 			const path = requireLinuxPath(params.path, "path");
 			const winPath = mntToWindowsPath(path);
 			const readPath = winPath !== null ? winPath : joinUnc(distro, path);
 			try {
-				const info = statSync(readPath);
 				return {
 					exists: true,
-					isDirectory: info.isDirectory()
+					isDirectory: statSync(readPath).isDirectory()
 				};
 			} catch {
 				return {
@@ -981,8 +992,7 @@ async function materializeVariants(agentPresets, aekHome, shellPath, fsPath) {
 		if (preset.broken !== void 0) continue;
 		if (isWslVariantId(preset.id)) continue;
 		const variantId = variantIdFor(preset.id);
-		const source = await agentPresets.read(preset.id);
-		const transformed = transformPresetForWsl(source, shellPath, fsPath);
+		const transformed = transformPresetForWsl(await agentPresets.read(preset.id), shellPath, fsPath);
 		const dir = join(userRoot, variantId);
 		const staging = `${dir}.staging`;
 		rmSync(staging, {
@@ -995,18 +1005,18 @@ async function materializeVariants(agentPresets, aekHome, shellPath, fsPath) {
 		});
 		writeFileSync(join(staging, "agent.cordis.yml"), transformed, "utf8");
 		const labels = MODE_DISPLAY_LABELS[preset.id];
-		let name$1 = variantName(preset.id, preset.id);
+		let name = variantName(preset.id, preset.id);
 		let orderLine = "";
 		try {
 			const meta = readFileSync(join(dirname(preset.path), "preset.yml"), "utf8");
 			if (labels === void 0) {
 				const match = /^name:\s*(.+)$/m.exec(meta);
-				if (match?.[1] !== void 0 && match[1].trim() !== "") name$1 = variantName(preset.id, match[1].trim());
+				if (match?.[1] !== void 0 && match[1].trim() !== "") name = variantName(preset.id, match[1].trim());
 			}
 			const orderMatch = /^order:\s*(\d+)\s*$/m.exec(meta);
 			if (orderMatch?.[1] !== void 0) orderLine = `order: ${orderMatch[1]}\n`;
 		} catch {}
-		writeFileSync(join(staging, "preset.yml"), `name: ${yamlScalar(name$1)}\n` + orderLine + `description: ${yamlScalar(variantDescription(preset.id))}\n`, "utf8");
+		writeFileSync(join(staging, "preset.yml"), `name: ${yamlScalar(name)}\n` + orderLine + `description: ${yamlScalar(variantDescription(preset.id))}\n`, "utf8");
 		publishVariant(staging, dir);
 		generated.add(variantId);
 	}
@@ -1043,7 +1053,7 @@ const Config = z.object({ route: z.string().default(DEFAULT_ROUTE) });
 */
 function apply(ctx, config) {
 	const resolved = config;
-	const aekHome = process.env.AEK_HOME ?? join(homedir(), ".aek");
+	const aekHome = process.env.AEK_HOME ?? join(homedir(), ".dsh");
 	const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 	const shellPath = join(packageRoot, "lib", "shell.js").replace(/\\/g, "/");
 	const fsPath = join(packageRoot, "lib", "fs.js").replace(/\\/g, "/");
@@ -1122,10 +1132,9 @@ function apply(ctx, config) {
 				return;
 			}
 			try {
-				const value = await dispatch(method, params);
 				json(res, 200, {
 					ok: true,
-					value
+					value: await dispatch(method, params)
 				});
 			} catch (error) {
 				json(res, 200, {
@@ -1136,7 +1145,7 @@ function apply(ctx, config) {
 		}
 	}), "aek-dsh: dialog data route");
 }
-
 //#endregion
 export { Config, DEFAULT_ROUTE, apply, inject, name };
+
 //# sourceMappingURL=index.js.map
