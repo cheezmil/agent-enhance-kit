@@ -24,7 +24,7 @@ Generate Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skil
 
 ### Gen skills（默认生成到配置的工具）
 
-默认只生成到 `~/.aek/skill-manager/settings.jsonc` 中 `genDefaultTools` 配置的 agent（如 `["hermes", "deepseek-harness"]`），秒完成。
+默认只生成到 `~/.aek/skill-manager/settings.yml` 中 `genDefaultTools` 配置的 agent（如 `[hermes, deepseek-harness]`），秒完成。
 
 ```bash
 aeksm gen
@@ -95,7 +95,7 @@ aeksm
 
 ## 性能优化
 
-- 首次 gen 生成 `~/.aek/skill-manager/record.jsonc`，记录各工具最后同步时间
+- 首次 gen 生成 `~/.aek/skill-manager/record.yml`，记录各工具最后同步时间
 - 后续 gen 只检查 record 缓存，相同工具跳过，毫秒级完成
 - 1 分钟内的重复调用会自动跳过 transfer-sync（避免 drvfs 慢写）
 - `genDefaultTools` 只生成到必要 agent，避免无脑遍历 25 个平台

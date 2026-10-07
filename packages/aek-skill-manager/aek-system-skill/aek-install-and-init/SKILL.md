@@ -58,7 +58,7 @@ aek pm patch all    # 末尾追加（only-patch 源），幂等
 
 ### 4. 生成 skill 到工具
 
-默认只生成到 `settings.jsonc` 中 `genDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
+默认只生成到 `settings.yml` 中 `genDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
 
 ```bash
 aeksm gen
@@ -75,7 +75,7 @@ aeksm gen --allagents
 ```bash
 aek pm status       # 各工具 patched / not-patched
 aeksm gen          # 查看生成结果（秒完成）
-cat ~/.aek/skill-manager/record.jsonc  # 各工具最后同步时间
+cat ~/.aek/skill-manager/record.yml  # 各工具最后同步时间
 tail ~/.aek/skill-manager/log.txt     # 同步日志
 ```
 
@@ -94,9 +94,9 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 | 系统 skill 源（源码开发） | `~/.aek/skill-manager/aek-system-skill/` |
 | 提示词源（only-patch） | `~/.aek/prompt-manager/only-patch/` |
 | 系统内置提示词 | `~/.aek/prompt-manager/only-patch/aek_system_prompt/all_agents_shared/` |
-| 同步记录 | `~/.aek/skill-manager/record.jsonc` |
+| 同步记录 | `~/.aek/skill-manager/record.yml` |
 | 同步日志 | `~/.aek/skill-manager/log.txt` |
-| 配置文件 | `~/.aek/skill-manager/settings.jsonc` |
+| 配置文件 | `~/.aek/skill-manager/settings.yml` |
 | 包内捆绑系统 skill（npm） | `node_modules/@cheezmil/aek-skill-manager/aek-system-skill/` |
 | 系统提示词模板（npm） | `node_modules/@cheezmil/aek-prompt-manager/templates/only-patch/aek_system_prompt/all_agents_shared/` |
 

@@ -12,7 +12,7 @@ import { CENTER_REPO_NAME, copySkillFolder, SYNC_EXCLUDE_DIRS } from './skills.j
 import { loadConfig, updateConfig, ensureConfigFileAt } from './config.js';
 
 // 需要排除的目录/文件（不参与同步与 mtime 比较）
-// 备份目录（skills.bak.*）与 skills 同级，不在扫描范围内；settings.jsonc 同理。
+// 备份目录（skills.bak.*）与 skills 同级，不在扫描范围内；settings.yml 同理。
 // 系统 skill 直接位于 skills/ 根目录下，由 ensureSystemSkills 重建，覆盖无所谓。
 // 使用 skills.js 统一的同步排除集，避免重复维护。
 const EXCLUDE_NAMES = SYNC_EXCLUDE_DIRS;

@@ -111,7 +111,7 @@ function printUsage() {
   console.log('');
   console.log('全局范围（默认）: ~/.aek/skill-manager/skills/ → 各工具 ~/.xxx/skills/');
   console.log('项目范围: ./.aek/skill-manager/skills/ → 各工具 ./.xxx/skills/');
-  console.log('配置文件: ~/.aek/skill-manager/settings.jsonc');
+  console.log('配置文件: ~/.aek/skill-manager/settings.yml');
 }
 
 // ====== 子命令实现 ======
@@ -203,7 +203,7 @@ async function runTransferSync(args) {
 }
 
 // 按配置决定是否自动执行 transfer-sync（gen 前）
-// 检测策略：优先检查 record.jsonc 的 mtime，若近 1 分钟内更新过则跳过 transfer-sync
+// 检测策略：优先检查 record.yml 的 mtime，若近 1 分钟内更新过则跳过 transfer-sync
 async function maybeTransferSync() {
   const cfg = await loadConfig();
   // 仅在 WSL 或 Windows 下才执行 transfer-sync
@@ -211,7 +211,7 @@ async function maybeTransferSync() {
   if (!isWSLorWin || !cfg.transferSyncBeforeGen) {
     return;
   }
-  // 快速检查：record.jsonc 是否最近有更新（表示刚做过 transfer-sync）
+  // 快速检查：record.yml 是否最近有更新（表示刚做过 transfer-sync）
   const recordPath = getRecordPath();
   try {
     const stat = await stat(recordPath);
@@ -232,7 +232,7 @@ async function maybeTransferSync() {
   }
   try {
     await doTransferSync({ quiet: true });
-    // 强制等待一下，确保 record.jsonc 已写入
+    // 强制等待一下，确保 record.yml 已写入
     await new Promise(r => setTimeout(r, 100));
   } catch (err) {
     console.log(`[aek sm] transfer-sync 自动执行失败（不影响后续 gen）: ${err.message}`);
@@ -266,7 +266,7 @@ async function runInit(scope) {
   const dir = await initCenterRepo({ scope });
   await ensureSystemSkills(scope);
 
-  // 生成默认 settings.jsonc（loadConfig 内部已处理不存在时自动生成）
+  // 生成默认 settings.yml（loadConfig 内部已处理不存在时自动生成）
   await loadConfig();
   const configPath = getConfigPath({ home: os.homedir() });
   if (existsSync(configPath)) {

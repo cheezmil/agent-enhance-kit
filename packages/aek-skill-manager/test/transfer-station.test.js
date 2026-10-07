@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
-  parseJsonc,
-  stringifyJsonc,
+  parseConfigText,
+  stringifyConfig,
   loadConfig,
   updateConfig,
   getConfigPath,
@@ -23,32 +23,30 @@ async function tmp(prefix) {
 
 // ---------- config ----------
 
-test('parseJsonc handles comments and trailing commas', () => {
-  const obj = parseJsonc(`{
-    // comment
-    "a": 1,
-    "b": "x", // trailing
-  }`);
+test('parseConfigText handles comments and nested values', () => {
+  const obj = parseConfigText(`
+# comment
+a: 1
+b: x  # trailing
+`);
   assert.equal(obj.a, 1);
   assert.equal(obj.b, 'x');
 });
 
-test('parseJsonc returns {} for invalid input', () => {
-  assert.deepEqual(parseJsonc('not json'), {});
-  assert.deepEqual(parseJsonc(''), {});
+test('parseConfigText returns {} for invalid or scalar input', () => {
+  assert.deepEqual(parseConfigText('not a mapping'), {});
+  assert.deepEqual(parseConfigText(''), {});
 });
 
-test('stringifyJsonc keeps comments', () => {
-  const raw = `{
-  // hello
-  "a": 1
-}
+test('stringifyConfig keeps comments', () => {
+  const raw = `# hello
+a: 1
 `;
-  const obj = parseJsonc(raw);
+  const obj = parseConfigText(raw);
   obj.a = 2;
-  const out = stringifyJsonc(obj, raw);
-  assert.match(out, /\/\/ hello/);
-  assert.match(out, /"a": 2/);
+  const out = stringifyConfig(obj, raw);
+  assert.match(out, /# hello/);
+  assert.match(out, /a: 2/);
 });
 
 test('loadConfig returns defaults when missing', async (t) => {
@@ -64,7 +62,7 @@ test('loadConfig warns on renamed keys and ignores their values', async (t) => {
   t.after(() => rm(home, { recursive: true, force: true }));
   const cfgDir = path.join(home, '.aek', 'skill-manager');
   await mkdir(cfgDir, { recursive: true });
-  await writeFile(path.join(cfgDir, 'settings.jsonc'), '{ "syncDefaultTools": ["hermes"] }\n');
+  await writeFile(path.join(cfgDir, 'settings.yml'), 'syncDefaultTools: [hermes]\n');
 
   const logs = [];
   const originalLog = console.log;
@@ -87,7 +85,7 @@ test('updateConfig writes and loadConfig reads back', async (t) => {
   const cfg = await loadConfig({ home });
   assert.equal(cfg.transferBackupKeep, 5);
   assert.equal(cfg.wslDistro, 'Ubuntu-22.04');
-  assert.equal(getConfigPath({ home }), path.join(home, '.aek', 'skill-manager', 'settings.jsonc'));
+  assert.equal(getConfigPath({ home }), path.join(home, '.aek', 'skill-manager', 'settings.yml'));
 });
 
 // ---------- transfer-station ----------
