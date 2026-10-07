@@ -93,6 +93,20 @@ aeksm
 
 `claude` · `claude-desktop` · `cherry-studio` · `chatbox` · `cline` · `codex` · `continue` · `copilot` · `cursor` · `gemini` · `hermes` · `opencode` · `openclaw` · `pi` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `vscode` · `windsurf` · `workbuddy` · `zcode` · `trae` · `trae-cn` · `deepseek-harness`
 
+## 生成目标模式（genTargetMode）
+
+`~/.aek/skill-manager/settings.yml` 的 `genTargetMode` 控制 skill 写到哪个目录：
+
+- `2`（默认，原有逻辑）：每个工具都写自己的目录（`~/.<tool>/skills/`）。
+- `1`：支持社区共用目录的 agent 只写厂商中立的 `~/.agents/skills`（项目级 `./.agents/skills`），其余工具仍写各自目录。`remove` 与 `gen` 走同一套目标解析，能对称清理。
+
+共用目录由 `~/.agents/skills` 生态约定，哪些工具读它由 `src/skills.js` 里各平台的 `sharedAgentsDir: true` 标记决定：
+
+- 用共用目录：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `antigravity`
+- 始终写自有目录（不共用）：其余全部（`claude`、`hermes`、`qoder`、`trae` 等）
+
+> 该支持名单是社区约定、随版本变动；增删只需改 `skills.js` 对应平台的 `sharedAgentsDir` 标记。
+
 ## 性能优化
 
 - 首次 gen 生成 `~/.aek/skill-manager/record.yml`，记录各工具最后同步时间

@@ -18,6 +18,9 @@ export const DEFAULT_CONFIG = {
   transferSyncBeforeGen: true,
   transferBackupKeep: 3,
   wslDistro: null, // Windows 侧缓存探测到的 WSL 发行版名，失效自动清理
+  // skill 生成目标目录工作方式：2=写入各工具自有目录（原有逻辑）；
+  // 1=支持共用目录的工具只写 ~/.agents/skills，其余工具仍写各自目录
+  genTargetMode: 2,
   // 默认生成的工具列表（不带 --tools 时生效），默认为空则生成全部
   // 示例：只生成 hermes 和 deepseek-harness，取消下面注释并填写
   // genDefaultTools: ['hermes', 'deepseek-harness'],

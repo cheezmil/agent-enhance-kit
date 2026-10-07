@@ -7,6 +7,20 @@ transferSyncBeforeGen: true
 # transfer-sync 覆盖前备份保留的份数（最近 N 个）
 transferBackupKeep: 3
 
+# skill 生成目标目录的工作方式
+#   2：写入各工具自有目录（原有逻辑，全部工具都写自己的目录）
+#   1：支持社区共用目录的 agent 只写入 ~/.agents/skills（项目级 ./.agents/skills），
+#      由这些工具从共用目录读取；不读共用目录的工具仍写各自的工作目录
+genTargetMode: 2
+
+# 说明（genTargetMode: 1 时的分工）——
+# 使用共用目录 ~/.agents/skills 的 agent：
+#   codex、cursor、vscode、copilot、gemini、antigravity
+# 不共用目录、始终写入自身工作目录的 agent：
+#   claude、claude-desktop、cherry-studio、chatbox、continue、cline、windsurf、
+#   kilocode、hermes、openclaw、qoder、qwencode、kiro、pi、deepseek-harness、
+#   zcode、trae、trae-cn、opencode
+
 # 默认生成到的工具列表（不带 --tools 时生效），不填写则生成全部
 # 示例：[hermes, deepseek-harness]
 genDefaultTools: [hermes, deepseek-harness]

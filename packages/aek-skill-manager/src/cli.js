@@ -14,6 +14,7 @@ import {
   listSkillFolders,
   resolveCenterRepoDir,
   resolveSkillsDir,
+  resolveGenTargetDir,
   resolveWindowsNativeSkillsDir,
   syncFromCenterRepo,
   pullToCenterRepo,
@@ -300,9 +301,10 @@ async function runGen(scope, args) {
     tools = PLATFORMS.map(p => p.id);
   }
 
+  const cfg = await loadConfig();
+
   // 如果 tools 未指定，从配置读取默认工具列表
   if (!tools && scope === 'global') {
-    const cfg = await loadConfig();
     if (cfg.genDefaultTools && cfg.genDefaultTools.length > 0) {
       tools = cfg.genDefaultTools;
     }
@@ -336,7 +338,7 @@ async function runGen(scope, args) {
     return;
   }
 
-  const { results, centerSkills } = await syncFromCenterRepo({ scope, tools });
+  const { results, centerSkills } = await syncFromCenterRepo({ scope, tools, genTargetMode: cfg.genTargetMode });
 
   let totalCopy = 0;
   let totalOverwrite = 0;
@@ -431,12 +433,16 @@ async function runRemove(scope, args) {
     throw new Error(tools ? '未找到指定的工具' : '没有可用的工具');
   }
 
+  // 与 gen 保持一致：共用模式（genTargetMode=1）下共享工具的操作对象是 ~/.agents/skills
+  const { genTargetMode } = await loadConfig();
+  const targetFor = (platform) => resolveGenTargetDir(platform, { scope, mode: genTargetMode });
+
   let totalRemoved = 0;
 
   if (removeAll) {
     // Remove all skills from each platform
     for (const platform of platforms) {
-      const targetDir = resolveSkillsDir(platform, { scope });
+      const targetDir = targetFor(platform);
       const skills = await listSkillFolders(targetDir);
       if (skills.length === 0) continue;
       for (const skill of skills) {
@@ -461,7 +467,7 @@ async function runRemove(scope, args) {
     let removed = 0;
     let notFound = 0;
     for (const platform of platforms) {
-      const targetDir = resolveSkillsDir(platform, { scope });
+      const targetDir = targetFor(platform);
       const skillPath = path.join(targetDir, skillName);
       try {
         const skillStat = await stat(skillPath);

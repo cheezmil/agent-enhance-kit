@@ -121,7 +121,7 @@ def pick_runner(pkg: dict) -> tuple[str, list[str]] | None:
         return "vitest", ["vitest", *args]
 
     if script.strip() in ("node --test", "node --test test", "node --test test/"):
-        return "node-test", [sys.executable, "--test"]
+        return "node-test", [shutil.which("node") or "node", "--test"]
 
     # 其它一律当 shell 脚本跑（保留 npm script 的语义）
     return "shell", ["/bin/sh", "-c", script]

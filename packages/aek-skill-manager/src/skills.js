@@ -21,10 +21,13 @@ import { log } from './logger.js';
 //   'appdata'     -> %APPDATA%
 //   'localappdata'-> %LOCALAPPDATA%
 //
+// `sharedAgentsDir: true` marks a tool that also reads the vendor-neutral
+// community location ~/.agents/skills (global) and .agents/skills (project).
+// When genTargetMode=1 those tools receive skills ONLY through the shared
+// directory; tools without the flag keep getting them in their own dir.
+//
 // Note: VS Code and GitHub Copilot CLI share ~/.copilot/skills, so syncing
-// between them under the global scope is a no-op. Many tools additionally read
-// the cross-tool ~/.agents/skills (personal) and .agents/skills (project)
-// locations; we use each platform's primary native directory here.
+// between them under the global scope is a no-op.
 export const PLATFORMS = [
   {
     id: 'claude',
@@ -38,6 +41,7 @@ export const PLATFORMS = [
   },
   {
     id: 'codex',
+    sharedAgentsDir: true,
     name: 'Codex',
     keywords: ['codex', 'openai', 'codex cli'],
     docs: 'https://developers.openai.com/codex/skills',
@@ -48,6 +52,7 @@ export const PLATFORMS = [
   },
   {
     id: 'cursor',
+    sharedAgentsDir: true,
     name: 'Cursor',
     keywords: ['cursor', 'cursor ide'],
     docs: 'https://cursor.com/docs/skills',
@@ -58,6 +63,7 @@ export const PLATFORMS = [
   },
   {
     id: 'gemini',
+    sharedAgentsDir: true,
     name: 'Gemini CLI',
     keywords: ['gemini', 'gemini cli', 'google', 'gcloud'],
     docs: 'https://geminicli.com/docs/cli/skills/',
@@ -68,6 +74,7 @@ export const PLATFORMS = [
   },
   {
     id: 'copilot',
+    sharedAgentsDir: true,
     name: 'GitHub Copilot CLI',
     keywords: ['copilot', 'copilot cli', 'github', 'gh'],
     docs: 'https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills',
@@ -78,6 +85,7 @@ export const PLATFORMS = [
   },
   {
     id: 'vscode',
+    sharedAgentsDir: true,
     name: 'Visual Studio Code',
     keywords: ['vscode', 'vs code', 'vs-code', 'code'],
     docs: 'https://code.visualstudio.com/docs/agent-customization/agent-skills',
@@ -226,6 +234,7 @@ export const PLATFORMS = [
   },
   {
     id: 'antigravity',
+    sharedAgentsDir: true,
     name: 'Antigravity',
     keywords: ['antigravity', 'google antigravity'],
     docs: 'https://antigravity.google/docs/skills/',
@@ -332,6 +341,10 @@ export const MODEL_SENSITIVE_FIELDS = ['model', 'effort'];
 // 中心仓库目录名（~/.aek/skill-manager/skills/ 或 ./.aek/skill-manager/skills/）
 export const CENTER_REPO_NAME = 'skill-manager';
 
+// 社区约定共用的 skill 目录（厂商中立）：全局 ~/.agents/skills，项目 ./.agents/skills
+// 支持它的工具（见各平台 sharedAgentsDir 标记）在 genTargetMode=1 时只从这一处读取。
+export const SHARED_SKILLS_SEGMENTS = ['.agents', 'skills'];
+
 // 解析中心仓库的 skills 目录
 export function resolveCenterRepoDir(options = {}) {
   const {
@@ -354,6 +367,8 @@ export async function syncFromCenterRepo(options = {}) {
     onConflict = null,
     useRecord = true,
     home = os.homedir(),
+    cwd = process.cwd(),
+    genTargetMode = 2, // 2=各工具自有目录；1=支持共用目录的工具只写 ~/.agents/skills
   } = options;
 
   const centerDir = resolveCenterRepoDir({ scope, home });
@@ -374,24 +389,40 @@ export async function syncFromCenterRepo(options = {}) {
 
   const results = [];
   const winRoot = isWSL() ? getWindowsNativeRoot() : null;
+  const mode = genTargetMode === 1 ? 1 : 2;
+  // 本次运行已写入过的物理目录（绝对路径）。共用模式下多个工具指向同一
+  // 目录，只真正复制一次，其余复用结果并照常打 synced 时间戳。
+  const doneDirs = new Set();
 
   const record = useRecord ? await readRecord(home) : null;
   // 缓存窗口读的是 record 内嵌 mtime（上一次「真正生成过」的时间）
   const cacheFresh = !!(record && record.synced) && await isRecordFresh(record);
 
   for (const platform of platforms) {
-    const targetDir = resolveSkillsDir(platform, { scope, home });
+    const useShared = usesSharedGenDir(platform, mode);
+    const targetDir = resolveGenTargetDir(platform, { mode, scope, home, cwd });
+    if (!targetDir) continue; // 项目范围下该工具无项目级目录
     if (path.resolve(centerDir) === path.resolve(targetDir)) continue;
+
+    // WSL 下的 Windows 原生双写目标：共用工具映射到 Windows 的 .agents\skills。
+    const winDirs = winRoot
+      ? (useShared
+          ? [windowsNativeSharedSkillsDir(winRoot)]
+          : resolveWindowsNativeSkillsDirs(platform, { scope, winRoot }))
+      : [];
 
     // 只检查 record 中该 tool 的 synced 时间戳：
     // record 有效且最近同步过则跳过（fast path），否则总是同步（保守安全）
-    let shouldSync = true;
     if (cacheFresh && record.synced[platform.id]) {
-      shouldSync = false;
       log(`skip ${platform.id} (cached)`);
+      results.push({ platform, copied: [], overwritten: [], skipped: [], cached: true });
+      continue;
     }
 
-    if (shouldSync) {
+    // 主目标
+    if (doneDirs.has(path.resolve(targetDir))) {
+      results.push({ platform, copied: [], overwritten: [], skipped: [], shared: true });
+    } else {
       const result = await syncSkillFolders({
         sourceDir: centerDir,
         targetDir,
@@ -400,24 +431,26 @@ export async function syncFromCenterRepo(options = {}) {
       });
       result.platform = platform;
       results.push(result);
+      doneDirs.add(path.resolve(targetDir));
+    }
 
-      // WSL 下额外同步一份（或多份候选）到 Windows 原生 profile。
-      const winDirs = resolveWindowsNativeSkillsDirs(platform, { scope, winRoot });
-      for (const winTargetDir of winDirs) {
-        if (path.resolve(centerDir) === path.resolve(winTargetDir)) continue;
-        const winResult = await syncSkillFolders({
-          sourceDir: centerDir,
-          targetDir: winTargetDir,
-          onConflict,
-          extraSkills: systemSkills,
-        });
-        winResult.platform = platform;
-        winResult.winTarget = winTargetDir;
-        results.push(winResult);
+    // Windows 原生双写目标
+    for (const winTargetDir of winDirs) {
+      if (path.resolve(centerDir) === path.resolve(winTargetDir)) continue;
+      if (doneDirs.has(path.resolve(winTargetDir))) {
+        results.push({ platform, winTarget: winTargetDir, copied: [], overwritten: [], skipped: [], shared: true });
+        continue;
       }
-    } else {
-      // 记录跳过的 tool
-      results.push({ platform, copied: [], overwritten: [], skipped: [], cached: true });
+      const winResult = await syncSkillFolders({
+        sourceDir: centerDir,
+        targetDir: winTargetDir,
+        onConflict,
+        extraSkills: systemSkills,
+      });
+      winResult.platform = platform;
+      winResult.winTarget = winTargetDir;
+      results.push(winResult);
+      doneDirs.add(path.resolve(winTargetDir));
     }
   }
 
@@ -509,6 +542,40 @@ export function resolveSkillsDir(platform, options = {}) {
     : platform.unixPath;
 
   return p.resolve(p.join(home, ...segments));
+}
+
+// 共用 skill 目录：与 resolveSkillsDir 同构，但用厂商中立的 .agents/skills 段，
+// Windows 基址固定为 home（%USERPROFILE%\.agents\skills）。
+export function resolveSharedSkillsDir(options = {}) {
+  const {
+    scope = 'global',
+    home = os.homedir(),
+    platformOS = process.platform,
+    cwd = process.cwd(),
+  } = options;
+  const p = platformOS === 'win32' ? path.win32 : path.posix;
+  if (scope === 'project') {
+    return p.resolve(p.join(cwd, ...SHARED_SKILLS_SEGMENTS));
+  }
+  return p.resolve(p.join(home, ...SHARED_SKILLS_SEGMENTS));
+}
+
+// WSL 侧写入 Windows 原生的共用目录（<winRoot>/.agents/skills）。
+function windowsNativeSharedSkillsDir(winRoot) {
+  return path.posix.resolve(path.posix.join(winRoot, ...SHARED_SKILLS_SEGMENTS));
+}
+
+// genTargetMode=1 且工具支持共用目录时，写入 ~/.agents/skills 而非自有目录。
+export function usesSharedGenDir(platform, mode = 2) {
+  return mode === 1 && platform.sharedAgentsDir === true;
+}
+
+// 给定生成模式解析某工具的主目标 skill 目录（供 gen 与 remove 共用）。
+export function resolveGenTargetDir(platform, options = {}) {
+  const { mode = 2, scope, home, cwd, env } = options;
+  return usesSharedGenDir(platform, mode)
+    ? resolveSharedSkillsDir({ scope, home, cwd, env })
+    : resolveSkillsDir(platform, { scope, home, cwd, env });
 }
 
 // 计算单个 winBase/winPath 组合在 WSL 侧可访问的正斜杠路径。
