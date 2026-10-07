@@ -1,0 +1,20 @@
+{
+  "name": "@cheezmil/aek-mcp",
+  "version": "0.1.0",
+  "description": "MCP proxy gateway",
+  "type": "module",
+  "bin": {
+    "aek-mcp": "bin/aek-mcp.js",
+    "aekmcp": "bin/aekmcp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@cheezmil/aek": "workspace:*"
+  },
+  "files": [
+    "bin/",
+    "package.json"
+  ]
+}
