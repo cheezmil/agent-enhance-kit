@@ -2,7 +2,7 @@
 //
 // 格式（JSONC，注释友好）：
 // {
-//   // 自动生成的记录，不要手动编辑。运行 "aeksm sync" 后自动更新。
+//   // 自动生成的记录，不要手动编辑。运行 "aeksm gen" 后自动更新。
 //   "version": 1,
 //   // 中心仓库当前已知的所有 skill 名称
 //   "skills": ["browser-harness", "superpowers", ...],
@@ -77,4 +77,27 @@ export async function writeRecord(home = os.homedir(), record) {
   const filePath = getRecordPath(home);
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, JSON.stringify(record, null, 2) + '\n');
+}
+
+/**
+ * 使工具的 synced 记录失效，让下一次 gen 立即重新生成这些工具。
+ * remove 之后必须调用，否则缓存窗口内 gen 会把这些工具全部跳过。
+ * @param {string[]|null} platformIds - 要失效的工具 id；null 或空数组表示全部失效
+ */
+export async function invalidateSynced(platformIds = null, home = os.homedir()) {
+  const record = await readRecord(home);
+  if (!record) return null;
+
+  record.synced = record.synced || {};
+  if (platformIds && platformIds.length > 0) {
+    for (const id of platformIds) {
+      delete record.synced[id];
+      delete record.synced[`${id}-win`];
+    }
+  } else {
+    record.synced = {};
+  }
+
+  await writeRecord(home, record);
+  return record;
 }

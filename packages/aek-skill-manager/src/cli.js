@@ -21,9 +21,13 @@ import {
   syncSkillFolders,
 } from './skills.js';
 import { loadConfig, getConfigPath } from './config.js';
+import { getRecordPath, invalidateSynced } from './record.js';
 import { transferSync } from './transfer-station.js';
 
 const SCOPES = ['global', 'project'];
+
+// 已改名的旧子命令，仅用于给出明确报错提示，不提供别名。
+const RENAMED_COMMANDS = { sync: 'gen' };
 
 async function main() {
   try {
@@ -37,14 +41,16 @@ async function main() {
 
     if (command === 'init') {
       await runInit(scope);
-    } else if (command === 'sync') {
-      await runSync(scope, commandArgs);
+    } else if (command === 'gen') {
+      await runGen(scope, commandArgs);
     } else if (command === 'transfer-sync') {
       await runTransferSync(commandArgs);
     } else if (command === 'pull') {
       await runPull(scope, commandArgs);
     } else if (command === 'remove') {
       await runRemove(scope, commandArgs);
+    } else if (command === null && RENAMED_COMMANDS[commandArgs[0]]) {
+      throw new Error(`子命令 "${commandArgs[0]}" 已改名为 "${RENAMED_COMMANDS[commandArgs[0]]}"`);
     } else if (command === null && commandArgs.length === 0) {
       await runInteractiveSync();
     } else if (command === null && commandArgs.length === 2) {
@@ -74,7 +80,7 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg.startsWith('--scope=')) {
       scope = arg.slice('--scope='.length);
-    } else if (command === null && (arg === 'init' || arg === 'sync' || arg === 'transfer-sync' || arg === 'pull' || arg === 'remove')) {
+    } else if (command === null && (arg === 'init' || arg === 'gen' || arg === 'transfer-sync' || arg === 'pull' || arg === 'remove')) {
       command = arg;
     } else {
       commandArgs.push(arg);
@@ -90,9 +96,9 @@ function parseArgs(argv) {
 
 function printUsage() {
   console.log('用法:');
-  console.log('  aeksm sync                        从中心仓库同步 skill 到各工具');
-  console.log('  aeksm sync --tools claude,cursor   同步到指定工具');
-  console.log('  aeksm sync --allagents             同步到所有支持的 agent 工具');
+  console.log('  aeksm gen                         从中心仓库生成 skill 到各工具');
+  console.log('  aeksm gen --tools claude,cursor   生成到指定工具');
+  console.log('  aeksm gen --allagents             生成到所有支持的 agent 工具');
   console.log('  aeksm transfer-sync                对齐 WSL 与 Windows 的中心仓库（以最新为准）');
   console.log('  aeksm pull <source>               从某个工具拉取 skill 到中心仓库');
   console.log('  aeksm remove <skill-name>...       从各工具中移除指定 skill（支持多个名称）');
@@ -196,17 +202,17 @@ async function runTransferSync(args) {
   await doTransferSync({ force });
 }
 
-// 按配置决定是否自动执行 transfer-sync（sync 前）
+// 按配置决定是否自动执行 transfer-sync（gen 前）
 // 检测策略：优先检查 record.jsonc 的 mtime，若近 1 分钟内更新过则跳过 transfer-sync
 async function maybeTransferSync() {
   const cfg = await loadConfig();
   // 仅在 WSL 或 Windows 下才执行 transfer-sync
   const isWSLorWin = process.platform === 'win32' || !!process.env.WSL_DISTRO_NAME;
-  if (!isWSLorWin || !cfg.transferSyncBeforeSync) {
+  if (!isWSLorWin || !cfg.transferSyncBeforeGen) {
     return;
   }
   // 快速检查：record.jsonc 是否最近有更新（表示刚做过 transfer-sync）
-  const recordPath = path.join(os.homedir(), '.aek', 'skill-manager', 'record.jsonc');
+  const recordPath = getRecordPath();
   try {
     const stat = await stat(recordPath);
     if (Date.now() - stat.mtimeMs < 60_000) {
@@ -229,7 +235,7 @@ async function maybeTransferSync() {
     // 强制等待一下，确保 record.jsonc 已写入
     await new Promise(r => setTimeout(r, 100));
   } catch (err) {
-    console.log(`[aek sm] transfer-sync 自动执行失败（不影响后续 sync）: ${err.message}`);
+    console.log(`[aek sm] transfer-sync 自动执行失败（不影响后续 gen）: ${err.message}`);
   }
 }
 
@@ -269,10 +275,10 @@ async function runInit(scope) {
 
   console.log(`[aek sm] 中心仓库已初始化: ${formatPathForDisplay(dir)}`);
   console.log(`[aek sm] 将 skill 目录放到 ${formatPathForDisplay(dir)}/ 下，`);
-  console.log(`[aek sm] 然后运行 "aeksm sync" 同步到各工具。`);
+  console.log(`[aek sm] 然后运行 "aeksm gen" 生成到各工具。`);
 }
 
-async function runSync(scope, args) {
+async function runGen(scope, args) {
   // 解析 --tools 和 --allagents 参数
   let tools = null;
   let allAgents = false;
@@ -289,7 +295,7 @@ async function runSync(scope, args) {
     }
   }
 
-  // 如果指定了 --allagents，则同步所有工具
+  // 如果指定了 --allagents，则生成到所有工具
   if (allAgents) {
     tools = PLATFORMS.map(p => p.id);
   }
@@ -297,9 +303,21 @@ async function runSync(scope, args) {
   // 如果 tools 未指定，从配置读取默认工具列表
   if (!tools && scope === 'global') {
     const cfg = await loadConfig();
-    if (cfg.syncDefaultTools && cfg.syncDefaultTools.length > 0) {
-      tools = cfg.syncDefaultTools;
+    if (cfg.genDefaultTools && cfg.genDefaultTools.length > 0) {
+      tools = cfg.genDefaultTools;
     }
+  }
+
+  // 统一把工具名（平台 id 或别名，如 dsh）解析成平台 id；
+  // 未知名称直接报错，否则会在 0 个平台上静默空转并谎报「无变更」
+  if (tools) {
+    tools = tools.map((t) => {
+      const platform = resolvePlatformByKeyword(t);
+      if (!platform) {
+        throw new Error(`未知工具: ${t}（--tools 支持平台 id 或别名，例如 claude / dsh / deepseek-harness）`);
+      }
+      return platform.id;
+    });
   }
 
   // 全局 scope 下，按配置先对齐 WSL ↔ Windows 中心仓库
@@ -333,11 +351,22 @@ async function runSync(scope, args) {
     }
   }
 
+  const cachedSkips = results.filter((r) => r.cached).map((r) => r.platform?.id).filter(Boolean);
+
   if (totalCopy === 0 && totalOverwrite === 0) {
     const skillCount = (centerSkills?.length ?? 0);
-    console.log(`[aek sm] 无变更。中心仓库 ${formatPathForDisplay(centerDir)} 有 ${skillCount} 个 skill。`);
+    if (cachedSkips.length > 0) {
+      console.log(`[aek sm] 已跳过 ${cachedSkips.length} 个工具（record 缓存：距上次真正生成未满 1 小时）: ${cachedSkips.join(', ')}`);
+      console.log(`[aek sm] 中心仓库 ${formatPathForDisplay(centerDir)} 有 ${skillCount} 个 skill，本次没有写入任何工具。`);
+      console.log(`[aek sm] 要立即生成: 删除 ${formatPathForDisplay(getRecordPath())} 后重跑，gen 会重建它。`);
+    } else {
+      console.log(`[aek sm] 无变更: 已比对各工具，与中心仓库一致（${skillCount} 个 skill）。`);
+    }
   } else {
     console.log(`[aek sm] 完成: ${totalCopy} 新增, ${totalOverwrite} 更新`);
+    if (cachedSkips.length > 0) {
+      console.log(`[aek sm] 另有 ${cachedSkips.length} 个工具被 record 缓存跳过: ${cachedSkips.join(', ')}`);
+    }
   }
 }
 
@@ -420,11 +449,13 @@ async function runRemove(scope, args) {
       console.log('[aek sm] 各工具中均无 skill 可移除');
     } else {
       console.log(`[aek sm] 完成: 共移除 ${totalRemoved} 个 skill`);
+      await invalidateSynced(platforms.map((p) => p.id));
     }
     return;
   }
 
   let totalNotFound = 0;
+  const touchedPlatforms = new Set();
 
   for (const skillName of skillNames) {
     let removed = 0;
@@ -437,6 +468,7 @@ async function runRemove(scope, args) {
         if (skillStat.isDirectory()) {
           await rm(skillPath, { recursive: true, force: true });
           console.log(`[aek sm] 已移除: ${platform.name} (${skillName})`);
+          touchedPlatforms.add(platform.id);
           removed += 1;
         } else {
           notFound += 1;
@@ -460,6 +492,8 @@ async function runRemove(scope, args) {
 
   if (totalRemoved > 0) {
     console.log(`[aek sm] 共移除 ${totalRemoved} 个 skill`);
+    // 移除后必须让 record 里这些工具的记录失效，否则缓存窗口内 gen 不会再写入
+    await invalidateSynced([...touchedPlatforms]);
   }
 }
 
@@ -483,7 +517,7 @@ async function runInteractiveSync() {
   const mode = await select({
     message: '选择模式:',
     choices: [
-      { name: '中心仓库同步 (sync from ~/.aek/skill-manager/skills/)', value: 'center' },
+      { name: '中心仓库生成 (gen from ~/.aek/skill-manager/skills/)', value: 'center' },
       { name: '工具到工具直接复制 (direct copy)', value: 'direct' },
     ],
   });
@@ -496,7 +530,7 @@ async function runInteractiveSync() {
         { name: '项目 (workspace, ./.aek/skill-manager/skills/)', value: 'project' },
       ],
     });
-    await runSync(scope, []);
+    await runGen(scope, []);
     return;
   }
 

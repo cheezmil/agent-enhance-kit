@@ -112,9 +112,9 @@ MCP 代理网关，集中管理所有 MCP 服务器的连接。
 
 ### 🛠️ aek-skill-manager
 
-从中心仓库同步 Agent Skills（SKILL.md 文件夹）到各 AI 编程工具的全局或项目目录。
+从中心仓库生成 Agent Skills（SKILL.md 文件夹）到各 AI 编程工具的全局或项目目录。
 
-- **CLI 命令**：`aeksm sync` — 同步 skill 到所有已配置的工具（Claude Code、Cursor、Codex、Gemini、Copilot、OpenCode 等）
+- **CLI 命令**：`aeksm gen` — 生成 skill 到所有已配置的工具（Claude Code、Cursor、Codex、Gemini、Copilot、OpenCode 等）
 - **双向同步**：`aeksm pull` — 从某个工具拉取 skill 回中心仓库
 - **两种范围**：全局（`~/.aek/skill-manager/skills/`）和项目（`.aek/skill-manager/skills/`）
 - **交互式向导**：无参数运行进入引导式设置

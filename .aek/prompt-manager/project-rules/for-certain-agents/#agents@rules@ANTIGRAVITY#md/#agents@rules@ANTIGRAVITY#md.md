@@ -40,10 +40,10 @@
 ```
 1. 改 repo 里的源文件（packages/aek-skill-manager/aek-system-skill/...）
 2. cqg acp 提交推送
-3. aek sm sync   ← 让代码自动分发到所有目标（含 Hermes 双写 Windows 路径）
+3. aek sm gen   ← 让代码自动分发到所有目标（含 Hermes 双写 Windows 路径）
 ```
 
-`aek sm sync` 会：
+`aek sm gen` 会：
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录（Hermes 双写 `.hermes` + `AppData/Local/hermes`）

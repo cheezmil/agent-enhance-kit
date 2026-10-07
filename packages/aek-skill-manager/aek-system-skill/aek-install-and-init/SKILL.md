@@ -12,21 +12,21 @@ npm install -g @cheezmil/aek-websearch  # 单模块（自动带 aek 垫片 + 平
 
 ## 必装系统 skill（6 个）
 
-`aeksm sync` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/aek-system-skill/` 同步到所有 AI 工具的 skills 目录：
+`aeksm gen` 时，下面 6 个系统 skill 会自动从 `~/.aek/skill-manager/aek-system-skill/` 生成到所有 AI 工具的 skills 目录：
 
 | Skill | 包源码路径 | 说明 |
 |-------|--------|------|
 | `aek-install-and-init` | `packages/aek-skill-manager/aek-system-skill/` | 本 skill |
 | `aek-mcp` | `packages/aek-mcp` | MCP 代理网关 |
 | `aek-prompt-manager` | `packages/aek-prompt-manager` | 全局提示词注入 |
-| `aek-skill-manager` | `packages/aek-skill-manager/aek-system-skill/` | Skill 同步 |
+| `aek-skill-manager` | `packages/aek-skill-manager/aek-system-skill/` | Skill 生成分发 |
 | `aek-task-manager` | `packages/aek-task-manager` | 长任务管理 |
 | `aek-websearch` | `packages/aek-websearch` | 上网搜索 |
 
 ### 系统 skill 的来源
 
-- **源码开发**（clone 本项目）：`aeksm init` / `aeksm sync` 从 `aek-system-skill/` 复制到中心仓库
-- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了系统 skill，`aeksm init` / `aeksm sync` 自动从包内读取
+- **源码开发**（clone 本项目）：`aeksm init` / `aeksm gen` 从 `aek-system-skill/` 复制到中心仓库
+- **npm 安装**：`@cheezmil/aek-skill-manager` 包内捆绑了系统 skill，`aeksm init` / `aeksm gen` 自动从包内读取
 
 ## 初始化（npm 安装后完整流程）
 
@@ -56,25 +56,25 @@ aek pm patch all    # 末尾追加（only-patch 源），幂等
 
 从 `only-patch/aek_system_prompt/all_agents_shared/` 读取默认 AEK 系统提示词，注入到所有 25 个工具的全局提示词文件。
 
-### 4. 同步 skill 到工具
+### 4. 生成 skill 到工具
 
-默认只同步 `settings.jsonc` 中 `syncDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
+默认只生成到 `settings.jsonc` 中 `genDefaultTools` 配置的 agent（推荐：`hermes` + `deepseek-harness`）：
 
 ```bash
-aeksm sync
+aeksm gen
 ```
 
-同步全部支持的 agent：
+生成到全部支持的 agent：
 
 ```bash
-aeksm sync --allagents
+aeksm gen --allagents
 ```
 
 ### 5. 验证状态
 
 ```bash
 aek pm status       # 各工具 patched / not-patched
-aeksm sync         # 查看同步结果（秒完成）
+aeksm gen          # 查看生成结果（秒完成）
 cat ~/.aek/skill-manager/record.jsonc  # 各工具最后同步时间
 tail ~/.aek/skill-manager/log.txt     # 同步日志
 ```
@@ -83,7 +83,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 
 要使 AEK 系统被 AI 有效使用，必须同时满足两个条件：
 
-1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aeksm sync` 已同步到各工具
+1. **系统 skill 生效**：6 个系统 skill 在中心仓库中，且 `aeksm gen` 已生成到各工具
 2. **系统提示词生效**：`aekpm patch all` 成功执行，注入后的提示词文件包含 `head-aek-system-built-in-prompt` 标记块
 
 ## 关键文件路径
@@ -106,7 +106,7 @@ tail ~/.aek/skill-manager/log.txt     # 同步日志
 npm update -g @cheezmil/aek
 ```
 
-升级后重新运行 `aeksm sync` 以确保系统 skill 为最新版本，运行 `aekpm patch all` 更新系统提示词。
+升级后重新运行 `aeksm gen` 以确保系统 skill 为最新版本，运行 `aekpm patch all` 更新系统提示词。
 
 ## 平台支持
 

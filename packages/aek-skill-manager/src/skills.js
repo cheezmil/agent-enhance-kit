@@ -353,9 +353,10 @@ export async function syncFromCenterRepo(options = {}) {
     tools = null, // null = 所有 PLATFORMS
     onConflict = null,
     useRecord = true,
+    home = os.homedir(),
   } = options;
 
-  const centerDir = resolveCenterRepoDir({ scope });
+  const centerDir = resolveCenterRepoDir({ scope, home });
 
   // 始终从实际目录扫描获取真实 skill 列表（避免 record 缓存与目录不一致）
   const centerSkills = await listSkillFolders(centerDir);
@@ -374,21 +375,20 @@ export async function syncFromCenterRepo(options = {}) {
   const results = [];
   const winRoot = isWSL() ? getWindowsNativeRoot() : null;
 
-  const record = useRecord ? await readRecord(os.homedir()) : null;
+  const record = useRecord ? await readRecord(home) : null;
+  // 缓存窗口读的是 record 内嵌 mtime（上一次「真正生成过」的时间）
+  const cacheFresh = !!(record && record.synced) && await isRecordFresh(record);
 
   for (const platform of platforms) {
-    const targetDir = resolveSkillsDir(platform, { scope });
+    const targetDir = resolveSkillsDir(platform, { scope, home });
     if (path.resolve(centerDir) === path.resolve(targetDir)) continue;
 
     // 只检查 record 中该 tool 的 synced 时间戳：
     // record 有效且最近同步过则跳过（fast path），否则总是同步（保守安全）
     let shouldSync = true;
-    if (record && record.synced && record.synced[platform.id]) {
-      const fresh = await isRecordFresh(record);
-      if (fresh) {
-        shouldSync = false;
-        log(`skip ${platform.id} (cached)`);
-      }
+    if (cacheFresh && record.synced[platform.id]) {
+      shouldSync = false;
+      log(`skip ${platform.id} (cached)`);
     }
 
     if (shouldSync) {
@@ -417,12 +417,14 @@ export async function syncFromCenterRepo(options = {}) {
       }
     } else {
       // 记录跳过的 tool
-      results.push({ platform, copied: [], overwritten: [], skipped: [] });
+      results.push({ platform, copied: [], overwritten: [], skipped: [], cached: true });
     }
   }
 
-  // 更新 record
-  if (useRecord) {
+  // 更新 record：只有真的生成过才写，否则空转的 gen 会不断给缓存窗口续命，
+  // 导致 remove 之后 1 小时内 gen 永远什么都不做
+  const syncedAny = results.some((r) => r.copied.length > 0 || r.overwritten.length > 0);
+  if (useRecord && syncedAny) {
     try {
       const skillNames = centerSkills.map(s => s.name);
       const newRecord = buildRecord(skillNames);
@@ -430,7 +432,8 @@ export async function syncFromCenterRepo(options = {}) {
       if (record && record.synced) {
         newRecord.synced = { ...record.synced };
         for (const r of results) {
-          if (r.platform) {
+          // 只给真正写入过的工具打时间戳，被缓存跳过的不能冒充「刚同步过」
+          if (r.platform && !r.cached) {
             newRecord.synced[r.platform.id] = Date.now();
             if (r.winTarget) {
               newRecord.synced[`${r.platform.id}-win`] = Date.now();
@@ -438,7 +441,7 @@ export async function syncFromCenterRepo(options = {}) {
           }
         }
       }
-      await writeRecord(os.homedir(), newRecord);
+      await writeRecord(home, newRecord);
     } catch {}
   }
 

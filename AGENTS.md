@@ -76,7 +76,11 @@
 ## aek-skill-manager 系统 skill 更新铁律
 
 修改各个 `packages/aek-skill-manager/aek-system-skill/<skill-name>/` 后，**禁止手动 cp 到任何工具目录**，然后
-`aek sm sync` 会：
+`aek sm gen` 会：
 - transfer-sync 先对齐 WSL ↔ Windows 中心仓库（macOS不生效）
 - ensureSystemSkills 从源复制系统 skill 到中心仓库
 - 分发到所有工具的 skills 目录
+
+<!-- head-codex -->
+# test codex rule\n
+<!-- end-codex -->

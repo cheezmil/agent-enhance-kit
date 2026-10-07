@@ -8,8 +8,10 @@ import {
   collectModelFields,
   listSkillFolders,
   parseFrontmatter,
+  syncFromCenterRepo,
   syncSkillFolders,
 } from '../src/skills.js';
+import { readRecord, writeRecord, invalidateSynced } from '../src/record.js';
 
 async function writeSkill(dir, name, frontmatter, body = 'Body.') {
   const skillDir = path.join(dir, name);
@@ -198,4 +200,48 @@ test('listSkillFolders excludes .venv and node_modules directories', async (t) =
 
   const alphaEntries = await readdir(path.join(targetDir, 'alpha'));
   assert.ok(!alphaEntries.includes('node_modules'));
+});
+
+// ---------- record 缓存与失效 ----------
+
+async function seedCenterRepo(home, names) {
+  const centerDir = path.join(home, '.aek', 'skill-manager', 'skills');
+  for (const name of names) await writeSkill(centerDir, name, { name });
+  return centerDir;
+}
+
+test('gen 全部命中缓存时不刷新 record.mtime', async (t) => {
+  const home = await tmp('aek-sm-cache-');
+  t.after(() => rm(home, { recursive: true, force: true }));
+  await seedCenterRepo(home, ['demo']);
+
+  const stamp = Date.now() - 60_000; // 仍在 1 小时窗口内
+  await writeRecord(home, { version: 1, mtime: stamp, skills: ['demo'], synced: { claude: stamp, codex: stamp } });
+
+  const run = await syncFromCenterRepo({ home, tools: ['claude', 'codex'] });
+  assert.ok(run.results.every((r) => r.cached === true), '所有工具应标记为缓存跳过');
+  assert.equal((await readRecord(home)).mtime, stamp, '空转的 gen 不得给缓存窗口续命');
+});
+
+test('invalidateSynced 后该工具立即重新生成，其余仍走缓存', async (t) => {
+  const home = await tmp('aek-sm-invalidate-');
+  t.after(() => rm(home, { recursive: true, force: true }));
+  await seedCenterRepo(home, ['demo']);
+
+  const stamp = Date.now() - 60_000;
+  await writeRecord(home, { version: 1, mtime: stamp, skills: ['demo'], synced: { claude: stamp, codex: stamp } });
+
+  await invalidateSynced(['claude'], home);
+  const cleared = await readRecord(home);
+  assert.equal(cleared.synced.claude, undefined);
+  assert.equal(cleared.synced.codex, stamp);
+
+  const run = await syncFromCenterRepo({ home, tools: ['claude', 'codex'] });
+  const byId = Object.fromEntries(run.results.map((r) => [r.platform.id, r]));
+  assert.equal(byId.claude.copied.length, 1, 'claude 应重新生成');
+  assert.equal(byId.codex.cached, true, 'codex 仍应走缓存');
+
+  const written = await readRecord(home);
+  assert.ok(written.mtime > stamp, '真正生成过才刷新 mtime');
+  assert.equal(written.synced.codex, stamp, '被跳过的工具不得冒充刚同步过');
 });

@@ -55,8 +55,29 @@ test('loadConfig returns defaults when missing', async (t) => {
   const home = await tmp('aek-sm-config-');
   t.after(() => rm(home, { recursive: true, force: true }));
   const cfg = await loadConfig({ home });
-  assert.equal(cfg.transferSyncBeforeSync, true);
+  assert.equal(cfg.transferSyncBeforeGen, true);
   assert.equal(cfg.transferBackupKeep, 3);
+});
+
+test('loadConfig warns on renamed keys and ignores their values', async (t) => {
+  const home = await tmp('aek-sm-config-');
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const cfgDir = path.join(home, '.aek', 'skill-manager');
+  await mkdir(cfgDir, { recursive: true });
+  await writeFile(path.join(cfgDir, 'settings.jsonc'), '{ "syncDefaultTools": ["hermes"] }\n');
+
+  const logs = [];
+  const originalLog = console.log;
+  console.log = (...args) => { logs.push(args.join(' ')); };
+  let cfg;
+  try {
+    cfg = await loadConfig({ home });
+  } finally {
+    console.log = originalLog;
+  }
+
+  assert.match(logs.join('\n'), /syncDefaultTools → genDefaultTools/);
+  assert.deepEqual(cfg.genDefaultTools, []);
 });
 
 test('updateConfig writes and loadConfig reads back', async (t) => {

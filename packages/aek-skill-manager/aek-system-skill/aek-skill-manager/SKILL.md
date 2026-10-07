@@ -1,45 +1,45 @@
 ---
 name: aek-skill-manager
-description: Use when syncing Agent Skills (SKILL.md folders) from a central repo to all AI coding tools — sync, pull, init, interactive wizard.
+description: Use when generating Agent Skills (SKILL.md folders) from a central repo into all AI coding tools — gen, pull, init, interactive wizard.
 license: MIT
 metadata:
   hermes:
-    tags: [aek, skill, skill-manager, sync, agent]
+    tags: [aek, skill, skill-manager, gen, agent]
 ---
 
 # aek-skill-manager
 
 ## Overview
 
-Sync Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skill-manager/skills/`) to every AI coding tool's global or project directory. Supports 25 agent tools (Claude Code, Cursor, Codex, OpenCode, Hermes, Cline, Kiro, Pi Agent, ZCode, Trae, etc.).
+Generate Agent Skills (SKILL.md folders) from a central repository (`~/.aek/skill-manager/skills/`) into every AI coding tool's global or project directory. Supports 25 agent tools (Claude Code, Cursor, Codex, OpenCode, Hermes, Cline, Kiro, Pi Agent, ZCode, Trae, etc.).
 
 ## When to Use
 
-- Need to sync skills to all AI coding tools at once
+- Need to generate skills into all AI coding tools at once
 - Need to install a skill into multiple agent harnesses
 - Need to pull skills from a tool back to the central repo
 - Need to initialize the central skill repository
 
 ## Usage
 
-### Sync skills（默认同步配置的工具）
+### Gen skills（默认生成到配置的工具）
 
-默认只同步 `~/.aek/skill-manager/settings.jsonc` 中 `syncDefaultTools` 配置的 agent（如 `["hermes", "deepseek-harness"]`），秒完成。
+默认只生成到 `~/.aek/skill-manager/settings.jsonc` 中 `genDefaultTools` 配置的 agent（如 `["hermes", "deepseek-harness"]`），秒完成。
 
 ```bash
-aeksm sync
+aeksm gen
 ```
 
-### 同步所有支持的 agent
+### 生成到所有支持的 agent
 
 ```bash
-aeksm sync --allagents
+aeksm gen --allagents
 ```
 
-### 同步指定工具
+### 生成到指定工具
 
 ```bash
-aeksm sync --tools claude,cursor,opencode
+aeksm gen --tools claude,cursor,opencode
 ```
 
 ### Pull skills from a tool back to central repo
@@ -62,7 +62,7 @@ aeksm transfer-sync
 
 WSL 与 Windows 中心仓库双向对齐，以最新修改的一方为准，覆盖前自动备份。
 
-配置项 `transferSyncBeforeSync: true` 默认开启，仅在 WSL/Windows 下生效，macOS/Linux 原生无此功能。
+配置项 `transferSyncBeforeGen: true` 默认开启，仅在 WSL/Windows 下生效，macOS/Linux 原生无此功能。
 
 ### Remove skills
 
@@ -95,7 +95,11 @@ aeksm
 
 ## 性能优化
 
-- 首次 sync 生成 `~/.aek/skill-manager/record.jsonc`，记录各工具最后同步时间
-- 后续 sync 只检查 record 缓存，相同工具跳过，毫秒级完成
+- 首次 gen 生成 `~/.aek/skill-manager/record.jsonc`，记录各工具最后同步时间
+- 后续 gen 只检查 record 缓存，相同工具跳过，毫秒级完成
 - 1 分钟内的重复调用会自动跳过 transfer-sync（避免 drvfs 慢写）
-- `syncDefaultTools` 只同步必要 agent，避免无脑遍历 25 个平台
+- `genDefaultTools` 只生成到必要 agent，避免无脑遍历 25 个平台
+
+## 命名变更
+
+`aeksm sync` 已改名为 `aeksm gen`（中心仓库 → 各工具是单向生成，不是双向同步）。旧名直接报错、不留别名。真正双向的 `transfer-sync` 名称不变。

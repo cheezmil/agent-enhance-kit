@@ -13,13 +13,19 @@ const CONFIG_FILE_NAME = 'settings.jsonc';
 
 export const DEFAULT_CONFIG = {
   // WSL ↔ Windows 中心仓库双向同步开关（仅在 WSL/Windows 环境下生效，macOS/Linux 原生无此功能）
-  transferSyncBeforeSync: true,
+  transferSyncBeforeGen: true,
   transferBackupKeep: 3,
   wslDistro: null, // Windows 侧缓存探测到的 WSL 发行版名，失效自动清理
-  // 默认同步的工具列表（不带 --tools 时生效），默认为空则同步全部
-  // 示例：只同步 hermes 和 deepseek-harness，取消下面注释并填写
-  // syncDefaultTools: ['hermes', 'deepseek-harness'],
-  syncDefaultTools: [],
+  // 默认生成的工具列表（不带 --tools 时生效），默认为空则生成全部
+  // 示例：只生成 hermes 和 deepseek-harness，取消下面注释并填写
+  // genDefaultTools: ['hermes', 'deepseek-harness'],
+  genDefaultTools: [],
+};
+
+// 已改名的旧配置键。只提示改名，不做值迁移：旧键的取值会被忽略。
+const RENAMED_CONFIG_KEYS = {
+  transferSyncBeforeSync: 'transferSyncBeforeGen',
+  syncDefaultTools: 'genDefaultTools',
 };
 
 export function getConfigPath(options = {}) {
@@ -66,11 +72,22 @@ export async function loadConfig(options = {}) {
   try {
     const raw = await readFile(filePath, 'utf-8');
     const parsed = parseJsonc(raw);
+    warnRenamedKeys(parsed, filePath);
     return { ...DEFAULT_CONFIG, ...parsed };
   } catch {
     // 文件不存在时自动生成默认配置
     await ensureConfigFile(filePath);
     return { ...DEFAULT_CONFIG };
+  }
+}
+
+const warnedRenamedKeys = new Set();
+
+function warnRenamedKeys(parsed, filePath) {
+  for (const [oldKey, newKey] of Object.entries(RENAMED_CONFIG_KEYS)) {
+    if (!(oldKey in parsed) || warnedRenamedKeys.has(oldKey)) continue;
+    warnedRenamedKeys.add(oldKey);
+    console.log(`[aek sm] 配置键已改名: ${oldKey} → ${newKey}（${filePath}），旧键的取值已被忽略。`);
   }
 }
 
