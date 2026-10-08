@@ -102,9 +102,11 @@ aeksm
 
 共用目录 `~/.agents/skills`（项目 `.agents/skills`）是厂商中立约定（Codex 发起、`npx skills` 生态），是否读它由 `src/skills.js` 各平台的 `sharedAgentsDir: true` 标记决定：
 
-- 全局+项目都读、可完全走共用：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness`
-- 只在项目级读 `.agents/skills`（全局仍用各自目录，故按不共用处理）：`antigravity` · `kilocode`
-- 完全不共用、始终写自有目录：其余全部（`claude`、`hermes`、`qoder`、`trae`、`qwencode`、`kiro`、`continue`、`zcode`、`workbuddy` 等）
+- 全局+项目都读、可完全走共用：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness` · `qwencode` · `kilocode`
+- 只在项目级读 `.agents/skills`（全局仍用各自目录，故按不共用处理）：`antigravity`
+- 完全不共用、始终写自有目录：其余全部（`claude`、`hermes`、`qoder`、`trae`、`kiro`、`continue`、`zcode`、`workbuddy` 等）
+
+> 依据：开源工具（opencode / cline / pi / qwen-code / kilocode / gemini-cli / hermes / continue）已逐个 clone 源码 grep `.agents/skills` 核实（如 qwen `SKILL_PROVIDER_CONFIG_DIRS=['.qwen','.agents']`）；闭源工具以官方文档为准。
 
 > 名单依据各工具官方 skills 文档与 `vercel-labs/skills` 兼容矩阵逐一核对，随版本变动。增删只需改 `skills.js` 对应平台的 `sharedAgentsDir` 标记。
 

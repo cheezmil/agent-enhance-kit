@@ -147,6 +147,7 @@ export const PLATFORMS = [
   },
   {
     id: 'kilocode',
+    sharedAgentsDir: true,
     name: 'Kilo Code',
     keywords: ['kilocode', 'kilo code', 'kilo'],
     docs: 'https://kilo.ai/docs/customize/marketplace',
@@ -228,6 +229,7 @@ export const PLATFORMS = [
   },
   {
     id: 'qwencode',
+    sharedAgentsDir: true,
     name: 'QWencode',
     keywords: ['qwencode', 'qwen code', 'qwen'],
     docs: 'https://github.com/QwenLM/qwen-code/pull/7395',
