@@ -119,6 +119,7 @@ export const PLATFORMS = [
   },
   {
     id: 'hermes',
+    sharedAgentsDir: 'project',
     name: 'Hermes Agent',
     keywords: ['hermes', 'hermes agent', 'nous'],
     docs: 'https://hermes-agent.nousresearch.com/docs/user-guide/features/skills',
@@ -240,6 +241,7 @@ export const PLATFORMS = [
   },
   {
     id: 'antigravity',
+    sharedAgentsDir: 'project',
     name: 'Antigravity',
     keywords: ['antigravity', 'google antigravity'],
     docs: 'https://antigravity.google/docs/skills/',
@@ -406,7 +408,7 @@ export async function syncFromCenterRepo(options = {}) {
   const cacheFresh = !!(record && record.synced) && await isRecordFresh(record);
 
   for (const platform of platforms) {
-    const useShared = usesSharedGenDir(platform, mode);
+    const useShared = usesSharedGenDir(platform, mode, scope);
     const targetDir = resolveGenTargetDir(platform, { mode, scope, home, cwd });
     if (!targetDir) continue; // 项目范围下该工具无项目级目录
     if (path.resolve(centerDir) === path.resolve(targetDir)) continue;
@@ -572,15 +574,28 @@ function windowsNativeSharedSkillsDir(winRoot) {
   return path.posix.resolve(path.posix.join(winRoot, ...SHARED_SKILLS_SEGMENTS));
 }
 
-// genTargetMode=1 且工具支持共用目录时，写入 ~/.agents/skills 而非自有目录。
-export function usesSharedGenDir(platform, mode = 2) {
-  return mode === 1 && platform.sharedAgentsDir === true;
+// sharedAgentsDir 取值（决定共用目录生效的作用域）：
+//   true / 'both'    全局 ~/.agents/skills 和项目 .agents/skills 都读
+//   'project'        只读项目级 .agents/skills（全局仍用自有目录）
+//   'global'         只读全局 ~/.agents/skills
+//   缺省/false       不共用
+export function readsSharedAgentsDir(platform, scope) {
+  const v = platform.sharedAgentsDir;
+  if (!v) return false;
+  if (v === true || v === 'both') return true;
+  if (scope === 'project') return v === 'project';
+  return v === 'global';
 }
 
-// 给定生成模式解析某工具的主目标 skill 目录（供 gen 与 remove 共用）。
+// genTargetMode=1 且该工具在给定 scope 下读共用目录时，写入共用目录而非自有目录。
+export function usesSharedGenDir(platform, mode = 2, scope = 'global') {
+  return mode === 1 && readsSharedAgentsDir(platform, scope);
+}
+
+// 给定生成模式与作用域解析某工具的主目标 skill 目录（供 gen 与 remove 共用）。
 export function resolveGenTargetDir(platform, options = {}) {
-  const { mode = 2, scope, home, cwd, env } = options;
-  return usesSharedGenDir(platform, mode)
+  const { mode = 2, scope = 'global', home, cwd, env } = options;
+  return usesSharedGenDir(platform, mode, scope)
     ? resolveSharedSkillsDir({ scope, home, cwd, env })
     : resolveSkillsDir(platform, { scope, home, cwd, env });
 }

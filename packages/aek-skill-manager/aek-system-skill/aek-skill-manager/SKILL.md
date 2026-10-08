@@ -100,15 +100,13 @@ aeksm
 - `2`（默认，原有逻辑）：每个工具都写自己的目录（`~/.<tool>/skills/`）。
 - `1`：支持社区共用目录的 agent 只写厂商中立的 `~/.agents/skills`（项目级 `./.agents/skills`），其余工具仍写各自目录。`remove` 与 `gen` 走同一套目标解析，能对称清理。
 
-共用目录 `~/.agents/skills`（项目 `.agents/skills`）是厂商中立约定（Codex 发起、`npx skills` 生态），是否读它由 `src/skills.js` 各平台的 `sharedAgentsDir: true` 标记决定：
+共用目录 `~/.agents/skills`（项目 `.agents/skills`）是厂商中立约定（Codex 发起、`npx skills` 生态）。是否读、在哪个作用域读，由 `src/skills.js` 各平台的 `sharedAgentsDir` 标记决定：`true`/`'both'`＝全局+项目都读、`'project'`＝仅项目读、`'global'`＝仅全局读。
 
-- 全局+项目都读、可完全走共用：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness` · `qwencode` · `kilocode`
-- 只在项目级读 `.agents/skills`（全局仍用各自目录，故按不共用处理）：`antigravity`
-- 完全不共用、始终写自有目录：其余全部（`claude`、`hermes`、`qoder`、`trae`、`kiro`、`continue`、`zcode`、`workbuddy` 等）
+- A 全局+项目都读：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness` · `qwencode` · `kilocode`
+- B 仅项目级读（全局 gen 仍走各自目录）：`hermes` · `antigravity`
+- C 不共用、写各自目录：`claude`、`claude-desktop`、`cherry-studio`、`chatbox`、`continue`、`qoder`、`kiro`、`workbuddy`、`zcode`、`trae`、`trae-cn`
 
-> 依据：开源工具（opencode / cline / pi / qwen-code / kilocode / gemini-cli / hermes / continue）已逐个 clone 源码 grep `.agents/skills` 核实（如 qwen `SKILL_PROVIDER_CONFIG_DIRS=['.qwen','.agents']`）；闭源工具以官方文档为准。
-
-> 名单依据各工具官方 skills 文档与 `vercel-labs/skills` 兼容矩阵逐一核对，随版本变动。增删只需改 `skills.js` 对应平台的 `sharedAgentsDir` 标记。
+> 判据：开源工具逐个 clone 源码 grep 核实（qwen `SKILL_PROVIDER_CONFIG_DIRS=['.qwen','.agents']`；hermes `PROJECT_SKILLS_SUBDIRS` 含 `.agents/skills`；opencode/cline/pi/gemini/kilocode 源码均有 `.agents`；claude 官方打包 grep 只见 plugin 的 `agents` 键、无 `.agents/skills`；continue 源码无 `.agents`）。闭源 IDE（trae/qoder/zcode/kiro/workbuddy）无法核实者留 C——误判成共用会把 skill 丢进没人读的目录，宁可保守。要覆盖某个闭源工具，改它平台的 `sharedAgentsDir` 即可。
 
 ## 性能优化
 

@@ -13,14 +13,17 @@ transferBackupKeep: 3
 #      由这些工具从共用目录读取；不读共用目录的工具仍写各自的工作目录
 genTargetMode: 2
 
-# 说明（genTargetMode: 1 时的分工）——
-# 使用共用目录 ~/.agents/skills 的 agent（全局与项目都读，已按源码/官方文档核实）：
+# 说明（genTargetMode: 1 时的分工，按作用域分三档）——
+# A. 全局+项目都读 ~/.agents/skills（gen 无论 scope 都走共用）：
 #   codex、cursor、vscode、copilot、gemini、opencode、windsurf、cline、pi、
 #   openclaw、deepseek-harness、qwencode、kilocode
-# 不共用目录、始终写入自身工作目录的 agent：
-#   claude、claude-desktop、cherry-studio、chatbox、continue、hermes、
-#   qoder、antigravity、kiro、workbuddy、zcode、trae、trae-cn
-# 注：antigravity 只在项目级读 .agents/skills，全局仍用各自目录，故归为“不共用”。
+# B. 只在项目级读 .agents/skills（项目 gen 走共用；全局 gen 仍走各自目录）：
+#   hermes、antigravity
+# C. 不共用、始终写各自目录：
+#   claude、claude-desktop、cherry-studio、chatbox、continue、qoder、kiro、
+#   workbuddy、zcode、trae、trae-cn
+# 判据来自逐个 clone 源码 grep（qwen/kilocode/opencode/cline/pi/hermes/continue/
+# gemini/claude 实测）或官方文档；闭源 IDE 无法核实者留在 C，避免误判把 skill 丢掉。
 
 # 默认生成到的工具列表（不带 --tools 时生效），不填写则生成全部
 # 示例：[hermes, deepseek-harness]

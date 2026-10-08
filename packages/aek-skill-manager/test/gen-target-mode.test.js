@@ -25,9 +25,15 @@ test('usesSharedGenDir: mode 1 only for sharedAgentsDir platforms', () => {
   }
   // 只在项目级读 .agents（全局用各自目录）→ 按不共用处理
   assert.equal(usesSharedGenDir(byId('antigravity'), 1), false);
+  // hermes / antigravity 仅项目级共用，全局不共用
+  assert.equal(usesSharedGenDir(byId('hermes'), 1, 'project'), true);
+  assert.equal(usesSharedGenDir(byId('hermes'), 1, 'global'), false);
+  assert.equal(usesSharedGenDir(byId('antigravity'), 1, 'project'), true);
+  // both 类工具两种 scope 都共用
+  assert.equal(usesSharedGenDir(byId('codex'), 1, 'project'), true);
+  assert.equal(usesSharedGenDir(byId('codex'), 1, 'global'), true);
   // 源码核实为不共用
-  assert.equal(usesSharedGenDir(byId('continue'), 1), false);
-  assert.equal(usesSharedGenDir(byId('hermes'), 1), false);
+  assert.equal(usesSharedGenDir(byId('continue'), 1, 'project'), false);
   // 闭源、官方文档只列自有目录
   assert.equal(usesSharedGenDir(byId('claude'), 1), false);
   assert.equal(usesSharedGenDir(byId('zcode'), 1), false);
