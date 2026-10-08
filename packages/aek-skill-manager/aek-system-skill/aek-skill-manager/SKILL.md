@@ -100,12 +100,13 @@ aeksm
 - `2`（默认，原有逻辑）：每个工具都写自己的目录（`~/.<tool>/skills/`）。
 - `1`：支持社区共用目录的 agent 只写厂商中立的 `~/.agents/skills`（项目级 `./.agents/skills`），其余工具仍写各自目录。`remove` 与 `gen` 走同一套目标解析，能对称清理。
 
-共用目录由 `~/.agents/skills` 生态约定，哪些工具读它由 `src/skills.js` 里各平台的 `sharedAgentsDir: true` 标记决定：
+共用目录 `~/.agents/skills`（项目 `.agents/skills`）是厂商中立约定（Codex 发起、`npx skills` 生态），是否读它由 `src/skills.js` 各平台的 `sharedAgentsDir: true` 标记决定：
 
-- 用共用目录：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `antigravity`
-- 始终写自有目录（不共用）：其余全部（`claude`、`hermes`、`qoder`、`trae` 等）
+- 全局+项目都读、可完全走共用：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness`
+- 只在项目级读 `.agents/skills`（全局仍用各自目录，故按不共用处理）：`antigravity` · `kilocode`
+- 完全不共用、始终写自有目录：其余全部（`claude`、`hermes`、`qoder`、`trae`、`qwencode`、`kiro`、`continue`、`zcode`、`workbuddy` 等）
 
-> 该支持名单是社区约定、随版本变动；增删只需改 `skills.js` 对应平台的 `sharedAgentsDir` 标记。
+> 名单依据各工具官方 skills 文档与 `vercel-labs/skills` 兼容矩阵逐一核对，随版本变动。增删只需改 `skills.js` 对应平台的 `sharedAgentsDir` 标记。
 
 ## 性能优化
 

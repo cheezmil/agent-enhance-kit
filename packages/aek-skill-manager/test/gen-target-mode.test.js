@@ -19,9 +19,16 @@ async function tmp(prefix) {
 const byId = (id) => PLATFORMS.find((p) => p.id === id);
 
 test('usesSharedGenDir: mode 1 only for sharedAgentsDir platforms', () => {
-  assert.equal(usesSharedGenDir(byId('codex'), 1), true);
-  assert.equal(usesSharedGenDir(byId('cursor'), 1), true);
+  // 全局+项目都读 ~/.agents/skills 的工具
+  for (const id of ['codex', 'cursor', 'vscode', 'copilot', 'gemini', 'opencode', 'windsurf', 'cline', 'pi', 'openclaw', 'deepseek-harness']) {
+    assert.equal(usesSharedGenDir(byId(id), 1), true, `${id} 应共用`);
+  }
+  // 只在项目级读 .agents（全局用各自目录）→ 按不共用处理
+  assert.equal(usesSharedGenDir(byId('antigravity'), 1), false);
+  assert.equal(usesSharedGenDir(byId('kilocode'), 1), false);
+  // 完全不共用
   assert.equal(usesSharedGenDir(byId('claude'), 1), false);
+  assert.equal(usesSharedGenDir(byId('qwencode'), 1), false);
   // mode 2 永远走自有目录
   assert.equal(usesSharedGenDir(byId('codex'), 2), false);
 });

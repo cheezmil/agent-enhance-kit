@@ -97,6 +97,7 @@ export const PLATFORMS = [
   },
   {
     id: 'opencode',
+    sharedAgentsDir: true,
     name: 'OpenCode',
     keywords: ['opencode', 'open code', 'anomaly'],
     docs: 'https://opencode.ai/docs/skills/',
@@ -107,6 +108,7 @@ export const PLATFORMS = [
   },
   {
     id: 'cline',
+    sharedAgentsDir: true,
     name: 'Cline',
     keywords: ['cline', 'roo code', 'roocode'],
     docs: 'https://cline.bot/blog/cline-3-48-0-skills-and-websearch-make-cline-smarter',
@@ -134,6 +136,7 @@ export const PLATFORMS = [
   },
   {
     id: 'windsurf',
+    sharedAgentsDir: true,
     name: 'Windsurf',
     keywords: ['windsurf', 'cascade', 'codeium'],
     docs: 'https://docs.devinenterprise.com/desktop/cascade/skills',
@@ -204,6 +207,7 @@ export const PLATFORMS = [
   },
   {
     id: 'openclaw',
+    sharedAgentsDir: true,
     name: 'OpenClaw',
     keywords: ['openclaw', 'open claw'],
     docs: 'https://docs.openclaw.ai/cli/skills',
@@ -234,7 +238,6 @@ export const PLATFORMS = [
   },
   {
     id: 'antigravity',
-    sharedAgentsDir: true,
     name: 'Antigravity',
     keywords: ['antigravity', 'google antigravity'],
     docs: 'https://antigravity.google/docs/skills/',
@@ -255,6 +258,7 @@ export const PLATFORMS = [
   },
   {
     id: 'pi',
+    sharedAgentsDir: true,
     name: 'Pi Agent',
     keywords: ['pi', 'pi agent', 'earendil'],
     docs: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md',
@@ -265,6 +269,7 @@ export const PLATFORMS = [
   },
   {
     id: 'deepseek-harness',
+    sharedAgentsDir: true,
     name: 'DeepSeek Harness',
     keywords: ['deepseek-harness', 'deepseek harness', 'dsh'],
     docs: 'https://skillvetai.com/deepseek-harness/skill-compatibility/',

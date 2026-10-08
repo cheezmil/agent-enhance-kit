@@ -14,12 +14,13 @@ transferBackupKeep: 3
 genTargetMode: 2
 
 # 说明（genTargetMode: 1 时的分工）——
-# 使用共用目录 ~/.agents/skills 的 agent：
-#   codex、cursor、vscode、copilot、gemini、antigravity
+# 使用共用目录 ~/.agents/skills 的 agent（全局与项目都读，可完全走共用）：
+#   codex、cursor、vscode、copilot、gemini、opencode、windsurf、cline、pi、
+#   openclaw、deepseek-harness
 # 不共用目录、始终写入自身工作目录的 agent：
-#   claude、claude-desktop、cherry-studio、chatbox、continue、cline、windsurf、
-#   kilocode、hermes、openclaw、qoder、qwencode、kiro、pi、deepseek-harness、
-#   zcode、trae、trae-cn、opencode
+#   claude、claude-desktop、cherry-studio、chatbox、continue、kilocode、hermes、
+#   qoder、qwencode、antigravity、kiro、workbuddy、zcode、trae、trae-cn
+# 注：antigravity、kilocode 只在项目级读 .agents/skills，全局仍用各自目录，故归为“不共用”。
 
 # 默认生成到的工具列表（不带 --tools 时生效），不填写则生成全部
 # 示例：[hermes, deepseek-harness]
