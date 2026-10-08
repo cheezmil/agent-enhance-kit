@@ -229,6 +229,16 @@ export const PLATFORMS = [
     projectPath: ['.qoder', 'skills'],
   },
   {
+    id: 'qoder-cn',
+    name: 'Qoder CN',
+    keywords: ['qoder-cn', 'qoder cn', 'qoder 国内版', 'qoderdomestic'],
+    docs: 'https://docs.qoder.com/cli/plugins',
+    unixPath: ['.qoder-cn', 'skills'],
+    winPath: ['.qoder-cn', 'skills'],
+    winBase: 'home',
+    projectPath: ['.qoder-cn', 'skills'],
+  },
+  {
     id: 'qwencode',
     sharedAgentsDir: true,
     name: 'QWencode',
@@ -252,6 +262,7 @@ export const PLATFORMS = [
   },
   {
     id: 'kiro',
+    sharedAgentsDir: 'project',
     name: 'Kiro',
     keywords: ['kiro', 'kiro agent'],
     docs: 'https://kiro.dev/docs/cli/skills/',
@@ -295,6 +306,7 @@ export const PLATFORMS = [
   },
   {
     id: 'trae',
+    sharedAgentsDir: 'project',
     name: 'Trae',
     keywords: ['trae', 'bytedance', 'trae ide'],
     docs: 'https://www.flowtools.co/trae',
@@ -305,6 +317,7 @@ export const PLATFORMS = [
   },
   {
     id: 'trae-cn',
+    sharedAgentsDir: 'project',
     name: 'Trae-CN',
     keywords: ['trae-cn', 'trae cn', 'bytedance', 'trae chinese'],
     docs: 'https://www.trae.cn',

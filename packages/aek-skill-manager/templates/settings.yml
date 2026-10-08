@@ -18,10 +18,9 @@ genTargetMode: 2
 #   codex、cursor、vscode、copilot、gemini、opencode、windsurf、cline、pi、
 #   openclaw、deepseek-harness、qwencode、kilocode
 # B. 只在项目级读 .agents/skills（项目 gen 走共用；全局 gen 仍走各自目录）：
-#   hermes、antigravity
+#   hermes、antigravity、trae、trae-cn、kiro
 # C. 不共用、始终写各自目录：
-#   claude、claude-desktop、cherry-studio、chatbox、continue、qoder、kiro、
-#   workbuddy、zcode、trae、trae-cn
+#   claude、claude-desktop、cherry-studio、chatbox、continue、qoder、workbuddy、zcode
 # 判据来自逐个 clone 源码 grep（qwen/kilocode/opencode/cline/pi/hermes/continue/
 # gemini/claude 实测）或官方文档；闭源 IDE 无法核实者留在 C，避免误判把 skill 丢掉。
 

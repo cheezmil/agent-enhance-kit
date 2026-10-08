@@ -25,10 +25,11 @@ test('usesSharedGenDir: mode 1 only for sharedAgentsDir platforms', () => {
   }
   // 只在项目级读 .agents（全局用各自目录）→ 按不共用处理
   assert.equal(usesSharedGenDir(byId('antigravity'), 1), false);
-  // hermes / antigravity 仅项目级共用，全局不共用
-  assert.equal(usesSharedGenDir(byId('hermes'), 1, 'project'), true);
-  assert.equal(usesSharedGenDir(byId('hermes'), 1, 'global'), false);
-  assert.equal(usesSharedGenDir(byId('antigravity'), 1, 'project'), true);
+  // hermes / antigravity / trae / trae-cn / kiro 仅项目级共用，全局不共用
+  for (const id of ['hermes', 'antigravity', 'trae', 'trae-cn', 'kiro']) {
+    assert.equal(usesSharedGenDir(byId(id), 1, 'project'), true, `${id} 项目应共用`);
+    assert.equal(usesSharedGenDir(byId(id), 1, 'global'), false, `${id} 全局不应共用`);
+  }
   // both 类工具两种 scope 都共用
   assert.equal(usesSharedGenDir(byId('codex'), 1, 'project'), true);
   assert.equal(usesSharedGenDir(byId('codex'), 1, 'global'), true);

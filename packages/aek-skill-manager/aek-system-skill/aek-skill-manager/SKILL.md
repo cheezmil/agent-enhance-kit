@@ -91,7 +91,7 @@ aeksm
 
 ## Supported Tools
 
-`claude` · `claude-desktop` · `cherry-studio` · `chatbox` · `cline` · `codex` · `continue` · `copilot` · `cursor` · `gemini` · `hermes` · `opencode` · `openclaw` · `pi` · `qoder` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `vscode` · `windsurf` · `workbuddy` · `zcode` · `trae` · `trae-cn` · `deepseek-harness`
+`claude` · `claude-desktop` · `cherry-studio` · `chatbox` · `cline` · `codex` · `continue` · `copilot` · `cursor` · `gemini` · `hermes` · `opencode` · `openclaw` · `pi` · `qoder` · `qoder-cn` · `qwencode` · `antigravity` · `kiro` · `kilocode` · `vscode` · `windsurf` · `workbuddy` · `zcode` · `trae` · `trae-cn` · `deepseek-harness`
 
 ## 生成目标模式（genTargetMode）
 
@@ -103,10 +103,10 @@ aeksm
 共用目录 `~/.agents/skills`（项目 `.agents/skills`）是厂商中立约定（Codex 发起、`npx skills` 生态）。是否读、在哪个作用域读，由 `src/skills.js` 各平台的 `sharedAgentsDir` 标记决定：`true`/`'both'`＝全局+项目都读、`'project'`＝仅项目读、`'global'`＝仅全局读。
 
 - A 全局+项目都读：`codex` · `cursor` · `vscode` · `copilot` · `gemini` · `opencode` · `windsurf` · `cline` · `pi` · `openclaw` · `deepseek-harness` · `qwencode` · `kilocode`
-- B 仅项目级读（全局 gen 仍走各自目录）：`hermes` · `antigravity`
-- C 不共用、写各自目录：`claude`、`claude-desktop`、`cherry-studio`、`chatbox`、`continue`、`qoder`、`kiro`、`workbuddy`、`zcode`、`trae`、`trae-cn`
+- B 仅项目级读 `.agents/skills`（全局 gen 仍走各自目录）：`hermes` · `antigravity` · `trae` · `trae-cn` · `kiro`
+- C 不共用、写各自目录：`claude`、`claude-desktop`、`cherry-studio`、`chatbox`、`continue`、`qoder`、`qoder-cn`、`workbuddy`、`zcode`
 
-> 判据：开源工具逐个 clone 源码 grep 核实（qwen `SKILL_PROVIDER_CONFIG_DIRS=['.qwen','.agents']`；hermes `PROJECT_SKILLS_SUBDIRS` 含 `.agents/skills`；opencode/cline/pi/gemini/kilocode 源码均有 `.agents`；claude 官方打包 grep 只见 plugin 的 `agents` 键、无 `.agents/skills`；continue 源码无 `.agents`）。闭源 IDE（trae/qoder/zcode/kiro/workbuddy）无法核实者留 C——误判成共用会把 skill 丢进没人读的目录，宁可保守。要覆盖某个闭源工具，改它平台的 `sharedAgentsDir` 即可。
+> 判据：开源工具逐个 clone 源码 grep 核实（qwen `SKILL_PROVIDER_CONFIG_DIRS=['.qwen','.agents']`；hermes `PROJECT_SKILLS_SUBDIRS` 含 `.agents/skills`；opencode/cline/pi/gemini/kilocode 源码均有 `.agents`；claude 官方打包 grep 只见 plugin 的 `agents` 键、无 `.agents/skills`；continue 源码无 `.agents`）。Trae/Trae-CN 官方有“启用 .agents 技能目录”的项目级开关、Kiro 社区 issue 在加 `.agents/skills` 支持，故归 B（仅项目）。Qoder CN 自身系统提示词只认 `~/.qoder-cn`＋项目、不读 `~/.agents/skills`，归 C。误判成共用会把 skill 丢进没人读的目录，宁可保守；要覆盖某工具改其平台 `sharedAgentsDir` 即可。
 
 ## 性能优化
 
